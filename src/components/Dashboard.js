@@ -16,9 +16,13 @@ import {
   People as PeopleIcon,
   Work as WorkIcon,
   CalendarToday as CalendarIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  ArrowForward as ArrowForwardIcon,
+  Assessment as AssessmentIcon,
+  Schedule as ScheduleIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 
 const Dashboard = () => {
@@ -26,6 +30,7 @@ const Dashboard = () => {
   const [recentCases, setRecentCases] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,22 +55,66 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  const StatCard = ({ title, value, icon, color, onClick }) => (
-    <Card sx={{ cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
-      <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
+  const StatCard = ({ title, value, icon, color, onClick, trend }) => (
+    <Card 
+      sx={{ 
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': onClick ? {
+          transform: 'translateY(-2px)',
+          boxShadow: '0 8px 25px 0 rgba(0, 0, 0, 0.1)',
+        } : {},
+      }} 
+      onClick={onClick}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Box display="flex" alignItems="flex-start" justifyContent="space-between" mb={2}>
           <Box>
-            <Typography color="textSecondary" gutterBottom variant="h6">
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ fontWeight: 500, mb: 1 }}
+            >
               {title}
             </Typography>
-            <Typography variant="h4" component="h2">
+            <Typography 
+              variant="h3" 
+              component="h2" 
+              sx={{ fontWeight: 700, color: 'text.primary' }}
+            >
               {value || 0}
             </Typography>
+            {trend && (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: trend > 0 ? 'success.main' : 'error.main',
+                  fontWeight: 500,
+                  mt: 0.5,
+                  display: 'block'
+                }}
+              >
+                {trend > 0 ? '+' : ''}{trend}% from last month
+              </Typography>
+            )}
           </Box>
-          <Box sx={{ color: color }}>
+          <Box 
+            sx={{ 
+              p: 1.5,
+              borderRadius: 2,
+              backgroundColor: `${color}15`,
+              color: color,
+            }}
+          >
             {icon}
           </Box>
         </Box>
+        {onClick && (
+          <Box display="flex" alignItems="center" sx={{ color: 'primary.main', fontSize: '0.875rem', fontWeight: 500 }}>
+            View details
+            <ArrowForwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
@@ -82,13 +131,18 @@ const Dashboard = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          Welcome back, {user?.first_name || 'User'}
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Here's what's happening with your cases today
+        </Typography>
+      </Box>
 
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Cases"
@@ -96,6 +150,7 @@ const Dashboard = () => {
             icon={<WorkIcon fontSize="large" />}
             color="primary.main"
             onClick={() => navigate('/cases')}
+            trend={12}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -105,23 +160,26 @@ const Dashboard = () => {
             icon={<PeopleIcon fontSize="large" />}
             color="secondary.main"
             onClick={() => navigate('/clients')}
+            trend={8}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Upcoming Appointments"
             value={stats.upcoming_appointments}
-            icon={<CalendarIcon fontSize="large" />}
+            icon={<ScheduleIcon fontSize="large" />}
             color="success.main"
             onClick={() => navigate('/calendar')}
+            trend={-3}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Debt Managed"
             value={formatCurrency(stats.total_debt_managed)}
-            icon={<TrendingUpIcon fontSize="large" />}
+            icon={<AssessmentIcon fontSize="large" />}
             color="warning.main"
+            trend={15}
           />
         </Grid>
       </Grid>
@@ -129,99 +187,148 @@ const Dashboard = () => {
       <Grid container spacing={3}>
         {/* Recent Cases */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Recent Cases</Typography>
-              <Button size="small" onClick={() => navigate('/cases')}>
+          <Paper sx={{ p: 3, height: 'fit-content' }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Recent Cases</Typography>
+              <Button 
+                size="small" 
+                onClick={() => navigate('/cases')}
+                endIcon={<ArrowForwardIcon />}
+                sx={{ fontWeight: 500 }}
+              >
                 View All
               </Button>
             </Box>
-            <List>
-              {recentCases.slice(0, 5).map((case_item) => (
-                <ListItem
+            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+              {recentCases.slice(0, 5).map((case_item, index) => (
+                <Box
                   key={case_item.id}
-                  sx={{ cursor: 'pointer' }}
+                  sx={{
+                    p: 2,
+                    mb: index < recentCases.slice(0, 5).length - 1 ? 2 : 0,
+                    borderRadius: 2,
+                    border: '1px solid #e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      borderColor: 'primary.main',
+                    },
+                  }}
                   onClick={() => navigate(`/cases/${case_item.id}`)}
                 >
-                  <ListItemText
-                    primary={`${case_item.client_name} - ${case_item.case_number}`}
-                    secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Stage: {case_item.debt_stage || 'Not set'}
-                        </Typography>
-                        <Box mt={0.5}>
-                          <Chip
-                            label={case_item.priority}
-                            size="small"
-                            color={
-                              case_item.priority === 'urgent' ? 'error' :
-                              case_item.priority === 'high' ? 'warning' :
-                              case_item.priority === 'medium' ? 'info' : 'default'
-                            }
-                          />
-                          <Chip
-                            label={case_item.status}
-                            size="small"
-                            sx={{ ml: 1 }}
-                            color={case_item.status === 'active' ? 'success' : 'default'}
-                          />
-                        </Box>
-                      </Box>
-                    }
-                  />
-                </ListItem>
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {case_item.client_name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {case_item.case_number}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    Stage: {case_item.debt_stage || 'Not set'}
+                  </Typography>
+                  <Box display="flex" gap={1}>
+                    <Chip
+                      label={case_item.priority}
+                      size="small"
+                      variant="outlined"
+                      color={
+                        case_item.priority === 'urgent' ? 'error' :
+                        case_item.priority === 'high' ? 'warning' :
+                        case_item.priority === 'medium' ? 'info' : 'default'
+                      }
+                    />
+                    <Chip
+                      label={case_item.status}
+                      size="small"
+                      color={case_item.status === 'active' ? 'success' : 'default'}
+                    />
+                  </Box>
+                </Box>
               ))}
-            </List>
+              {recentCases.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No recent cases found
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Paper>
         </Grid>
 
         {/* Upcoming Appointments */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6">Today's Appointments</Typography>
-              <Button size="small" onClick={() => navigate('/calendar')}>
+          <Paper sx={{ p: 3, height: 'fit-content' }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>Today's Appointments</Typography>
+              <Button 
+                size="small" 
+                onClick={() => navigate('/calendar')}
+                endIcon={<ArrowForwardIcon />}
+                sx={{ fontWeight: 500 }}
+              >
                 View Calendar
               </Button>
             </Box>
-            <List>
-              {upcomingAppointments.slice(0, 5).map((appointment) => (
-                <ListItem key={appointment.id}>
-                  <ListItemText
-                    primary={appointment.title}
-                    secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {appointment.client_name} - {new Date(appointment.appointment_date).toLocaleTimeString('en-GB', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </Typography>
-                        <Box mt={0.5}>
-                          <Chip
-                            label={appointment.status}
-                            size="small"
-                            color={
-                              appointment.status === 'confirmed' ? 'success' :
-                              appointment.status === 'scheduled' ? 'info' : 'default'
-                            }
-                          />
-                          {appointment.client_confirmed && (
-                            <Chip
-                              label="Client Confirmed"
-                              size="small"
-                              color="success"
-                              sx={{ ml: 1 }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    }
-                  />
-                </ListItem>
+            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+              {upcomingAppointments.slice(0, 5).map((appointment, index) => (
+                <Box
+                  key={appointment.id}
+                  sx={{
+                    p: 2,
+                    mb: index < upcomingAppointments.slice(0, 5).length - 1 ? 2 : 0,
+                    borderRadius: 2,
+                    border: '1px solid #e2e8f0',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {appointment.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
+                      {new Date(appointment.appointment_date).toLocaleTimeString('en-GB', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    {appointment.client_name}
+                  </Typography>
+                  <Box display="flex" gap={1}>
+                    <Chip
+                      label={appointment.status}
+                      size="small"
+                      color={
+                        appointment.status === 'confirmed' ? 'success' :
+                        appointment.status === 'scheduled' ? 'info' : 'default'
+                      }
+                    />
+                    {appointment.client_confirmed && (
+                      <Chip
+                        label="Client Confirmed"
+                        size="small"
+                        variant="outlined"
+                        color="success"
+                      />
+                    )}
+                  </Box>
+                </Box>
               ))}
-            </List>
+              {upcomingAppointments.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No appointments scheduled for today
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Paper>
         </Grid>
       </Grid>

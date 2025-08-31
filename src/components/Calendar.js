@@ -17,13 +17,19 @@ import {
   ListItemText,
   Chip,
   IconButton,
-  Paper
+  Paper,
+  FormControlLabel,
+  Switch,
+  Avatar,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Event as EventIcon
+  Event as EventIcon,
+  CalendarToday as CalendarIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import dayjs from 'dayjs';
@@ -36,6 +42,8 @@ const Calendar = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [appointmentDialog, setAppointmentDialog] = useState(false);
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState([]);
   const [newAppointment, setNewAppointment] = useState({
     case_id: '',
     user_id: '',
@@ -56,13 +64,16 @@ const Calendar = () => {
 
   const fetchAppointments = async () => {
     try {
+      const token = localStorage.getItem('token');
       const startDate = selectedDate.startOf('day').toISOString();
       const endDate = selectedDate.endOf('day').toISOString();
       
-      const response = await axios.get('/appointments', {
+      const response = await axios.get('/api/appointments', {
+        headers: { 'Authorization': `Bearer ${token}` },
         params: {
           start_date: startDate,
-          end_date: endDate
+          end_date: endDate,
+          user_ids: showAllUsers ? selectedUsers.join(',') : undefined
         }
       });
       setAppointments(response.data);
@@ -75,7 +86,10 @@ const Calendar = () => {
 
   const fetchCases = async () => {
     try {
-      const response = await axios.get('/cases?status=active&limit=100');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/cases?status=active&limit=100', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       setCases(response.data);
     } catch (error) {
       console.error('Error fetching cases:', error);
@@ -84,8 +98,12 @@ const Calendar = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('/users');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       setUsers(response.data);
+      setSelectedUsers(response.data.map(u => u.id));
     } catch (error) {
       console.error('Error fetching users:', error);
     }
@@ -102,7 +120,10 @@ const Calendar = () => {
         appointment_date: appointmentDateTime.toISOString()
       };
 
-      await axios.post('/appointments', appointmentData);
+      const token = localStorage.getItem('token');
+      await axios.post('/api/appointments', appointmentData, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       fetchAppointments();
       setAppointmentDialog(false);
       setNewAppointment({
@@ -123,7 +144,10 @@ const Calendar = () => {
 
   const updateAppointmentStatus = async (appointmentId, status) => {
     try {
-      await axios.put(`/appointments/${appointmentId}`, { status });
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/appointments/${appointmentId}`, { status }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
@@ -149,25 +173,78 @@ const Calendar = () => {
   }
 
   return (
-    <Box>
+    <Box className="fade-in" sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Calendar</Typography>
+        <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>Calendar</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setAppointmentDialog(true)}
+          className="gradient-button"
+          sx={{ textTransform: 'none' }}
         >
           New Appointment
         </Button>
       </Box>
 
+      {/* User Filter Section */}
+      <Card className="modern-card" sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PeopleIcon /> Staff View
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showAllUsers}
+                  onChange={(e) => {
+                    setShowAllUsers(e.target.checked);
+                    if (!e.target.checked) {
+                      setSelectedUsers(users.map(u => u.id));
+                    }
+                  }}
+                />
+              }
+              label="Show all centre staff"
+            />
+          </Box>
+          {showAllUsers && (
+            <Box>
+              <Typography variant="body2" color="textSecondary" mb={2}>
+                Select staff members to view their appointments:
+              </Typography>
+              <Box display="flex" flexWrap="wrap" gap={1}>
+                {users.map((user) => (
+                  <Chip
+                    key={user.id}
+                    avatar={<Avatar sx={{ bgcolor: 'primary.main' }}>{user.first_name[0]}</Avatar>}
+                    label={`${user.first_name} ${user.last_name}`}
+                    variant={selectedUsers.includes(user.id) ? 'filled' : 'outlined'}
+                    color={selectedUsers.includes(user.id) ? 'primary' : 'default'}
+                    onClick={() => {
+                      setSelectedUsers(prev => 
+                        prev.includes(user.id) 
+                          ? prev.filter(id => id !== user.id)
+                          : [...prev, user.id]
+                      );
+                    }}
+                    sx={{ cursor: 'pointer' }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
       <Grid container spacing={3}>
         {/* Date Picker */}
         <Grid item xs={12} md={3}>
-          <Card>
+          <Card className="modern-card">
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Select Date
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarIcon /> Select Date
               </Typography>
               <DatePicker
                 value={selectedDate}
@@ -180,11 +257,16 @@ const Calendar = () => {
 
         {/* Appointments for Selected Date */}
         <Grid item xs={12} md={9}>
-          <Card>
+          <Card className="modern-card">
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Appointments for {selectedDate.format('dddd, MMMM D, YYYY')}
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EventIcon /> Appointments for {selectedDate.format('dddd, MMMM D, YYYY')}
               </Typography>
+              {showAllUsers && selectedUsers.length > 0 && (
+                <Typography variant="body2" color="textSecondary" mb={2}>
+                  Showing appointments for {selectedUsers.length} staff member{selectedUsers.length !== 1 ? 's' : ''}
+                </Typography>
+              )}
               
               {appointments.length === 0 ? (
                 <Box textAlign="center" py={4}>
@@ -215,6 +297,9 @@ const Calendar = () => {
                             </Typography>
                             <Typography variant="body2" color="textSecondary" gutterBottom>
                               {appointment.client_name} - {appointment.case_number}
+                            </Typography>
+                            <Typography variant="body2" color="primary" gutterBottom>
+                              Advisor: {appointment.advisor_name}
                             </Typography>
                             <Typography variant="body2" gutterBottom>
                               {new Date(appointment.appointment_date).toLocaleTimeString('en-GB', {

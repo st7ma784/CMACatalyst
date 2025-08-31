@@ -18,13 +18,23 @@ import {
   DialogContent,
   DialogActions,
   Grid,
-  Chip
+  Chip,
+  Card,
+  CardContent,
+  Avatar,
+  Skeleton,
+  Fade
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Edit as EditIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Warning as WarningIcon,
+  FilterList as FilterIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -41,10 +51,13 @@ const ClientList = () => {
     phone: '',
     address: '',
     date_of_birth: '',
+    national_insurance_number: '',
     relationship_status: '',
     dependents: 0,
     employment_status: ''
   });
+  const [errors, setErrors] = useState({});
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +66,11 @@ const ClientList = () => {
 
   const fetchClients = async () => {
     try {
-      const response = await axios.get('/clients', {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/clients', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         params: { search, limit: 50 }
       });
       setClients(response.data.clients || response.data);
@@ -64,9 +81,49 @@ const ClientList = () => {
     }
   };
 
+  // Validate phone number format
+  const validatePhoneNumber = (phone) => {
+    if (!phone) return true; // Phone is optional
+    const ukPhoneRegex = /^(\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}$|^(\+44\s?[1-9]\d{2,4}|\(?0[1-9]\d{2,4}\)?)\s?\d{3,6}$/;
+    return ukPhoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
+  // Validate form data
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!newClient.first_name.trim()) {
+      newErrors.first_name = 'First name is required';
+    }
+    
+    if (!newClient.last_name.trim()) {
+      newErrors.last_name = 'Last name is required';
+    }
+    
+    if (newClient.email && !/\S+@\S+\.\S+/.test(newClient.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    if (newClient.phone && !validatePhoneNumber(newClient.phone)) {
+      newErrors.phone = 'Please enter a valid UK phone number';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleCreateClient = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
-      const response = await axios.post('/clients', newClient);
+      const token = localStorage.getItem('token');
+      const response = await axios.post('/api/clients', newClient, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setClients([response.data.client, ...clients]);
       setOpenDialog(false);
       setNewClient({
@@ -76,12 +133,20 @@ const ClientList = () => {
         phone: '',
         address: '',
         date_of_birth: '',
+        national_insurance_number: '',
         relationship_status: '',
         dependents: 0,
         employment_status: ''
       });
+      setErrors({});
+      setDuplicateWarning(null);
     } catch (error) {
       console.error('Error creating client:', error);
+      if (error.response?.status === 409) {
+        setDuplicateWarning(error.response.data.message);
+      } else {
+        setErrors({ general: 'Failed to create client. Please try again.' });
+      }
     }
   };
 
@@ -92,93 +157,216 @@ const ClientList = () => {
     }));
   };
 
+  const filteredClients = clients.filter(client => 
+    client.first_name.toLowerCase().includes(search.toLowerCase()) || 
+    client.last_name.toLowerCase().includes(search.toLowerCase()) || 
+    client.email.toLowerCase().includes(search.toLowerCase()) || 
+    client.phone.toLowerCase().includes(search.toLowerCase())
+  );
+
   if (loading) {
-    return <Typography>Loading clients...</Typography>;
+    return (
+      <Grid container spacing={3}>
+        {[...Array(6)].map((_, index) => (
+          <Grid item xs={12} sm={6} md={4} key={index}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <Skeleton variant="circular" width={48} height={48} />
+                  <Box ml={2} flex={1}>
+                    <Skeleton variant="text" width="60%" />
+                    <Skeleton variant="text" width="40%" />
+                  </Box>
+                </Box>
+                <Skeleton variant="text" />
+                <Skeleton variant="text" width="80%" />
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    );
   }
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Clients</Typography>
+    <Box sx={{ p: { xs: 2, md: 0 } }}>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          Clients
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Manage your client database and case assignments
+        </Typography>
+      </Box>
+      
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} gap={2} flexWrap="wrap">
+        <Box display="flex" gap={2} alignItems="center" flex={1}>
+          <TextField
+            placeholder="Search clients..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: 300 }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<FilterIcon />}
+            sx={{ minWidth: 'auto' }}
+          >
+            Filter
+          </Button>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setOpenDialog(true)}
+          sx={{ minWidth: 'auto' }}
         >
           Add Client
         </Button>
       </Box>
 
-      <Box mb={3}>
-        <TextField
-          fullWidth
-          placeholder="Search clients..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Phone</TableCell>
-              <TableCell>Cases</TableCell>
-              <TableCell>Last Updated</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {clients.map((client) => (
-              <TableRow key={client.id}>
-                <TableCell>
-                  <Typography variant="subtitle2">
-                    {client.first_name} {client.last_name}
-                  </Typography>
-                </TableCell>
-                <TableCell>{client.email || '-'}</TableCell>
-                <TableCell>{client.phone || '-'}</TableCell>
-                <TableCell>
-                  <Chip 
-                    label={client.case_count || 0} 
-                    size="small" 
-                    color={client.case_count > 0 ? 'primary' : 'default'}
-                  />
-                </TableCell>
-                <TableCell>
-                  {client.last_case_update ? 
-                    new Date(client.last_case_update).toLocaleDateString() : 
-                    new Date(client.created_at).toLocaleDateString()
-                  }
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    size="small"
-                    onClick={() => navigate(`/clients/${client.id}`)}
-                  >
-                    <ViewIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
+      {filteredClients.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <PersonIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No clients found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {search ? 'Try adjusting your search criteria' : 'Get started by adding your first client'}
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenDialog(true)}
+          >
+            Add Client
+          </Button>
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredClients.map((client, index) => (
+            <Fade in={true} timeout={300 + index * 100} key={client.id}>
+              <Grid item xs={12} sm={6} md={4}>
+                <Card 
+                  sx={{ 
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: '0 8px 25px 0 rgba(0, 0, 0, 0.1)',
+                    },
+                  }}
+                  onClick={() => navigate(`/clients/${client.id}`)}
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Box display="flex" alignItems="center" mb={2}>
+                      <Avatar 
+                        sx={{ 
+                          width: 48, 
+                          height: 48, 
+                          backgroundColor: 'primary.main',
+                          mr: 2
+                        }}
+                      >
+                        <PersonIcon />
+                      </Avatar>
+                      <Box flex={1}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          {client.first_name} {client.last_name}
+                        </Typography>
+                        <Chip
+                          label={client.status || 'Active'}
+                          color={client.status === 'Active' ? 'success' : 'default'}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Box>
+                    </Box>
+                    
+                    <Box sx={{ mb: 2 }}>
+                      {client.email && (
+                        <Box display="flex" alignItems="center" mb={1}>
+                          <EmailIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
+                          <Typography variant="body2" color="text.secondary" noWrap>
+                            {client.email}
+                          </Typography>
+                        </Box>
+                      )}
+                      {client.phone && (
+                        <Box display="flex" alignItems="center">
+                          <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary', mr: 1 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            {client.phone}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                    
+                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                      <Typography variant="caption" color="text.secondary">
+                        {client.case_count || 0} active cases
+                      </Typography>
+                      <Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/clients/${client.id}`);
+                          }}
+                          sx={{ mr: 1 }}
+                        >
+                          <ViewIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Handle edit
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Fade>
+          ))}
+        </Grid>
+      )}
+      
       {/* Add Client Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Add New Client</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {duplicateWarning && (
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <WarningIcon color="warning" />
+                  <Typography variant="body2" color="warning.dark">
+                    {duplicateWarning}
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
+            {errors.general && (
+              <Grid item xs={12}>
+                <Box sx={{ p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="error.dark">
+                    {errors.general}
+                  </Typography>
+                </Box>
+              </Grid>
+            )}
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -186,6 +374,8 @@ const ClientList = () => {
                 required
                 value={newClient.first_name}
                 onChange={(e) => handleInputChange('first_name', e.target.value)}
+                error={!!errors.first_name}
+                helperText={errors.first_name}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -195,6 +385,8 @@ const ClientList = () => {
                 required
                 value={newClient.last_name}
                 onChange={(e) => handleInputChange('last_name', e.target.value)}
+                error={!!errors.last_name}
+                helperText={errors.last_name}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -204,6 +396,8 @@ const ClientList = () => {
                 type="email"
                 value={newClient.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
+                error={!!errors.email}
+                helperText={errors.email}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -212,6 +406,8 @@ const ClientList = () => {
                 label="Phone"
                 value={newClient.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
+                error={!!errors.phone}
+                helperText={errors.phone || "UK format: 07123 456789 or +44 7123 456789"}
               />
             </Grid>
             <Grid item xs={12}>

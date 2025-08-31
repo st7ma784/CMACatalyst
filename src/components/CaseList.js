@@ -86,7 +86,7 @@ const CaseList = () => {
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
-            placeholder="Search cases..."
+            placeholder="Search by client name, case number, phone, email, NI number, or debt stage..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{

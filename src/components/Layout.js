@@ -29,11 +29,14 @@ import {
   ExitToApp as LogoutIcon,
   AutoMode as WorkflowIcon,
   ContactMail as ReferralIcon,
-  AutoFixHigh as AutoActionIcon
+  AutoFixHigh as AutoActionIcon,
+  Palette as BrandingIcon,
+  NotificationsNone as NotificationsIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
-const drawerWidth = 240;
+const drawerWidth = 280;
 
 const Layout = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,34 +76,152 @@ const Layout = ({ children }) => {
   if (user?.role === 'manager') {
     menuItems.push(
       { text: 'User Management', icon: <SupervisorIcon />, path: '/users' },
-      { text: 'Auto Actions', icon: <AutoActionIcon />, path: '/auto-actions' }
+      { text: 'Auto Actions', icon: <AutoActionIcon />, path: '/auto-actions' },
+      { text: 'Branding', icon: <BrandingIcon />, path: '/branding' }
     );
   }
 
   const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 3, borderBottom: '1px solid #e2e8f0' }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main', mb: 0.5 }}>
           CMA System
         </Typography>
-      </Toolbar>
-      <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
-            >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </div>
+        <Typography variant="body2" color="text.secondary">
+          Case Management
+        </Typography>
+      </Box>
+      
+      <Box sx={{ flex: 1, py: 2 }}>
+        <Typography variant="overline" sx={{ px: 3, mb: 1, display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
+          Main
+        </Typography>
+        <List sx={{ px: 2 }}>
+          {menuItems.slice(0, 4).map((item) => (
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    '& .MuiListItemIcon-root': {
+                      color: 'white',
+                    },
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text} 
+                  primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+        
+        {menuItems.length > 4 && (
+          <>
+            <Typography variant="overline" sx={{ px: 3, mb: 1, mt: 3, display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
+              AI & Automation
+            </Typography>
+            <List sx={{ px: 2 }}>
+              {menuItems.slice(4, 6).map((item) => (
+                <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      borderRadius: 2,
+                      '&.Mui-selected': {
+                        backgroundColor: 'secondary.main',
+                        color: 'white',
+                        '& .MuiListItemIcon-root': {
+                          color: 'white',
+                        },
+                        '&:hover': {
+                          backgroundColor: 'secondary.dark',
+                        },
+                      },
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.text} 
+                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </>
+        )}
+        
+        {user?.role === 'manager' && menuItems.length > 6 && (
+          <>
+            <Typography variant="overline" sx={{ px: 3, mb: 1, mt: 3, display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
+              Management
+            </Typography>
+            <List sx={{ px: 2 }}>
+              {menuItems.slice(6).map((item) => (
+                <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    selected={location.pathname === item.path}
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      borderRadius: 2,
+                      '&.Mui-selected': {
+                        backgroundColor: 'warning.main',
+                        color: 'white',
+                        '& .MuiListItemIcon-root': {
+                          color: 'white',
+                        },
+                        '&:hover': {
+                          backgroundColor: 'warning.dark',
+                        },
+                      },
+                      '&:hover': {
+                        backgroundColor: 'action.hover',
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.text} 
+                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </>
+        )}
+      </Box>
+      
+      <Box sx={{ p: 2, borderTop: '1px solid #e2e8f0' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
+          v2.1.0 • Production Ready
+        </Typography>
+      </Box>
+    </Box>
   );
 
   return (
@@ -108,9 +229,13 @@ const Layout = ({ children }) => {
       <CssBaseline />
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          backgroundColor: 'background.paper',
+          borderBottom: '1px solid #e2e8f0',
+          color: 'text.primary',
         }}
       >
         <Toolbar>
@@ -123,19 +248,32 @@ const Layout = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             {user?.centre_name || 'Community Money Advice Centre'}
           </Typography>
-          <div>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton size="small" sx={{ color: 'text.secondary' }}>
+              <NotificationsIcon />
+            </IconButton>
+            <IconButton size="small" sx={{ color: 'text.secondary' }}>
+              <SettingsIcon />
+            </IconButton>
             <IconButton
-              size="large"
+              size="small"
               aria-label="account of current user"
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleMenu}
-              color="inherit"
+              sx={{ ml: 1 }}
             >
-              <Avatar sx={{ width: 32, height: 32 }}>
+              <Avatar sx={{ 
+                width: 36, 
+                height: 36, 
+                backgroundColor: 'primary.main',
+                fontSize: '0.875rem',
+                fontWeight: 600
+              }}>
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </Avatar>
             </IconButton>
@@ -173,7 +311,7 @@ const Layout = ({ children }) => {
                 <ListItemText>Logout</ListItemText>
               </MenuItem>
             </Menu>
-          </div>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box
