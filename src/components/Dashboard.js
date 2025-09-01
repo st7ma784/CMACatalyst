@@ -10,7 +10,9 @@ import {
   ListItem,
   ListItemText,
   Chip,
-  Button
+  Button,
+  LinearProgress,
+  Divider
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -19,7 +21,9 @@ import {
   TrendingUp as TrendingUpIcon,
   ArrowForward as ArrowForwardIcon,
   Assessment as AssessmentIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +33,8 @@ const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [recentCases, setRecentCases] = useState([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [complianceDashboard, setComplianceDashboard] = useState(null);
+  const [casesByStatus, setCasesByStatus] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -36,15 +42,39 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsRes, casesRes, appointmentsRes] = await Promise.all([
+        const [statsRes, casesRes, appointmentsRes, complianceRes, statusRes] = await Promise.all([
           axios.get('/centres/1/stats'), // Will be dynamic based on user's centre
-          axios.get('/cases?limit=5'),
-          axios.get('/appointments?start_date=' + new Date().toISOString().split('T')[0] + '&limit=5')
+          axios.get('/api/cases?limit=5', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          }),
+          axios.get('/appointments?start_date=' + new Date().toISOString().split('T')[0] + '&limit=5'),
+          axios.get('/api/compliance/fca/dashboard', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          }),
+          axios.get('/api/cases/status-options', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          })
         ]);
 
         setStats(statsRes.data);
         setRecentCases(casesRes.data);
         setUpcomingAppointments(appointmentsRes.data);
+        setComplianceDashboard(complianceRes.data);
+        
+        // Group cases by status
+        const statusCounts = {};
+        casesRes.data.forEach(caseItem => {
+          const status = caseItem.status || 'unknown';
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        const statusOptions = statusRes.data;
+        const statusData = statusOptions.map(option => ({
+          ...option,
+          count: statusCounts[option.value] || 0
+        }));
+        
+        setCasesByStatus(statusData);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -126,6 +156,25 @@ const Dashboard = () => {
     }).format(amount || 0);
   };
 
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'first_enquiry': 'info',
+      'fact_finding': 'primary',
+      'assessment_complete': 'secondary',
+      'debt_options_presented': 'warning',
+      'solution_agreed': 'success',
+      'implementation': 'primary',
+      'monitoring': 'info',
+      'review_due': 'warning',
+      'closure_pending': 'secondary',
+      'closed': 'success',
+      'referred_external': 'default',
+      'on_hold': 'default',
+      'cancelled': 'error'
+    };
+    return statusColors[status] || 'default';
+  };
+
   if (loading) {
     return <Typography>Loading dashboard...</Typography>;
   }
@@ -185,77 +234,161 @@ const Dashboard = () => {
       </Grid>
 
       <Grid container spacing={3}>
+        {/* Case Status Overview */}
+        <Grid container spacing={3} sx={{ mt: 2 }}>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <AssessmentIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6">Cases by Status</Typography>
+                </Box>
+                <List dense>
+                  {casesByStatus.filter(status => status.count > 0).map((status) => (
+                    <ListItem key={status.value}>
+                      <ListItemText
+                        primary={
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="body2">{status.label}</Typography>
+                            <Chip
+                              label={status.count}
+                              color={getStatusColor(status.value)}
+                              size="small"
+                            />
+                          </Box>
+                        }
+                        secondary={status.description}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* FCA Compliance Overview */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <CheckCircleIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6">FCA Compliance Overview</Typography>
+                </Box>
+                {complianceDashboard ? (
+                  <Box>
+                    <Box mb={2}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Overall Completion Rate
+                      </Typography>
+                      <LinearProgress
+                        variant="determinate"
+                        value={complianceDashboard.overall?.avg_completion_percentage || 0}
+                        sx={{ height: 8, borderRadius: 4 }}
+                        color={complianceDashboard.overall?.avg_completion_percentage >= 80 ? 'success' : 'warning'}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {Math.round(complianceDashboard.overall?.avg_completion_percentage || 0)}% complete
+                      </Typography>
+                    </Box>
+                    
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Cases Requiring Attention
+                    </Typography>
+                    {complianceDashboard.attention_required?.length > 0 ? (
+                      <List dense>
+                        {complianceDashboard.attention_required.slice(0, 3).map((caseItem) => (
+                          <ListItem key={caseItem.case_id} sx={{ px: 0 }}>
+                            <ListItemText
+                              primary={caseItem.client_name}
+                              secondary={`${caseItem.completed_mandatory_items}/${caseItem.mandatory_items} mandatory items`}
+                            />
+                            <WarningIcon color="warning" fontSize="small" />
+                          </ListItem>
+                        ))}
+                      </List>
+                    ) : (
+                      <Typography variant="body2" color="success.main">
+                        All cases are compliant!
+                      </Typography>
+                    )}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Loading compliance data...
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
         {/* Recent Cases */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, height: 'fit-content' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>Recent Cases</Typography>
-              <Button 
-                size="small" 
-                onClick={() => navigate('/cases')}
-                endIcon={<ArrowForwardIcon />}
-                sx={{ fontWeight: 500 }}
-              >
-                View All
-              </Button>
-            </Box>
-            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-              {recentCases.slice(0, 5).map((case_item, index) => (
-                <Box
-                  key={case_item.id}
-                  sx={{
-                    p: 2,
-                    mb: index < recentCases.slice(0, 5).length - 1 ? 2 : 0,
-                    borderRadius: 2,
-                    border: '1px solid #e2e8f0',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out',
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                      borderColor: 'primary.main',
-                    },
-                  }}
-                  onClick={() => navigate(`/cases/${case_item.id}`)}
-                >
-                  <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {case_item.client_name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {case_item.case_number}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    Stage: {case_item.debt_stage || 'Not set'}
-                  </Typography>
-                  <Box display="flex" gap={1}>
-                    <Chip
-                      label={case_item.priority}
-                      size="small"
-                      variant="outlined"
-                      color={
-                        case_item.priority === 'urgent' ? 'error' :
-                        case_item.priority === 'high' ? 'warning' :
-                        case_item.priority === 'medium' ? 'info' : 'default'
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" mb={2}>
+                <WorkIcon color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">Recent Cases</Typography>
+              </Box>
+              <List>
+                {recentCases.map((caseItem) => (
+                  <ListItem key={caseItem.id} divider>
+                    <ListItemText
+                      primary={
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body1">
+                            {caseItem.client_name} - {caseItem.case_number}
+                          </Typography>
+                          <Chip
+                            label={caseItem.status?.replace('_', ' ') || 'Unknown'}
+                            color={getStatusColor(caseItem.status)}
+                            size="small"
+                          />
+                        </Box>
+                      }
+                      secondary={
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Debt: {formatCurrency(caseItem.total_debt)} | Stage: {caseItem.debt_stage}
+                          </Typography>
+                          {caseItem.compliance_completion_percentage !== undefined && (
+                            <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                              <Typography variant="caption" color="text.secondary">
+                                FCA Compliance: {caseItem.compliance_completion_percentage}%
+                              </Typography>
+                              <LinearProgress
+                                variant="determinate"
+                                value={caseItem.compliance_completion_percentage}
+                                sx={{ width: 60, height: 4 }}
+                                color={caseItem.compliance_completion_percentage >= 80 ? 'success' : 'warning'}
+                              />
+                            </Box>
+                          )}
+                        </Box>
                       }
                     />
                     <Chip
-                      label={case_item.status}
+                      label={caseItem.priority}
+                      color={caseItem.priority === 'high' ? 'error' : caseItem.priority === 'medium' ? 'warning' : 'default'}
                       size="small"
-                      color={case_item.status === 'active' ? 'success' : 'default'}
                     />
-                  </Box>
-                </Box>
-              ))}
-              {recentCases.length === 0 && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    No recent cases found
-                  </Typography>
-                </Box>
-              )}
-            </Box>
-          </Paper>
+                  </ListItem>
+                ))}
+              </List>
+              <Box mt={2}>
+                <Button
+                  variant="outlined"
+                  endIcon={<ArrowForwardIcon />}
+                  onClick={() => navigate('/cases')}
+                  fullWidth
+                >
+                  View All Cases
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
         </Grid>
 
         {/* Upcoming Appointments */}

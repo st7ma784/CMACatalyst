@@ -5,39 +5,37 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
-  Button,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Tabs,
   Tab,
+  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
   MenuItem,
+  Checkbox,
+  FormControlLabel,
   List,
   ListItem,
   ListItemText,
+  ListItemSecondaryAction,
   IconButton,
-  Divider
+  Chip,
+  Grid,
+  Divider,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
-  Download as DownloadIcon,
-  Add as AddIcon,
-  Note as NoteIcon,
-  AttachFile as AttachFileIcon,
-  Mail as MailIcon,
-  Assessment as AssessmentIcon
+  Edit as EditIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import FCAComplianceChecklist from './FCAComplianceChecklist';
 
 const CaseDetail = () => {
   const { id } = useParams();
@@ -48,14 +46,18 @@ const CaseDetail = () => {
   const [files, setFiles] = useState([]);
   const [letters, setLetters] = useState([]);
   const [debtRecommendations, setDebtRecommendations] = useState(null);
+  const [statusOptions, setStatusOptions] = useState([]);
+  const [statusDialog, setStatusDialog] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusNotes, setStatusNotes] = useState('');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   // Dialog states
   const [assetDialog, setAssetDialog] = useState(false);
+  const [addAssetDialog, setAddAssetDialog] = useState(false);
+  const [addDebtDialog, setAddDebtDialog] = useState(false);
   const [debtDialog, setDebtDialog] = useState(false);
   const [noteDialog, setNoteDialog] = useState(false);
-  const [appointmentDialog, setAppointmentDialog] = useState(false);
-  
-  // Form states
   const [newAsset, setNewAsset] = useState({
     asset_type: '',
     description: '',
@@ -77,6 +79,11 @@ const CaseDetail = () => {
 
   useEffect(() => {
     fetchCaseData();
+    fetchNotes();
+    fetchFiles();
+    fetchLetters();
+    fetchDebtRecommendations();
+    fetchStatusOptions();
   }, [id]);
 
   useEffect(() => {
@@ -126,11 +133,68 @@ const CaseDetail = () => {
 
   const fetchDebtRecommendations = async () => {
     try {
-      const response = await axios.get(`/debt-tools/recommendations/${id}`);
+      const response = await axios.get(`/api/debt-tools/recommendations/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
       setDebtRecommendations(response.data);
     } catch (error) {
       console.error('Error fetching debt recommendations:', error);
     }
+  };
+
+  const fetchStatusOptions = async () => {
+    try {
+      const response = await axios.get('/api/cases/status-options', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setStatusOptions(response.data);
+    } catch (error) {
+      console.error('Error fetching status options:', error);
+    }
+  };
+
+  const handleStatusUpdate = async () => {
+    try {
+      await axios.put(`/api/cases/${id}/status`, {
+        status: newStatus,
+        notes: statusNotes
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      
+      setSnackbar({ open: true, message: 'Case status updated successfully', severity: 'success' });
+      setStatusDialog(false);
+      setNewStatus('');
+      setStatusNotes('');
+      fetchCaseData();
+      fetchNotes();
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Error updating case status', severity: 'error' });
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const statusColors = {
+      'first_enquiry': 'info',
+      'fact_finding': 'primary',
+      'assessment_complete': 'secondary',
+      'debt_options_presented': 'warning',
+      'solution_agreed': 'success',
+      'implementation': 'primary',
+      'monitoring': 'info',
+      'review_due': 'warning',
+      'closure_pending': 'secondary',
+      'closed': 'success',
+      'referred_external': 'default',
+      'on_hold': 'default',
+      'cancelled': 'error'
+    };
+    return statusColors[status] || 'default';
+  };
+
+  const getStatusLabel = (status) => {
+    const option = statusOptions.find(opt => opt.value === status);
+    return option ? option.label : status;
   };
 
   const handleAddAsset = async () => {
@@ -148,7 +212,7 @@ const CaseDetail = () => {
     try {
       await axios.post(`/cases/${id}/debts`, newDebt);
       fetchCaseData();
-      setDebtDialog(false);
+      setAddDebtDialog(false);
       setNewDebt({ creditor_name: '', debt_type: '', current_balance: '', minimum_payment: '', is_priority: false });
     } catch (error) {
       console.error('Error adding debt:', error);
@@ -273,97 +337,45 @@ const CaseDetail = () => {
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+          <Tab label="Overview" />
           <Tab label="Assets & Debts" />
           <Tab label="Notes" />
           <Tab label="Files" />
           <Tab label="Letters" />
           <Tab label="Debt Tools" />
+          <Tab label="FCA Compliance" />
         </Tabs>
       </Box>
 
       {/* Tab Content */}
       {tabValue === 0 && (
         <Grid container spacing={3}>
-          {/* Assets */}
           <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="h6">Assets</Typography>
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => setAssetDialog(true)}
-                  >
-                    Add Asset
-                  </Button>
-                </Box>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Value</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {caseData.assets?.map((asset) => (
-                        <TableRow key={asset.id}>
-                          <TableCell>{asset.asset_type}</TableCell>
-                          <TableCell>{asset.description}</TableCell>
-                          <TableCell>{formatCurrency(asset.estimated_value)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Debts */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="h6">Debts</Typography>
-                  <Button
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => setDebtDialog(true)}
-                  >
-                    Add Debt
-                  </Button>
-                </Box>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Creditor</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Balance</TableCell>
-                        <TableCell>Priority</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {caseData.debts?.map((debt) => (
-                        <TableRow key={debt.id}>
-                          <TableCell>{debt.creditor_name}</TableCell>
-                          <TableCell>{debt.debt_type}</TableCell>
-                          <TableCell>{formatCurrency(debt.current_balance)}</TableCell>
-                          <TableCell>
-                            {debt.is_priority && (
-                              <Chip label="Priority" size="small" color="error" />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
+            <Typography variant="h6" gutterBottom>
+              Case #{caseData.case_number}
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Client: {caseData.client_name}
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Advisor: {caseData.advisor_name || 'Unassigned'}
+            </Typography>
+            <Box display="flex" alignItems="center" gap={1} mt={1}>
+              <Chip 
+                label={getStatusLabel(caseData.status)}
+                color={getStatusColor(caseData.status)}
+                size="small"
+              />
+              <IconButton 
+                size="small" 
+                onClick={() => {
+                  setNewStatus(caseData.status);
+                  setStatusDialog(true);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Grid>
         </Grid>
       )}
@@ -413,38 +425,24 @@ const CaseDetail = () => {
               Recommended Debt Solutions
             </Typography>
             <Grid container spacing={2}>
-              {debtRecommendations.recommendations.map((tool) => (
-                <Grid item xs={12} md={6} key={tool.id}>
+              {debtRecommendations.recommendations.map((rec, index) => (
+                <Grid item xs={12} md={6} key={index}>
                   <Card variant="outlined">
                     <CardContent>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                        <Typography variant="h6">{tool.name}</Typography>
-                        <Chip
-                          label={tool.recommendation_level.replace('_', ' ')}
-                          color={
-                            tool.recommendation_level === 'highly_recommended' ? 'success' :
-                            tool.recommendation_level === 'suitable' ? 'info' :
-                            tool.recommendation_level === 'consider' ? 'warning' : 'default'
-                          }
-                        />
-                      </Box>
-                      <Typography variant="body2" color="textSecondary" paragraph>
-                        {tool.description}
+                      <Typography variant="h6" gutterBottom>
+                        {rec.name}
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        Suitability Score: {tool.suitability_score}%
+                      <Typography variant="body2" color="text.secondary" paragraph>
+                        {rec.description}
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        Pros:
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Suitability Score:</strong> {rec.suitability_score}/10
                       </Typography>
-                      <Typography variant="body2" paragraph>
-                        {tool.pros}
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Pros:</strong> {rec.pros}
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        Cons:
-                      </Typography>
-                      <Typography variant="body2">
-                        {tool.cons}
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Cons:</strong> {rec.cons}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -453,6 +451,16 @@ const CaseDetail = () => {
             </Grid>
           </CardContent>
         </Card>
+      )}
+
+      {/* FCA Compliance Tab */}
+      {tabValue === 5 && (
+        <FCAComplianceChecklist 
+          caseId={id} 
+          onUpdate={() => {
+            setSnackbar({ open: true, message: 'Compliance checklist updated', severity: 'success' });
+          }}
+        />
       )}
 
       {/* Add Asset Dialog */}
@@ -605,6 +613,73 @@ const CaseDetail = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Status Update Dialog */}
+      <Dialog open={statusDialog} onClose={() => setStatusDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Case Status</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>New Status</InputLabel>
+                <Select
+                  value={newStatus}
+                  label="New Status"
+                  onChange={(e) => setNewStatus(e.target.value)}
+                >
+                  {statusOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      <Box>
+                        <Typography variant="body1">{option.label}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.description}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes (optional)"
+                multiline
+                rows={3}
+                value={statusNotes}
+                onChange={(e) => setStatusNotes(e.target.value)}
+                placeholder="Add notes about this status change..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={handleStatusUpdate} 
+            variant="contained"
+            disabled={!newStatus || newStatus === caseData?.status}
+            startIcon={<CheckCircleIcon />}
+          >
+            Update Status
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

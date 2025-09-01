@@ -80,10 +80,10 @@ const Login = () => {
                 mb: 1
               }}
             >
-              CMA System
+              MordecAI
             </Typography>
             <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
-              Community Money Advice Case Management
+              A powerful Advisor tool in the CMA community
             </Typography>
           </Box>
           

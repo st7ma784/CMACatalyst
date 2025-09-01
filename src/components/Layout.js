@@ -249,7 +249,7 @@ const Layout = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {user?.centre_name || 'Community Money Advice Centre'}
+            {user?.centre_name || 'MordecAI - CMA Advisor Tool'}
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
