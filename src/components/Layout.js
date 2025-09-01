@@ -32,7 +32,10 @@ import {
   AutoFixHigh as AutoActionIcon,
   Palette as BrandingIcon,
   NotificationsNone as NotificationsIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Assignment as TaskIcon,
+  Business as BusinessIcon,
+  Description as TemplateIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -68,6 +71,8 @@ const Layout = ({ children }) => {
     { text: 'Clients', icon: <PeopleIcon />, path: '/clients' },
     { text: 'Cases', icon: <WorkIcon />, path: '/cases' },
     { text: 'Calendar', icon: <CalendarIcon />, path: '/calendar' },
+    { text: 'Tasks', icon: <TaskIcon />, path: '/tasks' },
+    { text: 'Creditors', icon: <BusinessIcon />, path: '/creditors' },
     { text: 'AI Workflows', icon: <WorkflowIcon />, path: '/workflows' },
     { text: 'Digital Referrals', icon: <ReferralIcon />, path: '/referrals' },
   ];
@@ -76,6 +81,7 @@ const Layout = ({ children }) => {
   if (user?.role === 'manager') {
     menuItems.push(
       { text: 'User Management', icon: <SupervisorIcon />, path: '/users' },
+      { text: 'Letter Templates', icon: <TemplateIcon />, path: '/letter-templates' },
       { text: 'Auto Actions', icon: <AutoActionIcon />, path: '/auto-actions' },
       { text: 'Branding', icon: <BrandingIcon />, path: '/branding' }
     );
@@ -97,7 +103,7 @@ const Layout = ({ children }) => {
           Main
         </Typography>
         <List sx={{ px: 2 }}>
-          {menuItems.slice(0, 4).map((item) => (
+          {menuItems.slice(0, 6).map((item) => (
             <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 selected={location.pathname === item.path}
@@ -131,13 +137,13 @@ const Layout = ({ children }) => {
           ))}
         </List>
         
-        {menuItems.length > 4 && (
+        {menuItems.length > 6 && (
           <>
             <Typography variant="overline" sx={{ px: 3, mb: 1, mt: 3, display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
               AI & Automation
             </Typography>
             <List sx={{ px: 2 }}>
-              {menuItems.slice(4, 6).map((item) => (
+              {menuItems.slice(6, 8).map((item) => (
                 <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                   <ListItemButton
                     selected={location.pathname === item.path}
@@ -173,13 +179,13 @@ const Layout = ({ children }) => {
           </>
         )}
         
-        {user?.role === 'manager' && menuItems.length > 6 && (
+        {user?.role === 'manager' && menuItems.length > 8 && (
           <>
             <Typography variant="overline" sx={{ px: 3, mb: 1, mt: 3, display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary' }}>
               Management
             </Typography>
             <List sx={{ px: 2 }}>
-              {menuItems.slice(6).map((item) => (
+              {menuItems.slice(8).map((item) => (
                 <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                   <ListItemButton
                     selected={location.pathname === item.path}

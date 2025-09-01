@@ -13,7 +13,10 @@ import ClientDetail from './components/ClientDetail';
 import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
 import Calendar from './components/Calendar';
+import Tasks from './components/Tasks';
+import Creditors from './components/Creditors';
 import UserManagement from './components/UserManagement';
+import LetterTemplates from './components/LetterTemplates';
 import AgenticWorkflow from './components/AgenticWorkflow';
 import DigitalReferrals from './components/DigitalReferrals';
 import AutoActions from './components/AutoActions';
@@ -227,6 +230,27 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Calendar />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Tasks />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/creditors" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Creditors />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/letter-templates" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LetterTemplates />
                   </Layout>
                 </ProtectedRoute>
               } />

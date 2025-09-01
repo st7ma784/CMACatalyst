@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
-  Typography,
   Card,
   CardContent,
-  Tabs,
-  Tab,
+  Typography,
   Button,
+  Grid,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -17,25 +21,25 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Checkbox,
-  FormControlLabel,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Chip,
-  Grid,
-  Divider,
+  Tabs,
+  Tab,
   Alert,
+  Divider,
+  IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   Snackbar
 } from '@mui/material';
 import {
   Edit as EditIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Download as DownloadIcon,
+  Note as NoteIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import FCAComplianceChecklist from './FCAComplianceChecklist';
+import DocumentUpload from './DocumentUpload';
 
 const CaseDetail = () => {
   const { id } = useParams();
@@ -341,6 +345,7 @@ const CaseDetail = () => {
           <Tab label="Assets & Debts" />
           <Tab label="Notes" />
           <Tab label="Files" />
+          <Tab label="Document Upload" />
           <Tab label="Letters" />
           <Tab label="Debt Tools" />
           <Tab label="FCA Compliance" />
@@ -418,7 +423,18 @@ const CaseDetail = () => {
         </Card>
       )}
 
-      {tabValue === 4 && debtRecommendations && (
+      {/* Document Upload Tab */}
+      {tabValue === 4 && (
+        <DocumentUpload 
+          caseId={id} 
+          onUploadComplete={() => {
+            fetchFiles();
+            setSnackbar({ open: true, message: 'Document processed successfully', severity: 'success' });
+          }}
+        />
+      )}
+
+      {tabValue === 6 && debtRecommendations && (
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -454,7 +470,7 @@ const CaseDetail = () => {
       )}
 
       {/* FCA Compliance Tab */}
-      {tabValue === 5 && (
+      {tabValue === 7 && (
         <FCAComplianceChecklist 
           caseId={id} 
           onUpdate={() => {

@@ -42,34 +42,36 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsRes, casesRes, appointmentsRes, complianceRes, statusRes] = await Promise.all([
-          axios.get('/centres/1/stats'), // Will be dynamic based on user's centre
+        const [dashboardRes, casesRes] = await Promise.all([
+          axios.get('/api/dashboard', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          }),
           axios.get('/api/cases?limit=5', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-          }),
-          axios.get('/appointments?start_date=' + new Date().toISOString().split('T')[0] + '&limit=5'),
-          axios.get('/api/compliance/fca/dashboard', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-          }),
-          axios.get('/api/cases/status-options', {
             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
           })
         ]);
 
-        setStats(statsRes.data);
-        setRecentCases(casesRes.data);
-        setUpcomingAppointments(appointmentsRes.data);
-        setComplianceDashboard(complianceRes.data);
+        const dashboardData = dashboardRes.data;
+        setStats(dashboardData.caseStats);
+        setRecentCases(dashboardData.recentCases || []);
+        setUpcomingAppointments(dashboardData.upcomingAppointments || []);
         
-        // Group cases by status
+        // Group cases by status from the actual cases data
         const statusCounts = {};
-        casesRes.data.forEach(caseItem => {
+        const casesData = Array.isArray(casesRes.data) ? casesRes.data : [];
+        casesData.forEach(caseItem => {
           const status = caseItem.status || 'unknown';
           statusCounts[status] = (statusCounts[status] || 0) + 1;
         });
         
-        const statusOptions = statusRes.data;
-        const statusData = statusOptions.map(option => ({
+        // Create status data with default options
+        const defaultStatuses = [
+          { value: 'active', label: 'Active' },
+          { value: 'closed', label: 'Closed' },
+          { value: 'pending', label: 'Pending' }
+        ];
+        
+        const statusData = defaultStatuses.map(option => ({
           ...option,
           count: statusCounts[option.value] || 0
         }));
@@ -195,7 +197,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Cases"
-            value={stats.active_cases}
+            value={stats?.active_cases || 0}
             icon={<WorkIcon fontSize="large" />}
             color="primary.main"
             onClick={() => navigate('/cases')}
@@ -205,7 +207,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Clients"
-            value={stats.total_clients}
+            value={stats?.total_clients || 0}
             icon={<PeopleIcon fontSize="large" />}
             color="secondary.main"
             onClick={() => navigate('/clients')}
@@ -215,7 +217,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Upcoming Appointments"
-            value={stats.upcoming_appointments}
+            value={stats?.upcoming_appointments || 0}
             icon={<ScheduleIcon fontSize="large" />}
             color="success.main"
             onClick={() => navigate('/calendar')}
@@ -225,7 +227,7 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Debt Managed"
-            value={formatCurrency(stats.total_debt_managed)}
+            value={formatCurrency(stats?.total_debt_managed || 0)}
             icon={<AssessmentIcon fontSize="large" />}
             color="warning.main"
             trend={15}
