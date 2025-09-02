@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-system
+  labels:
+    name: cma-system
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-frontend
+  labels:
+    name: cma-frontend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-api
+  labels:
+    name: cma-api
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-ai
+  labels:
+    name: cma-ai
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-data
+  labels:
+    name: cma-data
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-monitoring
+  labels:
+    name: cma-monitoring

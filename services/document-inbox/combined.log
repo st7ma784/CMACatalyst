@@ -1,0 +1,10 @@
+{"address":"172.18.0.2","code":"ECONNREFUSED","errno":-111,"level":"error","message":"RabbitMQ connection failed: connect ECONNREFUSED 172.18.0.2:5672","port":5672,"stack":"Error: connect ECONNREFUSED 172.18.0.2:5672\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)","syscall":"connect","timestamp":"2025-09-01T12:23:35.929Z"}
+{"level":"info","message":"Document Inbox Service running on port 3001","timestamp":"2025-09-01T12:23:35.934Z"}
+{"address":"172.18.0.3","code":"ECONNREFUSED","errno":-111,"level":"error","message":"RabbitMQ connection failed: connect ECONNREFUSED 172.18.0.3:5672","port":5672,"stack":"Error: connect ECONNREFUSED 172.18.0.3:5672\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)","syscall":"connect","timestamp":"2025-09-01T20:08:43.721Z"}
+{"level":"info","message":"Document Inbox Service running on port 3001","timestamp":"2025-09-01T20:08:43.725Z"}
+{"address":"172.18.0.3","code":"ECONNREFUSED","errno":-111,"level":"error","message":"RabbitMQ connection failed: connect ECONNREFUSED 172.18.0.3:5672","port":5672,"stack":"Error: connect ECONNREFUSED 172.18.0.3:5672\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)","syscall":"connect","timestamp":"2025-09-01T20:21:24.396Z"}
+{"level":"info","message":"Document Inbox Service running on port 3001","timestamp":"2025-09-01T20:21:24.400Z"}
+{"address":"172.18.0.2","code":"ECONNREFUSED","errno":-111,"level":"error","message":"RabbitMQ connection failed: connect ECONNREFUSED 172.18.0.2:5672","port":5672,"stack":"Error: connect ECONNREFUSED 172.18.0.2:5672\n    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)","syscall":"connect","timestamp":"2025-09-01T21:03:16.211Z"}
+{"level":"info","message":"Document Inbox Service running on port 3001","timestamp":"2025-09-01T21:03:16.219Z"}
+{"level":"info","message":"Connected to RabbitMQ","timestamp":"2025-09-01T21:48:26.262Z"}
+{"level":"info","message":"Document Inbox Service running on port 3001","timestamp":"2025-09-01T21:48:26.265Z"}

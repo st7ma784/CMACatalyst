@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: cma_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/migrations:/docker-entrypoint-initdb.d/migrations
+    networks:
+      - mordecai-network
+
+  # Minio for S3-compatible local storage
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_DEFAULT_BUCKETS: mordecai-documents
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - mordecai-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # RabbitMQ for message queuing
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"  # AMQP
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - mordecai-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Document Inbox Service
+  document-inbox:
+    build: ./services/document-inbox
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - AWS_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - AWS_REGION=us-east-1
+      - S3_BUCKET=mordecai-documents
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - EMAIL_DOMAIN=mordecai.local
+    ports:
+      - "3001:3001"
+    depends_on:
+      - minio
+      - rabbitmq
+    networks:
+      - mordecai-network
+    volumes:
+      - ./services/document-inbox:/app
+      - /app/node_modules
+
+  # OCR Processor Service
+  ocr-processor:
+    build: ./services/ocr-processor
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - AWS_ENDPOINT=http://minio:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin123
+      - AWS_REGION=us-east-1
+      - S3_BUCKET=mordecai-documents
+      - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+      - USE_AWS_TEXTRACT=false
+    ports:
+      - "3002:3002"
+    depends_on:
+      - minio
+      - rabbitmq
+    networks:
+      - mordecai-network
+    volumes:
+      - ./services/ocr-processor:/app
+      - /app/node_modules
+
+  # Main MordecAI Application
+  mordecai-app:
+    build: .
+    environment:
+      - NODE_ENV=development
+      - PORT=5010
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=cma_system
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DOCUMENT_INBOX_URL=http://document-inbox:3001
+      - OCR_PROCESSOR_URL=http://ocr-processor:3002
+    ports:
+      - "5010:5010"
+    depends_on:
+      - postgres
+      - document-inbox
+      - ocr-processor
+    networks:
+      - mordecai-network
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/client/node_modules
+
+volumes:
+  postgres_data:
+  minio_data:
+  rabbitmq_data:
+
+networks:
+  mordecai-network:
+    driver: bridge
