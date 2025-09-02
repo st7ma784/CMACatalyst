@@ -1,0 +1,159 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Ramp up load"
+    - duration: 300
+      arrivalRate: 20
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 5
+      name: "Cool down"
+  payload:
+    path: "load-test-data.csv"
+    fields:
+      - "username"
+      - "password"
+      - "client_id"
+      - "case_id"
+  plugins:
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+  ensure:
+    p95: 2000
+    p99: 5000
+    maxErrorRate: 1
+
+scenarios:
+  - name: "Authentication Load Test"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ username }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - think: 2
+      - get:
+          url: "/api/auth/me"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "Client Management Load Test"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ username }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/clients"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 1
+      - get:
+          url: "/api/clients/{{ client_id }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 2
+      - post:
+          url: "/api/clients"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            first_name: "LoadTest"
+            last_name: "Client{{ $randomInt(1, 1000) }}"
+            email: "loadtest{{ $randomInt(1, 1000) }}@example.com"
+            phone: "07700{{ $randomInt(100000, 999999) }}"
+            address: "{{ $randomInt(1, 100) }} Test Street"
+
+  - name: "Case Management Load Test"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ username }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/cases"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 2
+      - get:
+          url: "/api/cases/{{ case_id }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 1
+      - get:
+          url: "/api/cases/{{ case_id }}/notes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - post:
+          url: "/api/cases/{{ case_id }}/notes"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            content: "Load test note {{ $timestamp() }}"
+            category: "General"
+            is_private: false
+
+  - name: "Dashboard Load Test"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ username }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - get:
+          url: "/api/centres/1/stats"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/cases?limit=5"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - get:
+          url: "/api/appointments?limit=5"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+
+  - name: "AI Workflow Load Test"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ username }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      - post:
+          url: "/api/agentic-workflow/execute"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            workflow_type: "COMPREHENSIVE_CASE_REVIEW"
+            case_id: "{{ case_id }}"
+            parameters:
+              include_risk_assessment: true
+              generate_advice_letter: false
