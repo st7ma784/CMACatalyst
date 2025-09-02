@@ -21,3 +21,5 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+services/document-inbox/node_modules/
+services/ocr-processor/node_modules/
