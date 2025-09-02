@@ -81,6 +81,7 @@ const Layout = ({ children }) => {
   if (user?.role === 'manager') {
     menuItems.push(
       { text: 'User Management', icon: <SupervisorIcon />, path: '/users' },
+      { text: 'Center Management', icon: <BusinessIcon />, path: '/center' },
       { text: 'Letter Templates', icon: <TemplateIcon />, path: '/letter-templates' },
       { text: 'Auto Actions', icon: <AutoActionIcon />, path: '/auto-actions' },
       { text: 'Branding', icon: <BrandingIcon />, path: '/branding' }

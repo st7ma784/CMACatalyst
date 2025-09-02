@@ -21,6 +21,8 @@ import AgenticWorkflow from './components/AgenticWorkflow';
 import DigitalReferrals from './components/DigitalReferrals';
 import AutoActions from './components/AutoActions';
 import BrandingManagement from './components/BrandingManagement';
+import CenterManagement from './components/CenterManagement';
+import NetworkRegistration from './components/NetworkRegistration';
 
 const theme = createTheme({
   palette: {
@@ -191,6 +193,7 @@ function App() {
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<NetworkRegistration />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout>
@@ -258,6 +261,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <UserManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/center" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <CenterManagement />
                   </Layout>
                 </ProtectedRoute>
               } />

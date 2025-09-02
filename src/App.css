@@ -20,6 +20,51 @@
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
+/* Improved modal styling */
+.MuiDialog-paper {
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(20px) !important;
+  max-height: 90vh !important;
+  margin: 16px !important;
+}
+
+.MuiDialogTitle-root {
+  padding: 24px 24px 16px 24px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.MuiDialogContent-root {
+  padding: 24px !important;
+  padding-top: 20px !important;
+}
+
+.MuiDialogActions-root {
+  padding: 16px 24px 24px 24px !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  gap: 12px !important;
+}
+
+/* Better form field spacing */
+.MuiFormControl-root {
+  margin-bottom: 16px !important;
+}
+
+.MuiTextField-root {
+  margin-bottom: 16px !important;
+}
+
+/* Improved card content padding */
+.MuiCardContent-root {
+  padding: 24px !important;
+}
+
+.MuiCardContent-root:last-child {
+  padding-bottom: 24px !important;
+}
+
 /* Smooth animations */
 .fade-in {
   animation: fadeIn 0.6s ease-out;
@@ -38,20 +83,20 @@
 
 /* Custom button styling */
 .gradient-button {
-  background: linear-gradient(45deg, #667eea, #764ba2);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  padding: 12px 24px;
-  font-weight: 600;
-  text-transform: none;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s ease;
+  background: linear-gradient(45deg, #667eea, #764ba2) !important;
+  border: none !important;
+  border-radius: 12px !important;
+  color: white !important;
+  padding: 12px 24px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3) !important;
+  transition: all 0.3s ease !important;
 }
 
 .gradient-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
 }
 
 /* Glass morphism effect */
@@ -65,23 +110,75 @@
 
 /* Improved table styling */
 .modern-table {
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
 }
 
 .modern-table .MuiTableHead-root {
-  background: linear-gradient(45deg, #667eea, #764ba2);
+  background: linear-gradient(45deg, #667eea, #764ba2) !important;
 }
 
 .modern-table .MuiTableHead-root .MuiTableCell-root {
-  color: white;
-  font-weight: 600;
-  border: none;
+  color: white !important;
+  font-weight: 600 !important;
+  border: none !important;
+  padding: 16px !important;
+}
+
+.modern-table .MuiTableCell-root {
+  padding: 16px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
 
 .modern-table .MuiTableRow-root:hover {
-  background-color: rgba(102, 126, 234, 0.05);
+  background-color: rgba(102, 126, 234, 0.05) !important;
+}
+
+/* Better list styling */
+.MuiListItem-root {
+  padding: 16px !important;
+  border-radius: 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.MuiListItemText-root {
+  margin: 0 !important;
+}
+
+/* Improved chip styling */
+.MuiChip-root {
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  height: auto !important;
+  padding: 4px 8px !important;
+}
+
+/* Better paper styling */
+.MuiPaper-root {
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Calendar specific styling */
+.calendar-day {
+  min-height: 100px !important;
+  padding: 8px !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.calendar-day:hover {
+  background-color: rgba(102, 126, 234, 0.1) !important;
+  transform: translateY(-2px) !important;
+}
+
+.calendar-appointment {
+  font-size: 0.65rem !important;
+  height: 18px !important;
+  margin-bottom: 2px !important;
+  border-radius: 4px !important;
 }
 
 /* Custom scrollbar */
@@ -97,6 +194,18 @@
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(45deg, #667eea, #764ba2);
   border-radius: 4px;
+}
+
+/* Loading and empty states */
+.empty-state {
+  text-align: center !important;
+  padding: 48px 24px !important;
+}
+
+.empty-state-icon {
+  font-size: 48px !important;
+  color: rgba(0, 0, 0, 0.3) !important;
+  margin-bottom: 16px !important;
 }
 
 ::-webkit-scrollbar-thumb:hover {

@@ -183,6 +183,27 @@ const Login = () => {
                 'Sign In to CMA System'
               )}
             </Button>
+            
+            <Box sx={{ textAlign: 'center', mt: 3 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                New center looking to join the network?
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => window.location.href = '/register'}
+                sx={{ 
+                  textTransform: 'none',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  color: 'primary.main',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                  }
+                }}
+              >
+                Register Your Center
+              </Button>
+            </Box>
           </Box>
         </Paper>
       </Container>
