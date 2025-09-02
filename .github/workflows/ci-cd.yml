@@ -133,7 +133,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-  images: ${{ matrix.image }}
+        images: ${{ matrix.image }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -143,13 +143,13 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-  context: ${{ matrix.context }}
-  file: ${{ matrix.dockerfile }}
-  push: true
-  tags: ${{ steps.meta.outputs.tags }}
-  labels: ${{ steps.meta.outputs.labels }}
-  cache-from: type=gha
-  cache-to: type=gha,mode=max
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy-staging:
     needs: build-and-push
