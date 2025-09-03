@@ -42,6 +42,8 @@ const complianceRoutes = require('./routes/compliance');
 const documentRoutes = require('./routes/documents');
 const confirmationOfAdviceRoutes = require('./routes/confirmationOfAdvice');
 const translationRoutes = require('./routes/translation');
+const agenticFlowsRoutes = require('./routes/agenticFlows');
+const agenticDemosRoutes = require('./routes/agenticDemos');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -83,6 +85,10 @@ app.use('/api/compliance', complianceRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/enhanced-notes', confirmationOfAdviceRoutes);
 app.use('/api/translation', translationRoutes);
+app.use('/api/agentic-flows', agenticFlowsRoutes);
+app.use('/api/agentic-demos', agenticDemosRoutes);
+app.use('/api/centres', centreRoutes);
+app.use('/api/users', userRoutes);
 
 // Serve React app
 app.use(express.static(path.join(__dirname, '../client/build')));

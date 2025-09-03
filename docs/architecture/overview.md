@@ -7,72 +7,86 @@ The CMA Case Management System employs a modern, cloud-native architecture desig
 ```{mermaid}
 graph TB
     subgraph "Client Layer"
-        WEB[React Web App]
+        WEB[React Web App with Enhanced Chatbot]
         MOB[Mobile PWA]
         API_CLIENTS[API Clients]
     end
     
-    subgraph "API Gateway Layer"
+    subgraph "Load Balancer"
         NGINX[NGINX Load Balancer]
-        GATEWAY[API Gateway]
-        AUTH[Authentication Service]
     end
     
-    subgraph "Application Layer"
-        CORE[Core API Service]
-        AI[AI Service]
-        DOC[Document Service]
-        NOTIFY[Notification Service]
-        SCHED[Scheduler Service]
+    subgraph "Core Application Services"
+        CORE[Main API Service<br/>Port: 5000]
+        AUTH[Authentication & Authorization]
     end
     
-    subgraph "Data Layer"
-        POSTGRES[PostgreSQL]
-        REDIS[Redis Cache]
-        S3[AWS S3 Storage]
-        ELASTIC[ElasticSearch]
+    subgraph "AI/ML Services (Local)"
+        CHATBOT[Chatbot Service<br/>Port: 8001<br/>LLM + MCP + CoA]
+        TRANSLATE[Translation Service<br/>Port: 8003<br/>Helsinki-NLP Models]
     end
     
-    subgraph "AI/ML Layer"
-        OPENAI[OpenAI API]
-        OCR[OCR Engine]
-        ML[ML Models]
+    subgraph "Document Processing Services"
+        DOC_INBOX[Document Inbox<br/>Port: 3001<br/>Email + Upload]
+        OCR[OCR Processor<br/>Port: 3002<br/>Tesseract + Classification]
+    end
+    
+    subgraph "Data Storage"
+        POSTGRES[PostgreSQL<br/>Primary Database]
+        REDIS[Redis<br/>Cache + Sessions]
+        MINIO[MinIO<br/>S3-Compatible Storage]
+    end
+    
+    subgraph "Message Queue"
+        RABBITMQ[RabbitMQ<br/>Document Processing Queue]
     end
     
     WEB --> NGINX
     MOB --> NGINX
     API_CLIENTS --> NGINX
-    NGINX --> GATEWAY
-    GATEWAY --> AUTH
-    GATEWAY --> CORE
-    GATEWAY --> AI
-    GATEWAY --> DOC
-    GATEWAY --> NOTIFY
-    GATEWAY --> SCHED
     
+    NGINX --> CORE
+    NGINX --> CHATBOT
+    NGINX --> TRANSLATE
+    
+    CORE --> AUTH
     CORE --> POSTGRES
     CORE --> REDIS
-    AI --> OPENAI
-    AI --> ML
-    DOC --> S3
-    DOC --> OCR
-    NOTIFY --> REDIS
-    SCHED --> REDIS
+    CORE --> CHATBOT
+    CORE --> TRANSLATE
     
-    CORE --> ELASTIC
-    DOC --> ELASTIC
+    CHATBOT --> POSTGRES
+    CHATBOT --> REDIS
+    
+    DOC_INBOX --> MINIO
+    DOC_INBOX --> RABBITMQ
+    
+    RABBITMQ --> OCR
+    OCR --> MINIO
+    OCR --> POSTGRES
+    
+    TRANSLATE --> REDIS
 ```
 
 ## Architectural Principles
 
-### 1. **Microservices Architecture**
-The system is decomposed into discrete, loosely-coupled services:
+### 1. **Enhanced Microservices Architecture**
+The system is decomposed into discrete, loosely-coupled services with AI-first design:
 
-- **Core API Service**: Primary business logic and data management
-- **AI Service**: Machine learning and natural language processing
-- **Document Service**: File management and OCR processing
-- **Notification Service**: Multi-channel communication management
-- **Scheduler Service**: Automated task and appointment scheduling
+#### Core Services
+- **Main API Service**: Primary business logic, authentication, case management
+- **Chatbot Service**: Local LLM, MCP endpoints, financial calculations, CoA generation
+- **Translation Service**: Multi-language support using Helsinki-NLP models
+
+#### Document Processing Pipeline  
+- **Document Inbox Service**: Email processing, file upload handling
+- **OCR Processor Service**: Text extraction, document classification (Tesseract-based)
+
+#### Infrastructure Services
+- **PostgreSQL**: Primary data storage with full ACID compliance
+- **Redis**: Session management, caching, real-time data
+- **MinIO**: S3-compatible object storage (local/self-hosted)
+- **RabbitMQ**: Asynchronous message queue for document processing
 
 ### 2. **Multi-Tenant with Data Isolation**
 ```{note}
@@ -123,13 +137,21 @@ Separate read and write operations for optimal performance:
 ### Database
 - **PostgreSQL 15**: Primary relational database
 - **Redis 7**: Caching and session management
-- **ElasticSearch**: Full-text search and analytics
+- **MinIO**: S3-compatible object storage for documents and files
 
-### AI/ML Integration
-- **OpenAI GPT-4**: Natural language processing
-- **Tesseract OCR**: Document text extraction
-- **TensorFlow.js**: Client-side ML models
-- **Python ML Services**: Advanced analytics
+### AI/ML Integration (Local/Open-Source)
+- **Hugging Face Transformers**: Local LLM hosting (DialoGPT, Llama 2)
+- **Helsinki-NLP**: Local translation models for 10+ languages
+- **Tesseract OCR**: Enhanced document text extraction with preprocessing
+- **Natural Language Processing**: Local document classification and analysis
+- **MCP (Model Context Protocol)**: Standardized AI tool access for case data
+
+### AI Features
+- **Financial Calculations**: Automated debt-to-income ratios, payment plans
+- **Case Analysis**: AI-powered insights from case notes and documents  
+- **Confirmation of Advice**: Automated generation from case notes
+- **Multi-Language Support**: Real-time translation for international clients
+- **Local Council Search**: Web search integration for local authority information
 
 ## Security Architecture
 
@@ -215,11 +237,17 @@ sequenceDiagram
 
 ## Integration Points
 
-### External Systems
-- **Credit Reference Agencies**: Experian, Equifax, TransUnion
-- **Government APIs**: HMRC, DWP benefit checking
-- **Banking APIs**: Open Banking for account verification
-- **Document Management**: Integration with existing DMS systems
+### External Systems (Optional)
+- **Credit Reference Agencies**: Experian, Equifax, TransUnion (configurable)
+- **Government APIs**: HMRC, DWP benefit checking (when available)
+- **Banking APIs**: Open Banking for account verification (opt-in)
+- **Translation APIs**: Google Translate (fallback option, data leaves system)
+
+### Local Systems (Primary)
+- **Local LLM**: On-premise AI processing for advice generation and CoA
+- **Helsinki-NLP**: Local translation models (data stays within system)
+- **Tesseract OCR**: Local document processing without external dependencies
+- **MinIO Storage**: Self-hosted S3-compatible storage
 
 ### API Design
 - **RESTful APIs**: Standard HTTP methods and status codes
