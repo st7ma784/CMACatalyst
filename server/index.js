@@ -40,6 +40,8 @@ const digitalReferralsRoutes = require('./routes/digitalReferrals');
 const autoActionsRoutes = require('./routes/autoActions');
 const complianceRoutes = require('./routes/compliance');
 const documentRoutes = require('./routes/documents');
+const confirmationOfAdviceRoutes = require('./routes/confirmationOfAdvice');
+const translationRoutes = require('./routes/translation');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -79,6 +81,8 @@ app.use('/api/document-ocr', documentOCRRoutes);
 app.use('/api/case-filestore', caseFilestoreRoutes);
 app.use('/api/compliance', complianceRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/enhanced-notes', confirmationOfAdviceRoutes);
+app.use('/api/translation', translationRoutes);
 
 // Serve React app
 app.use(express.static(path.join(__dirname, '../client/build')));

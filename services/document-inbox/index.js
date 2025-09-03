@@ -6,27 +6,36 @@ const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 const winston = require('winston');
-const AWS = require('aws-sdk');
 const amqp = require('amqplib');
 const FileStorageService = require('./storage/FileStorageService');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize storage service based on environment
+// Initialize storage service for local MinIO
 const storageConfig = {
-  provider: process.env.STORAGE_PROVIDER || 'minio',
-  bucket: process.env.S3_BUCKET || 'mordecai-documents',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID || process.env.MINIO_ROOT_USER,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || process.env.MINIO_ROOT_PASSWORD,
-  region: process.env.AWS_REGION || 'us-east-1',
+  provider: 'minio',
+  bucket: process.env.MINIO_BUCKET || 'mordecai-documents',
+  accessKeyId: process.env.MINIO_ROOT_USER || 'minioadmin',
+  secretAccessKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin',
   endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9000',
   localPath: process.env.LOCAL_STORAGE_PATH || './storage'
 };
 
 const storageService = new FileStorageService(storageConfig);
-const ses = new AWS.SES();
+
+// Configure nodemailer for local email handling
+const emailTransporter = nodemailer.createTransporter({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: process.env.SMTP_PORT || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: process.env.SMTP_USER ? {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD
+  } : undefined
+});
 
 // Configure logging
 const logger = winston.createLogger({
@@ -244,33 +253,30 @@ app.post('/api/email/webhook', async (req, res) => {
       const fileName = `${fileId}-${attachment.filename}`;
       const s3Key = `cases/${caseId}/email-attachments/${fileName}`;
       
-      // Download attachment and upload to S3
+      // Download attachment and upload to MinIO
       const fileBuffer = Buffer.from(attachment.content, 'base64');
       
-      const uploadParams = {
-        Bucket: process.env.S3_BUCKET || 'mordecai-documents',
-        Key: s3Key,
-        Body: fileBuffer,
-        ContentType: attachment.contentType,
-        Metadata: {
-          caseId: caseId,
+      const uploadResult = await storageService.uploadFile(
+        fileBuffer,
+        s3Key,
+        {
+          contentType: attachment.contentType,
           originalName: attachment.filename,
+          caseId: caseId,
           source: 'email',
           fromEmail: from,
           subject: subject,
-          receivedAt: new Date().toISOString()
+          uploadedAt: new Date().toISOString()
         }
-      };
-      
-      const s3Result = await s3.upload(uploadParams).promise();
+      );
       
       const fileMetadata = {
         fileId,
         caseId,
         originalName: attachment.filename,
         fileName,
-        s3Key,
-        s3Url: s3Result.Location,
+        filePath: uploadResult.key,
+        fileUrl: uploadResult.url,
         mimeType: attachment.contentType,
         size: fileBuffer.length,
         source: 'email',
