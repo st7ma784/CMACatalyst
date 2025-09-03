@@ -233,4 +233,211 @@ router.get('/:id/cases', authenticateToken, async (req, res) => {
     }
 });
 
+// Income routes
+router.get('/:id/income', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_income WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client income error:', error);
+        res.status(500).json({ message: 'Error fetching client income' });
+    }
+});
+
+router.post('/:id/income', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { source, amount, frequency, type } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_income (client_id, source, amount, frequency, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [clientId, source, amount, frequency, type]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add client income error:', error);
+        res.status(500).json({ message: 'Error adding income' });
+    }
+});
+
+// Expenditure routes
+router.get('/:id/expenditure', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_expenditure WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client expenditure error:', error);
+        res.status(500).json({ message: 'Error fetching client expenditure' });
+    }
+});
+
+router.post('/:id/expenditure', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { category, amount, frequency, description } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_expenditure (client_id, category, amount, frequency, description) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [clientId, category, amount, frequency, description]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add client expenditure error:', error);
+        res.status(500).json({ message: 'Error adding expenditure' });
+    }
+});
+
+// Debts routes
+router.get('/:id/debts', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_debts WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client debts error:', error);
+        res.status(500).json({ message: 'Error fetching client debts' });
+    }
+});
+
+router.post('/:id/debts', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { creditor_name, debt_type, current_balance, minimum_payment, is_priority } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_debts (client_id, creditor_name, debt_type, current_balance, minimum_payment, is_priority) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [clientId, creditor_name, debt_type, current_balance, minimum_payment, is_priority]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add client debt error:', error);
+        res.status(500).json({ message: 'Error adding debt' });
+    }
+});
+
+// Savings routes (reusing assets table but filtering by type)
+router.get('/:id/savings', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_assets WHERE client_id = $1 AND asset_type = \'savings\' ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client savings error:', error);
+        res.status(500).json({ message: 'Error fetching client savings' });
+    }
+});
+
+// Assets routes
+router.get('/:id/assets', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_assets WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client assets error:', error);
+        res.status(500).json({ message: 'Error fetching client assets' });
+    }
+});
+
+router.post('/:id/assets', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { asset_type, description, estimated_value, is_secured } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_assets (client_id, asset_type, description, estimated_value, is_secured) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [clientId, asset_type, description, estimated_value, is_secured]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add client asset error:', error);
+        res.status(500).json({ message: 'Error adding asset' });
+    }
+});
+
+// Caseworkers routes
+router.get('/:id/caseworkers', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_caseworkers WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client caseworkers error:', error);
+        res.status(500).json({ message: 'Error fetching client caseworkers' });
+    }
+});
+
+router.post('/:id/caseworkers', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { name, role, email, phone } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_caseworkers (client_id, name, role, email, phone) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [clientId, name, role, email, phone]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add client caseworker error:', error);
+        res.status(500).json({ message: 'Error adding caseworker' });
+    }
+});
+
+// Household members routes
+router.get('/:id/household', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM client_household WHERE client_id = $1 ORDER BY created_at DESC',
+            [clientId]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client household error:', error);
+        res.status(500).json({ message: 'Error fetching household members' });
+    }
+});
+
+router.post('/:id/household', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.id;
+        const { name, relationship, age, dependent } = req.body;
+        
+        const result = await pool.query(
+            'INSERT INTO client_household (client_id, name, relationship, age, dependent) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [clientId, name, relationship, age, dependent]
+        );
+        
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Add household member error:', error);
+        res.status(500).json({ message: 'Error adding household member' });
+    }
+});
+
 module.exports = router;
