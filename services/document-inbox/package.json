@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "docker:build": "docker build -t cma/document-inbox ."
   },
   "dependencies": {
     "amqplib": "^0.10.9",
@@ -28,6 +31,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.0.1",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "@types/jest": "^29.5.8"
   }
 }

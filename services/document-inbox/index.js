@@ -27,7 +27,7 @@ const storageConfig = {
 const storageService = new FileStorageService(storageConfig);
 
 // Configure nodemailer for local email handling
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'localhost',
   port: process.env.SMTP_PORT || 587,
   secure: process.env.SMTP_SECURE === 'true',

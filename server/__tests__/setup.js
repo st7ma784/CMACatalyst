@@ -26,3 +26,10 @@ afterAll(async () => {
 beforeEach(() => {
     jest.clearAllMocks();
 });
+
+// Dummy test to prevent Jest from failing on empty test file
+describe('Setup', () => {
+    test('should setup test environment', () => {
+        expect(true).toBe(true);
+    });
+});

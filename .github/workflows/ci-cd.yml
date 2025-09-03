@@ -11,6 +11,9 @@ env:
   IMAGE_NAME_API: ${{ github.repository }}/api-gateway
   IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
   IMAGE_NAME_CHATBOT: ${{ github.repository }}/chatbot
+  IMAGE_NAME_DOCUMENT_INBOX: ${{ github.repository }}/document-inbox
+  IMAGE_NAME_OCR_PROCESSOR: ${{ github.repository }}/ocr-processor
+  IMAGE_NAME_TRANSLATION: ${{ github.repository }}/translation-service
 
 jobs:
   test:
@@ -89,11 +92,43 @@ jobs:
       run: npm ci
 
     - name: Run frontend tests
-      working-directory: ./client
-      run: npm test -- --coverage --watchAll=false
+      run: npm run test:client
+
+    - name: Test document-inbox service
+      working-directory: ./services/document-inbox
+      run: |
+        npm ci
+        npm run test:coverage
+
+    - name: Test ocr-processor service
+      working-directory: ./services/ocr-processor
+      run: |
+        npm ci
+        npm run test:coverage
+
+    - name: Setup Python for translation service
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Test translation service
+      working-directory: ./services/translation-service
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        python -m pytest tests/ --cov=main --cov-report=xml
+
+    - name: Install Playwright
+      run: |
+        npm install @playwright/test
+        npx playwright install chromium
+
+    - name: Run E2E tests
+      run: npm run test:e2e
+      env:
+        CI: true
 
     - name: Build frontend
-      working-directory: ./client
       run: npm run build
 
   build-and-push:
@@ -117,6 +152,15 @@ jobs:
           - dockerfile: Dockerfile.chatbot
             image: ${{ env.IMAGE_NAME_CHATBOT }}
             context: .
+          - dockerfile: Dockerfile
+            image: ${{ env.IMAGE_NAME_DOCUMENT_INBOX }}
+            context: ./services/document-inbox
+          - dockerfile: Dockerfile
+            image: ${{ env.IMAGE_NAME_OCR_PROCESSOR }}
+            context: ./services/ocr-processor
+          - dockerfile: Dockerfile
+            image: ${{ env.IMAGE_NAME_TRANSLATION }}
+            context: ./services/translation-service
 
     steps:
     - name: Checkout repository
