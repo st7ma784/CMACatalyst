@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
-    "artillery": "^2.0.21",
+    "artillery": "^2.0.24",
     "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
     "jest": "^30.1.3",
