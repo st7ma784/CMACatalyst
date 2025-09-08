@@ -5,9 +5,26 @@ const ExcelJS = require('exceljs');
 
 const router = express.Router();
 
+// Test endpoint
+router.get('/test', authenticateToken, async (req, res) => {
+    try {
+        console.log('Test API called - user:', req.user);
+        const simpleResult = await pool.query('SELECT COUNT(*) FROM cases WHERE centre_id = $1', [req.user.centre_id]);
+        res.json({ 
+            user_id: req.user.id, 
+            centre_id: req.user.centre_id,
+            cases_count: simpleResult.rows[0].count 
+        });
+    } catch (error) {
+        console.error('Test error:', error);
+        res.status(500).json({ message: 'Test failed', error: error.message });
+    }
+});
+
 // Get all cases for centre
 router.get('/', authenticateToken, async (req, res) => {
     try {
+        console.log('Cases API called by user:', req.user?.id, 'centre_id:', req.user?.centre_id);
         const { status, advisor_id, search, page = 1, limit = 20 } = req.query;
         const offset = (page - 1) * limit;
 
@@ -15,22 +32,12 @@ router.get('/', authenticateToken, async (req, res) => {
             SELECT c.*, 
                    cl.first_name || ' ' || cl.last_name as client_name,
                    u.first_name || ' ' || u.last_name as advisor_name,
-                   -- FCA compliance summary
-                   COALESCE(comp_stats.total_items, 0) as compliance_total_items,
-                   COALESCE(comp_stats.completed_items, 0) as compliance_completed_items,
-                   COALESCE(comp_stats.completion_percentage, 0) as compliance_completion_percentage
+                   0 as compliance_total_items,
+                   0 as compliance_completed_items,
+                   0 as compliance_completion_percentage
             FROM cases c
             JOIN clients cl ON c.client_id = cl.id
             LEFT JOIN users u ON c.assigned_advisor_id = u.id
-            LEFT JOIN (
-                SELECT 
-                    ccl.case_id,
-                    COUNT(ccl.id) as total_items,
-                    COUNT(CASE WHEN ccl.is_completed THEN 1 END) as completed_items,
-                    ROUND(AVG(CASE WHEN ccl.is_completed THEN 100.0 ELSE 0.0 END), 0) as completion_percentage
-                FROM case_compliance_checklist ccl
-                GROUP BY ccl.case_id
-            ) comp_stats ON c.id = comp_stats.case_id
             WHERE c.centre_id = $1
         `;
         const params = [req.user.centre_id];
@@ -60,10 +67,15 @@ router.get('/', authenticateToken, async (req, res) => {
         query += ` ORDER BY c.updated_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(limit, offset);
 
+        console.log('Executing query:', query);
+        console.log('With params:', params);
         const result = await pool.query(query, params);
+        console.log('Query result:', result.rows.length, 'cases found');
         res.json(result.rows);
     } catch (error) {
         console.error('Get cases error:', error);
+        console.error('Query was:', query);
+        console.error('Params were:', params);
         res.status(500).json({ message: 'Error fetching cases' });
     }
 });

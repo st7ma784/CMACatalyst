@@ -1,0 +1,422 @@
+{
+  "name": "Document Audit Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-audit",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-doc-audit",
+      "name": "Document Upload Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "document-audit"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract document metadata and validate input\nconst { documentId, caseId, analysisType, priority, executionId } = $input.item.json;\n\nif (!documentId || !caseId) {\n  throw new Error('Missing required fields: documentId and caseId');\n}\n\n// Get document details from CMA API\nconst apiUrl = $env.CMA_API_BASE_URL || 'http://localhost:5000';\nconst apiKey = $env.CMA_API_KEY;\n\nconst documentResponse = await fetch(`${apiUrl}/api/v1/documents/${documentId}`, {\n  headers: {\n    'Authorization': `Bearer ${apiKey}`,\n    'Content-Type': 'application/json'\n  }\n});\n\nif (!documentResponse.ok) {\n  throw new Error(`Failed to fetch document: ${documentResponse.statusText}`);\n}\n\nconst document = await documentResponse.json();\n\nreturn {\n  documentId,\n  caseId,\n  analysisType: analysisType || 'full',\n  priority: priority || 'medium',\n  executionId,\n  document: document.data,\n  timestamp: new Date().toISOString(),\n  metadata: {\n    fileName: document.data.name,\n    fileSize: document.data.size,\n    mimeType: document.data.mimeType,\n    uploadDate: document.data.createdAt\n  }\n};"
+      },
+      "id": "extract-metadata",
+      "name": "Extract Document Metadata",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ocr-service:8080/api/extract",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "documentId",
+              "value": "={{$node['Extract Document Metadata'].json.documentId}}"
+            },
+            {
+              "name": "confidenceThreshold",
+              "value": "0.7"
+            },
+            {
+              "name": "extractStructuredData",
+              "value": "true"
+            }
+          ]
+        }
+      },
+      "id": "ocr-extraction",
+      "name": "OCR Text Extraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{`Analyze this debt advice document and extract key information:\\n\\nDocument Type: ${$node['Extract Document Metadata'].json.metadata.fileName}\\nExtracted Text: ${$node['OCR Text Extraction'].json.extractedText}\\n\\nPlease provide:\\n1. Document classification (bank_statement, payslip, benefits_letter, etc.)\\n2. Key financial data extracted\\n3. Data quality assessment\\n4. Potential compliance issues\\n5. Confidence score (0-1)\\n\\nRespond in JSON format.`}}"
+            },
+            {
+              "name": "system",
+              "value": "You are a specialized AI assistant for debt advice document analysis. You must extract structured financial data and assess compliance with FCA guidelines. Always respond in valid JSON format."
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            },
+            {
+              "name": "options",
+              "value": {
+                "temperature": 0.3,
+                "top_p": 0.9
+              }
+            }
+          ]
+        }
+      },
+      "id": "llm-classification",
+      "name": "LLM Document Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process LLM response and perform compliance checks\nconst llmResponse = $node['LLM Document Classification'].json.response;\nconst ocrData = $node['OCR Text Extraction'].json;\nconst metadata = $node['Extract Document Metadata'].json;\n\nlet analysis;\ntry {\n  // Parse LLM response\n  analysis = JSON.parse(llmResponse);\n} catch (error) {\n  // Fallback if JSON parsing fails\n  analysis = {\n    classification: 'unknown',\n    confidence: 0.5,\n    extractedData: {},\n    issues: ['Failed to parse LLM response']\n  };\n}\n\n// FCA Compliance validation\nfunction validateFCACompliance(docType, extractedData) {\n  const checks = {\n    hasRequiredFields: false,\n    meetsDataQuality: ocrData.confidence > 0.7,\n    followsGuidelines: true,\n    dataComplete: false,\n    vulnerabilityConsidered: false\n  };\n  \n  // Document-specific compliance checks\n  switch (docType) {\n    case 'bank_statement':\n      checks.hasRequiredFields = extractedData.accountNumber && extractedData.balance;\n      checks.dataComplete = extractedData.transactions && extractedData.transactions.length > 0;\n      break;\n    case 'payslip':\n      checks.hasRequiredFields = extractedData.grossPay && extractedData.netPay;\n      checks.dataComplete = extractedData.employer && extractedData.payPeriod;\n      break;\n    case 'benefits_letter':\n      checks.hasRequiredFields = extractedData.benefitType && extractedData.amount;\n      checks.dataComplete = extractedData.startDate && extractedData.frequency;\n      break;\n  }\n  \n  return checks;\n}\n\nconst complianceChecks = validateFCACompliance(analysis.classification, analysis.extractedData || {});\n\n// Calculate overall compliance score\nconst complianceScore = Object.values(complianceChecks).filter(Boolean).length / Object.keys(complianceChecks).length;\n\n// Determine risk level\nfunction calculateRiskLevel(confidence, complianceScore, issues) {\n  if (confidence < 0.5 || complianceScore < 0.6 || issues.length > 2) {\n    return 'high';\n  } else if (confidence < 0.7 || complianceScore < 0.8 || issues.length > 0) {\n    return 'medium';\n  }\n  return 'low';\n}\n\nconst riskLevel = calculateRiskLevel(\n  analysis.confidence || 0.5,\n  complianceScore,\n  analysis.issues || []\n);\n\n// Generate recommendations\nconst recommendations = [];\nif (complianceScore < 0.8) {\n  recommendations.push('Review document for compliance issues');\n}\nif (analysis.confidence < 0.7) {\n  recommendations.push('Manual verification recommended due to low confidence');\n}\nif (ocrData.confidence < 0.7) {\n  recommendations.push('OCR quality is low - consider manual data entry');\n}\n\nreturn {\n  documentId: metadata.documentId,\n  caseId: metadata.caseId,\n  executionId: metadata.executionId,\n  analysis: {\n    classification: analysis.classification,\n    confidence: analysis.confidence,\n    extractedData: analysis.extractedData,\n    riskLevel,\n    complianceScore,\n    complianceChecks,\n    issues: analysis.issues || [],\n    recommendations\n  },\n  ocrResults: {\n    confidence: ocrData.confidence,\n    wordCount: ocrData.wordCount || 0,\n    processingTime: ocrData.processingTime\n  },\n  processedAt: new Date().toISOString()\n};"
+      },
+      "id": "compliance-check",
+      "name": "Compliance Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/cases/{{$node['Compliance Analysis'].json.caseId}}/documents/{{$node['Compliance Analysis'].json.documentId}}/analysis",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "analysis",
+              "value": "={{$node['Compliance Analysis'].json.analysis}}"
+            },
+            {
+              "name": "ocrResults",
+              "value": "={{$node['Compliance Analysis'].json.ocrResults}}"
+            },
+            {
+              "name": "executionId",
+              "value": "={{$node['Compliance Analysis'].json.executionId}}"
+            },
+            {
+              "name": "processedAt",
+              "value": "={{$node['Compliance Analysis'].json.processedAt}}"
+            }
+          ]
+        }
+      },
+      "id": "update-case-record",
+      "name": "Update Case Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/audit/log",
+        "options": {
+          "timeout": 5000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "document_audit_completed"
+            },
+            {
+              "name": "documentId",
+              "value": "={{$node['Compliance Analysis'].json.documentId}}"
+            },
+            {
+              "name": "caseId",
+              "value": "={{$node['Compliance Analysis'].json.caseId}}"
+            },
+            {
+              "name": "executionId",
+              "value": "={{$node['Compliance Analysis'].json.executionId}}"
+            },
+            {
+              "name": "results",
+              "value": "={{$node['Compliance Analysis'].json.analysis}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{$node['Compliance Analysis'].json.processedAt}}"
+            }
+          ]
+        }
+      },
+      "id": "audit-log",
+      "name": "Generate Audit Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-server:8080/webhook/execution-update",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "executionId",
+              "value": "={{$node['Compliance Analysis'].json.executionId}}"
+            },
+            {
+              "name": "status",
+              "value": "completed"
+            },
+            {
+              "name": "data",
+              "value": "={{$node['Compliance Analysis'].json}}"
+            }
+          ]
+        }
+      },
+      "id": "notify-completion",
+      "name": "Notify MCP Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$node['Compliance Analysis'].json.analysis.riskLevel}}",
+              "value2": "high"
+            }
+          ]
+        }
+      },
+      "id": "high-risk-check",
+      "name": "High Risk Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 480]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate alert for high-risk documents\nconst analysis = $node['Compliance Analysis'].json.analysis;\nconst metadata = $node['Extract Document Metadata'].json;\n\nconst alert = {\n  type: 'high_risk_document',\n  documentId: metadata.documentId,\n  caseId: metadata.caseId,\n  riskLevel: analysis.riskLevel,\n  confidence: analysis.confidence,\n  issues: analysis.issues,\n  recommendations: analysis.recommendations,\n  requiresReview: true,\n  alertedAt: new Date().toISOString(),\n  priority: 'urgent'\n};\n\nreturn { alert };"
+      },
+      "id": "generate-alert",
+      "name": "Generate High Risk Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 480]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/alerts",
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert",
+              "value": "={{$node['Generate High Risk Alert'].json.alert}}"
+            }
+          ]
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Risk Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1560, 480]
+    }
+  ],
+  "connections": {
+    "Document Upload Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Document Metadata": {
+      "main": [
+        [
+          {
+            "node": "OCR Text Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Text Extraction": {
+      "main": [
+        [
+          {
+            "node": "LLM Document Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Document Classification": {
+      "main": [
+        [
+          {
+            "node": "Compliance Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Analysis": {
+      "main": [
+        [
+          {
+            "node": "Update Case Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "High Risk Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Case Record": {
+      "main": [
+        [
+          {
+            "node": "Generate Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Notify MCP Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Risk Check": {
+      "main": [
+        [
+          {
+            "node": "Generate High Risk Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate High Risk Alert": {
+      "main": [
+        [
+          {
+            "node": "Send Risk Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "1",
+      "name": "CMA Workflows"
+    }
+  ]
+}

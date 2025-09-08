@@ -1,0 +1,452 @@
+{
+  "name": "Dashboard Analytics Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dashboard-analytics",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-analytics",
+      "name": "Analytics Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "dashboard-analytics"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/analytics/cases",
+        "options": {
+          "timeout": 15000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "centreId",
+              "value": "={{$node['Analytics Trigger'].json.centreId}}"
+            },
+            {
+              "name": "timeframe",
+              "value": "={{$node['Analytics Trigger'].json.timeframe}}"
+            },
+            {
+              "name": "includeComparison",
+              "value": "={{$node['Analytics Trigger'].json.comparisonPeriod}}"
+            }
+          ]
+        }
+      },
+      "id": "fetch-case-data",
+      "name": "Fetch Case Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/analytics/compliance",
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "centreId",
+              "value": "={{$node['Analytics Trigger'].json.centreId}}"
+            },
+            {
+              "name": "timeframe",
+              "value": "={{$node['Analytics Trigger'].json.timeframe}}"
+            }
+          ]
+        }
+      },
+      "id": "fetch-compliance-data",
+      "name": "Fetch Compliance Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/analytics/performance",
+        "options": {
+          "timeout": 10000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "centreId",
+              "value": "={{$node['Analytics Trigger'].json.centreId}}"
+            },
+            {
+              "name": "timeframe",
+              "value": "={{$node['Analytics Trigger'].json.timeframe}}"
+            }
+          ]
+        }
+      },
+      "id": "fetch-performance-data",
+      "name": "Fetch Performance Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 660]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "options": {
+          "timeout": 90000
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{`Analyze these debt advice centre metrics and provide comprehensive insights:\\n\\nCase Data: ${JSON.stringify($node['Fetch Case Data'].json)}\\nCompliance Data: ${JSON.stringify($node['Fetch Compliance Data'].json)}\\nPerformance Data: ${JSON.stringify($node['Fetch Performance Data'].json)}\\n\\nProvide analysis in JSON format with:\\n1. keyTrends: Array of significant trends\\n2. areasOfConcern: Issues requiring attention\\n3. performanceHighlights: Positive developments\\n4. predictions: Future outlook based on data\\n5. recommendations: Actionable recommendations\\n6. riskAssessment: Current risk level and factors\\n7. complianceStatus: FCA compliance overview`}}"
+            },
+            {
+              "name": "system",
+              "value": "You are a senior data analyst specializing in debt advice centre performance metrics and FCA compliance. Provide comprehensive, actionable insights in valid JSON format."
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            },
+            {
+              "name": "options",
+              "value": {
+                "temperature": 0.3,
+                "top_p": 0.9,
+                "max_tokens": 2000
+              }
+            }
+          ]
+        }
+      },
+      "id": "ai-analysis",
+      "name": "AI Trend Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate dashboard visualizations and insights\nconst caseData = $node['Fetch Case Data'].json;\nconst complianceData = $node['Fetch Compliance Data'].json;\nconst performanceData = $node['Fetch Performance Data'].json;\nconst aiAnalysisRaw = $node['AI Trend Analysis'].json.response;\nconst centreId = $node['Analytics Trigger'].json.centreId;\nconst timeframe = $node['Analytics Trigger'].json.timeframe;\n\nlet aiInsights;\ntry {\n  aiInsights = JSON.parse(aiAnalysisRaw);\n} catch (error) {\n  aiInsights = {\n    keyTrends: ['Data analysis completed'],\n    areasOfConcern: [],\n    performanceHighlights: ['Centre operating normally'],\n    predictions: ['Continued stable performance expected'],\n    recommendations: ['Continue current practices'],\n    riskAssessment: 'Low risk',\n    complianceStatus: 'Compliant'\n  };\n}\n\n// Generate chart configurations\nfunction generateCaseVolumeChart(data) {\n  return {\n    type: 'line',\n    title: 'Case Volume Trend',\n    data: {\n      labels: data.periods || [],\n      datasets: [{\n        label: 'New Cases',\n        data: data.newCases || [],\n        borderColor: '#3498db',\n        backgroundColor: 'rgba(52, 152, 219, 0.1)'\n      }, {\n        label: 'Closed Cases',\n        data: data.closedCases || [],\n        borderColor: '#2ecc71',\n        backgroundColor: 'rgba(46, 204, 113, 0.1)'\n      }]\n    }\n  };\n}\n\nfunction generateComplianceChart(data) {\n  return {\n    type: 'doughnut',\n    title: 'Compliance Status',\n    data: {\n      labels: ['Compliant', 'Minor Issues', 'Major Issues'],\n      datasets: [{\n        data: [\n          data.compliantCases || 0,\n          data.minorIssues || 0,\n          data.majorIssues || 0\n        ],\n        backgroundColor: ['#2ecc71', '#f39c12', '#e74c3c']\n      }]\n    }\n  };\n}\n\nfunction generateAdvisorPerformanceChart(data) {\n  return {\n    type: 'bar',\n    title: 'Advisor Performance',\n    data: {\n      labels: data.advisorNames || [],\n      datasets: [{\n        label: 'Cases Completed',\n        data: data.casesCompleted || [],\n        backgroundColor: '#3498db'\n      }, {\n        label: 'Client Satisfaction',\n        data: data.satisfactionScores || [],\n        backgroundColor: '#9b59b6',\n        yAxisID: 'y1'\n      }]\n    },\n    options: {\n      scales: {\n        y1: {\n          type: 'linear',\n          display: true,\n          position: 'right'\n        }\n      }\n    }\n  };\n}\n\nfunction generateFinancialOutcomesChart(data) {\n  return {\n    type: 'radar',\n    title: 'Financial Outcomes',\n    data: {\n      labels: ['Debt Reduction', 'Budget Improvement', 'Solution Success', 'Client Stability', 'Follow-up Completion'],\n      datasets: [{\n        label: 'Current Period',\n        data: [\n          data.debtReductionRate || 0,\n          data.budgetImprovementRate || 0,\n          data.solutionSuccessRate || 0,\n          data.clientStabilityRate || 0,\n          data.followUpRate || 0\n        ],\n        borderColor: '#e74c3c',\n        backgroundColor: 'rgba(231, 76, 60, 0.2)'\n      }]\n    }\n  };\n}\n\n// Generate KPI metrics\nfunction calculateKPIs(caseData, complianceData, performanceData) {\n  return {\n    totalCases: caseData.totalCases || 0,\n    newCasesThisPeriod: caseData.newCases || 0,\n    completionRate: ((caseData.closedCases || 0) / (caseData.totalCases || 1) * 100).toFixed(1),\n    averageCaseTime: caseData.averageCaseTime || '0 days',\n    complianceScore: ((complianceData.compliantCases || 0) / (complianceData.totalChecked || 1) * 100).toFixed(1),\n    clientSatisfaction: performanceData.averageSatisfaction || 0,\n    advisorUtilization: performanceData.advisorUtilization || 0,\n    documentProcessingTime: performanceData.avgDocProcessingTime || '0 mins'\n  };\n}\n\nconst kpis = calculateKPIs(caseData, complianceData, performanceData);\n\n// Create visualization package\nconst visualizations = {\n  charts: {\n    caseVolume: generateCaseVolumeChart(caseData),\n    compliance: generateComplianceChart(complianceData),\n    advisorPerformance: generateAdvisorPerformanceChart(performanceData),\n    financialOutcomes: generateFinancialOutcomesChart(performanceData)\n  },\n  kpis,\n  insights: aiInsights,\n  metadata: {\n    centreId,\n    timeframe,\n    generatedAt: new Date().toISOString(),\n    dataSourcesUsed: ['cases', 'compliance', 'performance'],\n    executionId: $node['Analytics Trigger'].json.executionId\n  },\n  alerts: {\n    high: aiInsights.areasOfConcern?.filter(concern => concern.severity === 'high') || [],\n    medium: aiInsights.areasOfConcern?.filter(concern => concern.severity === 'medium') || [],\n    low: aiInsights.areasOfConcern?.filter(concern => concern.severity === 'low') || []\n  }\n};\n\nreturn { visualizations };"
+      },
+      "id": "generate-visualizations",
+      "name": "Generate Visualizations",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/analytics/cache",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "centreId",
+              "value": "={{$node['Analytics Trigger'].json.centreId}}"
+            },
+            {
+              "name": "timeframe",
+              "value": "={{$node['Analytics Trigger'].json.timeframe}}"
+            },
+            {
+              "name": "visualizations",
+              "value": "={{$node['Generate Visualizations'].json.visualizations}}"
+            },
+            {
+              "name": "executionId",
+              "value": "={{$node['Analytics Trigger'].json.executionId}}"
+            },
+            {
+              "name": "cacheExpiry",
+              "value": 1800
+            }
+          ]
+        }
+      },
+      "id": "cache-results",
+      "name": "Cache Analytics Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$node['Generate Visualizations'].json.visualizations.alerts.high.length}}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "high-priority-alerts",
+      "name": "Check High Priority Alerts",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate alert notifications for high priority issues\nconst visualizations = $node['Generate Visualizations'].json.visualizations;\nconst highAlerts = visualizations.alerts.high;\nconst centreId = visualizations.metadata.centreId;\n\nconst notifications = highAlerts.map(alert => ({\n  type: 'high_priority_analytics_alert',\n  centreId,\n  title: `Analytics Alert: ${alert.title || 'Performance Issue'}`,\n  message: alert.description || 'High priority issue detected in analytics data',\n  severity: 'high',\n  category: alert.category || 'performance',\n  actionRequired: true,\n  metadata: {\n    executionId: visualizations.metadata.executionId,\n    generatedAt: visualizations.metadata.generatedAt,\n    alertSource: 'dashboard_analytics_workflow'\n  },\n  recommendations: alert.recommendations || []\n}));\n\nreturn { notifications };"
+      },
+      "id": "generate-alerts",
+      "name": "Generate Alert Notifications",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/notifications/alerts",
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "notifications",
+              "value": "={{$node['Generate Alert Notifications'].json.notifications}}"
+            }
+          ]
+        }
+      },
+      "id": "send-alerts",
+      "name": "Send Alert Notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://mcp-server:8080/webhook/execution-update",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "executionId",
+              "value": "={{$node['Analytics Trigger'].json.executionId}}"
+            },
+            {
+              "name": "status",
+              "value": "completed"
+            },
+            {
+              "name": "data",
+              "value": "={{$node['Generate Visualizations'].json.visualizations}}"
+            }
+          ]
+        }
+      },
+      "id": "notify-completion",
+      "name": "Notify MCP Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Analytics Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Case Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Compliance Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Performance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Case Data": {
+      "main": [
+        [
+          {
+            "node": "AI Trend Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Compliance Data": {
+      "main": [
+        [
+          {
+            "node": "AI Trend Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Performance Data": {
+      "main": [
+        [
+          {
+            "node": "AI Trend Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Trend Analysis": {
+      "main": [
+        [
+          {
+            "node": "Generate Visualizations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Visualizations": {
+      "main": [
+        [
+          {
+            "node": "Cache Analytics Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check High Priority Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Analytics Results": {
+      "main": [
+        [
+          {
+            "node": "Notify MCP Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check High Priority Alerts": {
+      "main": [
+        [
+          {
+            "node": "Generate Alert Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Alert Notifications": {
+      "main": [
+        [
+          {
+            "node": "Send Alert Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3",
+  "id": "3",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "1",
+      "name": "CMA Workflows"
+    }
+  ]
+}

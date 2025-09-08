@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # Local LLaMA instance with Ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cma-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./ollama/models:/models
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=http://localhost:5678,http://localhost:3000,http://localhost:5000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+  # N8N Workflow Engine
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: cma-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678
+      - GENERIC_TIMEZONE=Europe/London
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-cma-n8n-encryption-key-2024}
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_ONBOARDING_FLOW_DISABLED=true
+      - N8N_SECURE_COOKIE=false
+      - N8N_METRICS=true
+      # Custom environment variables for our integrations
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CMA_API_BASE_URL=http://host.docker.internal:5000
+      - CMA_API_KEY=${CMA_API_KEY}
+      - CHROMADB_URL=http://chromadb:8000
+      - MCP_SERVER_URL=http://host.docker.internal:8080
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+      - ./n8n/custom-nodes:/home/node/.n8n/custom
+      - ./n8n/credentials:/home/node/.n8n/credentials
+    depends_on:
+      - ollama
+      - chromadb
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Vector Database for embeddings and semantic search
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: cma-chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:5678","http://localhost:3000","http://localhost:5000"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+
+  # Redis for N8N workflow state and caching
+  n8n-redis:
+    image: redis:7-alpine
+    container_name: cma-n8n-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - n8n_redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+
+  # OCR Service for document processing (Node.js)
+  ocr-service:
+    build:
+      context: ./services/ocr-processor
+      dockerfile: Dockerfile
+    container_name: cma-ocr-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+    environment:
+      - OCR_CONFIDENCE_THRESHOLD=0.7
+      - SUPPORTED_FORMATS=pdf,jpg,jpeg,png,tiff
+      - MAX_FILE_SIZE=50MB
+    restart: unless-stopped
+
+  # OCR Service for document processing (Python with Tesseract)
+  ocr-python:
+    build:
+      context: ./services/ocr-python
+      dockerfile: Dockerfile
+    container_name: cma-ocr-python
+    ports:
+      - "8082:8080"
+    environment:
+      - REDIS_HOST=n8n-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=2
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - ./logs:/app/logs
+    depends_on:
+      - n8n-redis
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    driver: local
+  n8n_data:
+    driver: local
+  chroma_data:
+    driver: local
+  n8n_redis_data:
+    driver: local
+
+networks:
+  default:
+    name: cma-n8n-network

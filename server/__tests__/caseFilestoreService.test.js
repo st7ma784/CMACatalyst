@@ -46,7 +46,7 @@ describe('CaseFilestoreService', () => {
             expect(result.size).toBe(10);
             expect(result.get('/')).toBe(1);
             expect(result.get('/incoming')).toBe(2);
-            expect(mockClient.query).toHaveBeenCalledTimes(10);
+            expect(mockClient.query).toHaveBeenCalledTimes(11); // Check + 10 inserts
         });
 
         it('should return existing folders if already initialized', async () => {
@@ -109,11 +109,12 @@ describe('CaseFilestoreService', () => {
     describe('autoOrganizeFile', () => {
         it('should organize file to appropriate folder', async () => {
             const mockFolders = [
-                { id: 5, folder_path: '/processed/income' }
+                { id: 5, folder_path: '/scanned_documents' }
             ];
             mockClient.query
                 .mockResolvedValueOnce({ rows: mockFolders }) // Find target folder
-                .mockResolvedValueOnce({ rows: [] }); // Update file
+                .mockResolvedValueOnce({ rows: [] }) // Update file
+                .mockResolvedValueOnce({ rows: [] }); // Insert audit log
 
             const result = await caseFilestoreService.autoOrganizeFile(
                 123, 'income', 'payslip', 456, 1
@@ -122,7 +123,7 @@ describe('CaseFilestoreService', () => {
             expect(result).toBe(5);
             expect(mockClient.query).toHaveBeenCalledWith(
                 expect.stringContaining('SELECT id FROM case_folders'),
-                [456, '/processed/income']
+                [456, '/scanned_documents']
             );
         });
 
@@ -174,25 +175,28 @@ describe('CaseFilestoreService', () => {
     describe('addFileTag', () => {
         it('should create new tag and associate with file', async () => {
             mockClient.query
-                .mockResolvedValueOnce({ rows: [] }) // Check existing tag
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN
                 .mockResolvedValueOnce({ rows: [{ id: 5 }] }) // Create tag
-                .mockResolvedValueOnce({ rows: [] }); // Associate with file
+                .mockResolvedValueOnce({ rows: [] }) // Associate with file
+                .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
             const result = await caseFilestoreService.addFileTag(123, 'urgent', 1);
 
             expect(result).toBe(5);
-            expect(mockClient.query).toHaveBeenCalledTimes(3);
+            expect(mockClient.query).toHaveBeenCalledTimes(4);
         });
 
         it('should use existing tag if found', async () => {
             mockClient.query
+                .mockResolvedValueOnce({ rows: [] }) // BEGIN
                 .mockResolvedValueOnce({ rows: [{ id: 3 }] }) // Existing tag
-                .mockResolvedValueOnce({ rows: [] }); // Associate with file
+                .mockResolvedValueOnce({ rows: [] }) // Associate with file
+                .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
             const result = await caseFilestoreService.addFileTag(123, 'urgent', 1);
 
             expect(result).toBe(3);
-            expect(mockClient.query).toHaveBeenCalledTimes(2);
+            expect(mockClient.query).toHaveBeenCalledTimes(4);
         });
     });
 

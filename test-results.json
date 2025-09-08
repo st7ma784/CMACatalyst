@@ -1,0 +1,3055 @@
+{
+  "config": {
+    "configFile": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/playwright.config.js",
+    "rootDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "/home/user/Documents/catalyst/CascadeProjects/windsurf-project/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 8,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:3000",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "auth.spec.js",
+      "file": "auth.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication Flow",
+          "file": "auth.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-5d15ed19bb786409f7d5",
+              "file": "auth.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "should show validation errors for empty login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-320f8d8574c5ec19fa4d",
+              "file": "auth.spec.js",
+              "line": 11,
+              "column": 3
+            },
+            {
+              "title": "should attempt login with credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-34f54e9b284af182789c",
+              "file": "auth.spec.js",
+              "line": 18,
+              "column": 3
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-29fc9a674ae3e195dc95",
+              "file": "auth.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "should show validation errors for empty login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-6955b3a2f9c127dfd49d",
+              "file": "auth.spec.js",
+              "line": 11,
+              "column": 3
+            },
+            {
+              "title": "should attempt login with credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-1daa8b6ab5ca3a7f266b",
+              "file": "auth.spec.js",
+              "line": 18,
+              "column": 3
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-5a9d35772ba87b8f8000",
+              "file": "auth.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "should show validation errors for empty login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-053ca129ee46572d1f11",
+              "file": "auth.spec.js",
+              "line": 11,
+              "column": 3
+            },
+            {
+              "title": "should attempt login with credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-ce149710ba86c0a8cd31",
+              "file": "auth.spec.js",
+              "line": 18,
+              "column": 3
+            },
+            {
+              "title": "should display login page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-8c875d4fe361f75540ee",
+              "file": "auth.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "should show validation errors for empty login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-c78d9b94dbf0c22996e3",
+              "file": "auth.spec.js",
+              "line": 11,
+              "column": 3
+            },
+            {
+              "title": "should attempt login with credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d5ed79a6b333c2ba7209-d47d4ec22785e8593021",
+              "file": "auth.spec.js",
+              "line": 18,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "case-management.spec.js",
+      "file": "case-management.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Case Management",
+          "file": "case-management.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-c21c471fc864a15f9a92",
+              "file": "case-management.spec.js",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "should allow creating new case",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-f9000b5e2ec37eef40b0",
+              "file": "case-management.spec.js",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "should display case details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-04706c5ed20d977e34dc",
+              "file": "case-management.spec.js",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "should show agentic workflow features",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-f09663640ae339a1d5f5",
+              "file": "case-management.spec.js",
+              "line": 59,
+              "column": 3
+            },
+            {
+              "title": "should display case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-0365fff193e78e29ca57",
+              "file": "case-management.spec.js",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "should allow creating new case",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-37f401cbe29366a8aeba",
+              "file": "case-management.spec.js",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "should display case details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-87468ceced719e07d968",
+              "file": "case-management.spec.js",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "should show agentic workflow features",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-0f7a5e309fa91884307a",
+              "file": "case-management.spec.js",
+              "line": 59,
+              "column": 3
+            },
+            {
+              "title": "should display case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-0d85f4df8e7afddd558b",
+              "file": "case-management.spec.js",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "should allow creating new case",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-42f2a32c8021c61bee76",
+              "file": "case-management.spec.js",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "should display case details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-bf3cd2c9f94f15b4027c",
+              "file": "case-management.spec.js",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "should show agentic workflow features",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-d3cd2c341944a59b3679",
+              "file": "case-management.spec.js",
+              "line": 59,
+              "column": 3
+            },
+            {
+              "title": "should display case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-97eb5e74688f6a8ff063",
+              "file": "case-management.spec.js",
+              "line": 16,
+              "column": 3
+            },
+            {
+              "title": "should allow creating new case",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-250680c78f3cbd0dc5ca",
+              "file": "case-management.spec.js",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "should display case details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-6c03e6d7cedcbb717aa1",
+              "file": "case-management.spec.js",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "should show agentic workflow features",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c2770f6cf5f08402c74c-2bb899a3861641dce7f2",
+              "file": "case-management.spec.js",
+              "line": 59,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "comprehensive-user-flows.spec.js",
+      "file": "comprehensive-user-flows.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Comprehensive User Flows",
+          "file": "comprehensive-user-flows.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [],
+          "suites": [
+            {
+              "title": "Authentication Flow",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 16,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should complete login flow successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-59bd370f17dd54e7d35e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 17,
+                  "column": 9
+                },
+                {
+                  "title": "should handle invalid credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-09f79faaf0591d923dab",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 33,
+                  "column": 9
+                },
+                {
+                  "title": "should logout successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-16269abc4ab8c4a514b6",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 45,
+                  "column": 9
+                },
+                {
+                  "title": "should complete login flow successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-4570bc095d0f21c3826e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 17,
+                  "column": 9
+                },
+                {
+                  "title": "should handle invalid credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-75a344f4397c86b1206a",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 33,
+                  "column": 9
+                },
+                {
+                  "title": "should logout successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-048302772ab91a418178",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 45,
+                  "column": 9
+                },
+                {
+                  "title": "should complete login flow successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-468ce674ac2561b7d4b8",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 17,
+                  "column": 9
+                },
+                {
+                  "title": "should handle invalid credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-2ece0185baaf185c7ddb",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 33,
+                  "column": 9
+                },
+                {
+                  "title": "should logout successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-7a3363bf08f2c9eac2b7",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 45,
+                  "column": 9
+                },
+                {
+                  "title": "should complete login flow successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-1e04b49c396ed145412e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 17,
+                  "column": 9
+                },
+                {
+                  "title": "should handle invalid credentials",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-04a0a83fd6fb555195b1",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 33,
+                  "column": 9
+                },
+                {
+                  "title": "should logout successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-7ba96d347b8db14a526c",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 45,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Case Management Flow",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 61,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should create new case successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-fbd3c5386a8630619107",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 71,
+                  "column": 9
+                },
+                {
+                  "title": "should view case details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-3bd4a356e32c69175f1b",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 93,
+                  "column": 9
+                },
+                {
+                  "title": "should update case status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-44ac65bb0288486d8ac5",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 106,
+                  "column": 9
+                },
+                {
+                  "title": "should add case notes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-f99cc6c6bd67aeb7f28d",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 119,
+                  "column": 9
+                },
+                {
+                  "title": "should create new case successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-94ccc018d3a84b635be9",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 71,
+                  "column": 9
+                },
+                {
+                  "title": "should view case details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-eed0d0d307f80b697150",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 93,
+                  "column": 9
+                },
+                {
+                  "title": "should update case status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-ce8c849eacbc7a2832c7",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 106,
+                  "column": 9
+                },
+                {
+                  "title": "should add case notes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-c4561bbb8197f2dc18cf",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 119,
+                  "column": 9
+                },
+                {
+                  "title": "should create new case successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-6a619f57f1b7d87c80a5",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 71,
+                  "column": 9
+                },
+                {
+                  "title": "should view case details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-b221888ca19e03c9dd12",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 93,
+                  "column": 9
+                },
+                {
+                  "title": "should update case status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-50913d1956a9bda10ac1",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 106,
+                  "column": 9
+                },
+                {
+                  "title": "should add case notes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-211a4abf14e0dbf3cd68",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 119,
+                  "column": 9
+                },
+                {
+                  "title": "should create new case successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-811936ca8295d72d42a2",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 71,
+                  "column": 9
+                },
+                {
+                  "title": "should view case details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-13f337a7217c320ca909",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 93,
+                  "column": 9
+                },
+                {
+                  "title": "should update case status",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-df961a1ba7b308591177",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 106,
+                  "column": 9
+                },
+                {
+                  "title": "should add case notes",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-ad005a9f14d86226b259",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 119,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Document Management Flow",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 132,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should upload document successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-aa38520e065f4912fd24",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 142,
+                  "column": 9
+                },
+                {
+                  "title": "should view document details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-4b30d10f0881d361606f",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 165,
+                  "column": 9
+                },
+                {
+                  "title": "should search documents",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-8eadf3ef13beb69850d7",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 178,
+                  "column": 9
+                },
+                {
+                  "title": "should upload document successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-86c4c17ba3823c6603f3",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 142,
+                  "column": 9
+                },
+                {
+                  "title": "should view document details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-aca649721b79053de995",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 165,
+                  "column": 9
+                },
+                {
+                  "title": "should search documents",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-97d4aed9b3be5f6abf5e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 178,
+                  "column": 9
+                },
+                {
+                  "title": "should upload document successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-d5ca46a911fbcc593f76",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 142,
+                  "column": 9
+                },
+                {
+                  "title": "should view document details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-2e9577084a906ff7181a",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 165,
+                  "column": 9
+                },
+                {
+                  "title": "should search documents",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-fd2b30994d56880a807c",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 178,
+                  "column": 9
+                },
+                {
+                  "title": "should upload document successfully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-bdaed3dec81ef98b1f5c",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 142,
+                  "column": 9
+                },
+                {
+                  "title": "should view document details",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-ba323d9c871c460de064",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 165,
+                  "column": 9
+                },
+                {
+                  "title": "should search documents",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-3e14ed79cfec41482753",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 178,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Appointment Scheduling Flow",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 192,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should schedule new appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-03962cefdbbfa09f0bc9",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 202,
+                  "column": 9
+                },
+                {
+                  "title": "should view calendar",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-6883105a1629f3da306f",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 222,
+                  "column": 9
+                },
+                {
+                  "title": "should reschedule appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-66a197abeebeafec9755",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 233,
+                  "column": 9
+                },
+                {
+                  "title": "should schedule new appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-aab6aa40ba38a9385204",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 202,
+                  "column": 9
+                },
+                {
+                  "title": "should view calendar",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-9c4bf68d04aed4589f23",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 222,
+                  "column": 9
+                },
+                {
+                  "title": "should reschedule appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-7a7df7eb225b182c13c1",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 233,
+                  "column": 9
+                },
+                {
+                  "title": "should schedule new appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-c1e1810501edb1f87a21",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 202,
+                  "column": 9
+                },
+                {
+                  "title": "should view calendar",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-865334d29d3cff077097",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 222,
+                  "column": 9
+                },
+                {
+                  "title": "should reschedule appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-3abeecdcd449a4019f97",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 233,
+                  "column": 9
+                },
+                {
+                  "title": "should schedule new appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-009e0f1416d3a99ad47b",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 202,
+                  "column": 9
+                },
+                {
+                  "title": "should view calendar",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-2e854b23a4fbb1ef7c8e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 222,
+                  "column": 9
+                },
+                {
+                  "title": "should reschedule appointment",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-3ad2e4dee8c6a0d75963",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 233,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Workflow and AI Features Flow",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 250,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should access agentic workflow features",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-f6c2b1bbc572578a9251",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 260,
+                  "column": 9
+                },
+                {
+                  "title": "should generate case summary using AI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-6a3210da8440818dae14",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 272,
+                  "column": 9
+                },
+                {
+                  "title": "should use document OCR feature",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-7028c64b1c5a9de4d1e6",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 286,
+                  "column": 9
+                },
+                {
+                  "title": "should access agentic workflow features",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-1cb04780c0950264a64c",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 260,
+                  "column": 9
+                },
+                {
+                  "title": "should generate case summary using AI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-5641e11b6bcbcf4f7da4",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 272,
+                  "column": 9
+                },
+                {
+                  "title": "should use document OCR feature",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-ac7b4ba4cacfda96f506",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 286,
+                  "column": 9
+                },
+                {
+                  "title": "should access agentic workflow features",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-04fc542985184df29025",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 260,
+                  "column": 9
+                },
+                {
+                  "title": "should generate case summary using AI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-e291afd6c2730a54fdb7",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 272,
+                  "column": 9
+                },
+                {
+                  "title": "should use document OCR feature",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-5925718dc3aa513737a7",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 286,
+                  "column": 9
+                },
+                {
+                  "title": "should access agentic workflow features",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-d8c32b6d242ec7020535",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 260,
+                  "column": 9
+                },
+                {
+                  "title": "should generate case summary using AI",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-72d7e4d7afce8d0feed5",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 272,
+                  "column": 9
+                },
+                {
+                  "title": "should use document OCR feature",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-20a2394dc0cdd8c76df8",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 286,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Responsive Design Tests",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 309,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-d5a6b1c65b242aead289",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 310,
+                  "column": 9
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-21763b08577360335bea",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 333,
+                  "column": 9
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-9f366912ffed969d0ce4",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 310,
+                  "column": 9
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-6c70cbdec4da8234f776",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 333,
+                  "column": 9
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-c65db20c7abe58caecb3",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 310,
+                  "column": 9
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-6a87feafd864988b15c9",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 333,
+                  "column": 9
+                },
+                {
+                  "title": "should work on mobile devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-e560a2ab1a037ecf3079",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 310,
+                  "column": 9
+                },
+                {
+                  "title": "should work on tablet devices",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-dea3fb8b2fce0dd513e9",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 333,
+                  "column": 9
+                }
+              ]
+            },
+            {
+              "title": "Error Handling and Edge Cases",
+              "file": "comprehensive-user-flows.spec.js",
+              "line": 349,
+              "column": 10,
+              "specs": [
+                {
+                  "title": "should handle network errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-940a73aaf5dc7a965a87",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 350,
+                  "column": 9
+                },
+                {
+                  "title": "should handle server errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-893dd7657c057b1c933b",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 365,
+                  "column": 9
+                },
+                {
+                  "title": "should handle session timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "chromium",
+                      "projectName": "chromium",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-d1628ccd0dce22a14920",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 381,
+                  "column": 9
+                },
+                {
+                  "title": "should handle network errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-3ee9eb47de8ea5fc25bb",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 350,
+                  "column": 9
+                },
+                {
+                  "title": "should handle server errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-93d5c439bcb71e6ca8ea",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 365,
+                  "column": 9
+                },
+                {
+                  "title": "should handle session timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "firefox",
+                      "projectName": "firefox",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-e03b130b15fde3afee7f",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 381,
+                  "column": 9
+                },
+                {
+                  "title": "should handle network errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-802a55e21ddf6b2eda96",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 350,
+                  "column": 9
+                },
+                {
+                  "title": "should handle server errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-088c6552fd194f6568fc",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 365,
+                  "column": 9
+                },
+                {
+                  "title": "should handle session timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "webkit",
+                      "projectName": "webkit",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-ba865826aac91d7ec233",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 381,
+                  "column": 9
+                },
+                {
+                  "title": "should handle network errors gracefully",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-59a7341cd732b1b9605e",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 350,
+                  "column": 9
+                },
+                {
+                  "title": "should handle server errors",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-37fcb7c141b7a287623a",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 365,
+                  "column": 9
+                },
+                {
+                  "title": "should handle session timeout",
+                  "ok": true,
+                  "tags": [],
+                  "tests": [
+                    {
+                      "timeout": 30000,
+                      "annotations": [],
+                      "expectedStatus": "passed",
+                      "projectId": "Mobile Chrome",
+                      "projectName": "Mobile Chrome",
+                      "results": [],
+                      "status": "skipped"
+                    }
+                  ],
+                  "id": "133870d800284f1a7060-5cf6370b1b9614b30fcc",
+                  "file": "comprehensive-user-flows.spec.js",
+                  "line": 381,
+                  "column": 9
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "dashboard.spec.js",
+      "file": "dashboard.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Dashboard Navigation",
+          "file": "dashboard.spec.js",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display dashboard with navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-341199da78bf33af27fd",
+              "file": "dashboard.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should navigate to case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-2f8f947a51548934cf0d",
+              "file": "dashboard.spec.js",
+              "line": 27,
+              "column": 3
+            },
+            {
+              "title": "should navigate to client list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-8250c66c73c1ffd42a3b",
+              "file": "dashboard.spec.js",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "should display document upload section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-f70fa562b4374b368b89",
+              "file": "dashboard.spec.js",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "should display dashboard with navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-6197ea8a9b1bd0c64827",
+              "file": "dashboard.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should navigate to case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-b30de8d1639005593323",
+              "file": "dashboard.spec.js",
+              "line": 27,
+              "column": 3
+            },
+            {
+              "title": "should navigate to client list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-bacceb89bac85d36e679",
+              "file": "dashboard.spec.js",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "should display document upload section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-67ef587edce6341dcb5c",
+              "file": "dashboard.spec.js",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "should display dashboard with navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-04853f429cc79da998eb",
+              "file": "dashboard.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should navigate to case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-13c7ce9c5ff9e7fa7533",
+              "file": "dashboard.spec.js",
+              "line": 27,
+              "column": 3
+            },
+            {
+              "title": "should navigate to client list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-1b84fc098c5a060bd40c",
+              "file": "dashboard.spec.js",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "should display document upload section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-d357099f8a17fbef9eb3",
+              "file": "dashboard.spec.js",
+              "line": 43,
+              "column": 3
+            },
+            {
+              "title": "should display dashboard with navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-dae90f51b5d6ae76b8a5",
+              "file": "dashboard.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should navigate to case list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-e77d0de65eb9dfa368b5",
+              "file": "dashboard.spec.js",
+              "line": 27,
+              "column": 3
+            },
+            {
+              "title": "should navigate to client list",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-800e2796bad182473dba",
+              "file": "dashboard.spec.js",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "should display document upload section",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a1bb41a2bd6df77ed2f7-bba90fcfc386f0a99f54",
+              "file": "dashboard.spec.js",
+              "line": 43,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "document-upload.spec.js",
+      "file": "document-upload.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Document Upload Functionality",
+          "file": "document-upload.spec.js",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should upload document successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-77c47edc88abb890a9e0",
+              "file": "document-upload.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should validate file type restrictions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-6e831e1506372d4097a3",
+              "file": "document-upload.spec.js",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "should display file tree after upload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-404df2f63665e8eb066f",
+              "file": "document-upload.spec.js",
+              "line": 70,
+              "column": 3
+            },
+            {
+              "title": "should upload document successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-7135f9e02eca6c702348",
+              "file": "document-upload.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should validate file type restrictions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-123be4c629906b9a4773",
+              "file": "document-upload.spec.js",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "should display file tree after upload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-80b41a483ce116f6d27e",
+              "file": "document-upload.spec.js",
+              "line": 70,
+              "column": 3
+            },
+            {
+              "title": "should upload document successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-9777fb8ec312d071b7b4",
+              "file": "document-upload.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should validate file type restrictions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-ae26724b339a96780695",
+              "file": "document-upload.spec.js",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "should display file tree after upload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-c7690890de289777322e",
+              "file": "document-upload.spec.js",
+              "line": 70,
+              "column": 3
+            },
+            {
+              "title": "should upload document successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-21ec1c55c6dd1fc60021",
+              "file": "document-upload.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "should validate file type restrictions",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-718da81c4b1f9d27129a",
+              "file": "document-upload.spec.js",
+              "line": 48,
+              "column": 3
+            },
+            {
+              "title": "should display file tree after upload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "Mobile Chrome",
+                  "projectName": "Mobile Chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c89b450ea7886ae036c6-abb52f7a8a6142eabeb0",
+              "file": "document-upload.spec.js",
+              "line": 70,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-05T12:33:31.085Z",
+    "duration": 104.08600000000001,
+    "expected": 0,
+    "skipped": 140,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

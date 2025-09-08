@@ -1,0 +1,184 @@
+{
+  "name": "QR Code SFS Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qr-sfs-init",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-qr-init",
+      "name": "QR SFS Initialization",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "qr-sfs-init"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sfs-step",
+        "responseMode": "responseNode",
+        "responseNode": "sfs-response",
+        "options": {}
+      },
+      "id": "webhook-sfs-step",
+      "name": "SFS Step Processor",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 600],
+      "webhookId": "sfs-step"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Initialize SFS session tracking\nconst { sessionId, clientId, advisorId, caseId, qrCodeUrl, sfsUrl, executionId } = $input.item.json;\n\n// Store session initialization\nconst sessionData = {\n  sessionId,\n  clientId,\n  advisorId,\n  caseId,\n  status: 'initialized',\n  qrCodeUrl,\n  sfsUrl,\n  executionId,\n  createdAt: new Date().toISOString(),\n  currentStep: 'welcome',\n  completedSections: [],\n  sfsData: {\n    income: {},\n    expenses: {},\n    assets: {},\n    debts: {},\n    personalInfo: {}\n  }\n};\n\nreturn {\n  success: true,\n  sessionId,\n  message: 'SFS session initialized successfully',\n  sessionData\n};"
+      },
+      "id": "init-session",
+      "name": "Initialize SFS Session",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process individual SFS step with AI guidance\nconst { sessionId, step, category, userInput, previousData } = $input.item.json;\n\nif (!sessionId || !step || !category) {\n  throw new Error('Missing required fields: sessionId, step, category');\n}\n\n// Validate and structure the input\nconst stepData = {\n  sessionId,\n  step,\n  category,\n  userInput: userInput || {},\n  previousData: previousData || {},\n  timestamp: new Date().toISOString(),\n  needsValidation: true,\n  requiresGuidance: true\n};\n\n// Determine step type for specialized processing\nconst stepTypes = {\n  'income': ['salary', 'benefits', 'other_income', 'partner_income'],\n  'expenses': ['housing', 'utilities', 'transport', 'food', 'childcare', 'insurance', 'other'],\n  'assets': ['property', 'vehicles', 'savings', 'investments', 'other_assets'],\n  'debts': ['priority_debts', 'non_priority_debts', 'secured_debts'],\n  'personal': ['household_info', 'employment', 'circumstances']\n};\n\nstepData.stepType = Object.keys(stepTypes).find(type => \n  stepTypes[type].includes(category)\n) || 'other';\n\nreturn stepData;"
+      },
+      "id": "process-step",
+      "name": "Process SFS Step",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{`You are helping a client complete their Statement of Financial Situation (SFS) for debt advice.\\n\\nCurrent Section: ${$node['Process SFS Step'].json.category}\\nStep Type: ${$node['Process SFS Step'].json.stepType}\\nUser Input: ${JSON.stringify($node['Process SFS Step'].json.userInput)}\\n\\nProvide guidance in JSON format with validation, suggestions, and next steps.`}}"
+            },
+            {
+              "name": "system",
+              "value": "You are a helpful debt advice assistant. Respond in valid JSON format with validation, suggestions, guidance, followUpQuestions, tips, and nextSteps."
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            }
+          ]
+        }
+      },
+      "id": "llm-guidance",
+      "name": "AI Guidance Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process AI guidance and generate response\nconst stepData = $node['Process SFS Step'].json;\nconst llmResponse = $node['AI Guidance Generation'].json.response;\n\nlet guidance;\ntry {\n  guidance = JSON.parse(llmResponse);\n} catch (error) {\n  guidance = {\n    validation: { isValid: true, issues: [] },\n    suggestions: ['Please review your entries for accuracy'],\n    guidance: 'Continue to the next section when ready',\n    followUpQuestions: [],\n    tips: ['Keep receipts and documentation handy'],\n    nextSteps: ['Move to next category']\n  };\n}\n\n// Generate category-specific prompts\nfunction generateCategoryPrompts(category) {\n  const prompts = {\n    'salary': 'Include your gross monthly salary before deductions.',\n    'benefits': 'List all government benefits including Universal Credit.',\n    'housing': 'Include rent/mortgage, council tax, insurance.',\n    'utilities': 'Gas, electricity, water, broadband, mobile phone.'\n  };\n  return prompts[category] || 'Please provide accurate information.';\n}\n\nconst categoryPrompt = generateCategoryPrompts(stepData.category);\n\n// Calculate progress (simplified)\nconst totalSteps = 20; // Total estimated steps\nconst currentStepNum = Math.floor(Math.random() * 20) + 1; // Simplified for demo\nconst progress = Math.round((currentStepNum / totalSteps) * 100);\n\nreturn {\n  sessionId: stepData.sessionId,\n  guidance,\n  categoryPrompt,\n  progress,\n  currentStep: stepData.category,\n  stepType: stepData.stepType,\n  timestamp: stepData.timestamp,\n  needsReview: !guidance.validation.isValid\n};"
+      },
+      "id": "generate-response",
+      "name": "Generate Step Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify({\n  success: true,\n  sessionId: $node['Generate Step Response'].json.sessionId,\n  guidance: $node['Generate Step Response'].json.guidance,\n  categoryPrompt: $node['Generate Step Response'].json.categoryPrompt,\n  progress: $node['Generate Step Response'].json.progress,\n  currentStep: $node['Generate Step Response'].json.currentStep,\n  timestamp: $node['Generate Step Response'].json.timestamp\n}, null, 2)}}"
+      },
+      "id": "sfs-response",
+      "name": "SFS Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 600]
+    }
+  ],
+  "connections": {
+    "QR SFS Initialization": {
+      "main": [
+        [
+          {
+            "node": "Initialize SFS Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SFS Step Processor": {
+      "main": [
+        [
+          {
+            "node": "Process SFS Step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process SFS Step": {
+      "main": [
+        [
+          {
+            "node": "AI Guidance Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Guidance Generation": {
+      "main": [
+        [
+          {
+            "node": "Generate Step Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Step Response": {
+      "main": [
+        [
+          {
+            "node": "SFS Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2",
+  "id": "2",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "1",
+      "name": "CMA Workflows"
+    }
+  ]
+}

@@ -99,10 +99,11 @@ const Calendar = () => {
           user_ids: showAllUsers ? selectedUsers.join(',') : undefined
         }
       });
-      setAppointments(response.data);
+      setAppointments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
       setError('Failed to load appointments');
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -123,10 +124,11 @@ const Calendar = () => {
           user_ids: showAllUsers ? selectedUsers.join(',') : undefined
         }
       });
-      setMonthlyAppointments(response.data);
+      setMonthlyAppointments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching monthly appointments:', error);
       setError('Failed to load appointments');
+      setMonthlyAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -138,9 +140,10 @@ const Calendar = () => {
       const response = await axios.get('/api/cases?status=active&limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setCases(response.data);
+      setCases(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching cases:', error);
+      setCases([]);
     }
   };
 
@@ -150,16 +153,19 @@ const Calendar = () => {
       const response = await axios.get('/api/users', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      setUsers(response.data);
-      setSelectedUsers(response.data.map(u => u.id));
+      const usersData = Array.isArray(response.data) ? response.data : [];
+      setUsers(usersData);
+      setSelectedUsers(usersData.map(u => u.id));
     } catch (error) {
       console.error('Error fetching users:', error);
       setError('Failed to load center staff');
+      setUsers([]);
+      setSelectedUsers([]);
     }
   };
 
   const getAppointmentsForDate = (date) => {
-    return monthlyAppointments.filter(apt => 
+    return (Array.isArray(monthlyAppointments) ? monthlyAppointments : []).filter(apt => 
       dayjs(apt.appointment_date).format('YYYY-MM-DD') === date.format('YYYY-MM-DD')
     );
   };
@@ -436,16 +442,16 @@ const Calendar = () => {
                   label="Center Members"
                   renderValue={(selected) => (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                      {selected.length === users.length ? (
+                      {(Array.isArray(selected) ? selected : []).length === users.length ? (
                         <Chip label="All Members" size="small" />
                       ) : (
-                        selected.slice(0, 2).map((userId) => {
+                        (Array.isArray(selected) ? selected : []).slice(0, 2).map((userId) => {
                           const user = users.find(u => u.id === userId);
                           return user ? (
                             <Chip key={userId} label={user.first_name} size="small" />
                           ) : null;
-                        }).concat(selected.length > 2 ? [
-                          <Chip key="more" label={`+${selected.length - 2} more`} size="small" />
+                        }).concat((Array.isArray(selected) ? selected : []).length > 2 ? [
+                          <Chip key="more" label={`+${(Array.isArray(selected) ? selected : []).length - 2} more`} size="small" />
                         ] : [])
                       )}
                     </Box>
@@ -461,7 +467,7 @@ const Calendar = () => {
                     />
                   </MenuItem>
                   <Divider />
-                  {users.map((user) => (
+                  {(Array.isArray(users) ? users : []).map((user) => (
                     <MenuItem key={user.id} value={user.id}>
                       <Box display="flex" alignItems="center" gap={1}>
                         <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
@@ -518,7 +524,7 @@ const Calendar = () => {
                   </Box>
                 ) : (
                   <List>
-                    {appointments
+                    {(Array.isArray(appointments) ? appointments : [])
                       .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date))
                       .map((appointment) => (
                       <ListItem key={appointment.id} sx={{ px: 0 }}>
@@ -651,7 +657,7 @@ const Calendar = () => {
                 onChange={(e) => setNewAppointment({...newAppointment, case_id: e.target.value})}
                 variant="outlined"
               >
-                {cases.map((case_item) => (
+                {(Array.isArray(cases) ? cases : []).map((case_item) => (
                   <MenuItem key={case_item.id} value={case_item.id}>
                     {case_item.client_name} - {case_item.case_number}
                   </MenuItem>
@@ -668,7 +674,7 @@ const Calendar = () => {
                 onChange={(e) => setNewAppointment({...newAppointment, user_id: e.target.value})}
                 variant="outlined"
               >
-                {users.map((user) => (
+                {(Array.isArray(users) ? users : []).map((user) => (
                   <MenuItem key={user.id} value={user.id}>
                     {user.first_name} {user.last_name}
                   </MenuItem>

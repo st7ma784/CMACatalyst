@@ -1,10 +1,11 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'cma_case_management',
-    password: process.env.DB_PASSWORD || 'password',
+    database: process.env.DB_NAME || 'mordecai_tool',
+    password: process.env.DB_PASSWORD || 'postgres',
     port: process.env.DB_PORT || 5432,
 });
 

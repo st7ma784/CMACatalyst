@@ -1,0 +1,154 @@
+{
+  "name": "QR Code SFS Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "qr-sfs-init",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-qr-init",
+      "name": "QR SFS Initialization",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "qr-sfs-init"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sfs-step",
+        "responseMode": "responseNode",
+        "responseNode": "sfs-response",
+        "options": {}
+      },
+      "id": "webhook-sfs-step",
+      "name": "SFS Step Processor",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 600],
+      "webhookId": "sfs-step"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Initialize SFS session tracking\nconst { sessionId, clientId, advisorId, caseId, qrCodeUrl, sfsUrl, executionId } = $input.item.json;\n\n// Store session initialization in Redis via API call\nconst sessionData = {\n  sessionId,\n  clientId,\n  advisorId,\n  caseId,\n  status: 'initialized',\n  qrCodeUrl,\n  sfsUrl,\n  executionId,\n  createdAt: new Date().toISOString(),\n  currentStep: 'welcome',\n  completedSections: [],\n  sfsData: {\n    income: {},\n    expenses: {},\n    assets: {},\n    debts: {},\n    personalInfo: {}\n  }\n};\n\nreturn {\n  success: true,\n  sessionId,\n  message: 'SFS session initialized successfully',\n  sessionData\n};"
+      },
+      "id": "init-session",
+      "name": "Initialize SFS Session",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process individual SFS step with AI guidance\nconst { sessionId, step, category, userInput, previousData } = $input.item.json;\n\nif (!sessionId || !step || !category) {\n  throw new Error('Missing required fields: sessionId, step, category');\n}\n\n// Validate and structure the input\nconst stepData = {\n  sessionId,\n  step,\n  category,\n  userInput: userInput || {},\n  previousData: previousData || {},\n  timestamp: new Date().toISOString(),\n  needsValidation: true,\n  requiresGuidance: true\n};\n\n// Determine step type for specialized processing\nconst stepTypes = {\n  'income': ['salary', 'benefits', 'other_income', 'partner_income'],\n  'expenses': ['housing', 'utilities', 'transport', 'food', 'childcare', 'insurance', 'other'],\n  'assets': ['property', 'vehicles', 'savings', 'investments', 'other_assets'],\n  'debts': ['priority_debts', 'non_priority_debts', 'secured_debts'],\n  'personal': ['household_info', 'employment', 'circumstances']\n};\n\nstepData.stepType = Object.keys(stepTypes).find(type => \n  stepTypes[type].includes(category)\n) || 'other';\n\nreturn stepData;"
+      },
+      "id": "process-step",
+      "name": "Process SFS Step",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{`You are helping a client complete their Statement of Financial Situation (SFS) for debt advice.\\n\\nCurrent Section: ${$node['Process SFS Step'].json.category}\\nStep Type: ${$node['Process SFS Step'].json.stepType}\\nUser Input: ${JSON.stringify($node['Process SFS Step'].json.userInput)}\\nPrevious Data: ${JSON.stringify($node['Process SFS Step'].json.previousData)}\\n\\nPlease provide:\\n1. Validation of the input data\\n2. Suggestions for improvement or missing information\\n3. Educational guidance about this financial category\\n4. Follow-up questions to ensure completeness\\n5. Tips for accurate reporting\\n6. Next recommended steps\\n\\nRespond in JSON format with: {\\n  \"validation\": { \"isValid\": boolean, \"issues\": [] },\\n  \"suggestions\": [],\\n  \"guidance\": \"educational content\",\\n  \"followUpQuestions\": [],\\n  \"tips\": [],\\n  \"nextSteps\": []\\n}`}}"
+            },
+            {
+              "name": "system",
+              "value": "You are a helpful and knowledgeable debt advice assistant. Your role is to guide clients through completing their Statement of Financial Situation accurately and completely. Be supportive, clear, and educational. Always respond in valid JSON format."
+            },
+            {
+              "name": "stream",
+              "value": "false"
+            },
+            {
+              "name": "options",
+              "value": {
+                "temperature": 0.4,
+                "top_p": 0.9,
+                "max_tokens": 1000
+              }
+            }
+          ]
+        }
+      },
+      "id": "llm-guidance",
+      "name": "AI Guidance Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process AI guidance and generate response\nconst stepData = $node['Process SFS Step'].json;\nconst llmResponse = $node['AI Guidance Generation'].json.response;\n\nlet guidance;\ntry {\n  guidance = JSON.parse(llmResponse);\n} catch (error) {\n  // Fallback guidance if parsing fails\n  guidance = {\n    validation: { isValid: true, issues: [] },\n    suggestions: ['Please review your entries for accuracy'],\n    guidance: 'Continue to the next section when ready',\n    followUpQuestions: [],\n    tips: ['Keep receipts and documentation handy'],\n    nextSteps: ['Move to next category']\n  };\n}\n\n// Generate category-specific prompts\nfunction generateCategoryPrompts(category, stepType) {\n  const prompts = {\n    'income': {\n      'salary': 'Include your gross monthly salary before deductions. If you\\'re paid weekly, multiply by 4.33.',\n      'benefits': 'List all government benefits including Universal Credit, Child Benefit, PIP, etc.',\n      'other_income': 'Include rental income, freelance work, investments, or maintenance payments.'\n    },\n    'expenses': {\n      'housing': 'Include rent/mortgage, council tax, insurance, and maintenance costs.',\n      'utilities': 'Gas, electricity, water, broadband, mobile phone, and TV licensing.',\n      'transport': 'Car payments, insurance, fuel, public transport, or taxi costs.',\n      'food': 'Weekly shopping, meals out, and household essentials.'\n    },\n    'debts': {\n      'priority_debts': 'Council tax arrears, rent arrears, mortgage arrears, utility bills.',\n      'non_priority_debts': 'Credit cards, personal loans, store cards, overdrafts.'\n    }\n  };\n  \n  return prompts[stepType]?.[category] || 'Please provide accurate information for this category.';\n}\n\nconst categoryPrompt = generateCategoryPrompts(stepData.category, stepData.stepType);\n\n// Determine next category\nconst categorySequence = {\n  'income': ['salary', 'benefits', 'other_income'],\n  'expenses': ['housing', 'utilities', 'transport', 'food', 'childcare', 'insurance', 'other'],\n  'assets': ['property', 'vehicles', 'savings', 'investments'],\n  'debts': ['priority_debts', 'non_priority_debts']\n};\n\nfunction getNextCategory(currentCategory, stepType) {\n  const sequence = categorySequence[stepType] || [];\n  const currentIndex = sequence.indexOf(currentCategory);\n  \n  if (currentIndex >= 0 && currentIndex < sequence.length - 1) {\n    return { category: sequence[currentIndex + 1], stepType };\n  }\n  \n  // Move to next step type\n  const stepOrder = ['income', 'expenses', 'assets', 'debts'];\n  const currentStepIndex = stepOrder.indexOf(stepType);\n  \n  if (currentStepIndex >= 0 && currentStepIndex < stepOrder.length - 1) {\n    const nextStepType = stepOrder[currentStepIndex + 1];\n    return { \n      category: categorySequence[nextStepType]?.[0], \n      stepType: nextStepType \n    };\n  }\n  \n  return { category: 'complete', stepType: 'summary' };\n}\n\nconst nextCategory = getNextCategory(stepData.category, stepData.stepType);\n\n// Calculate completion percentage\nfunction calculateProgress(category, stepType) {\n  const totalSteps = Object.values(categorySequence).flat().length;\n  const completedSteps = Object.entries(categorySequence)\n    .map(([type, cats]) => {\n      if (type === stepType) {\n        const currentIndex = cats.indexOf(category);\n        return currentIndex >= 0 ? currentIndex + 1 : cats.length;\n      }\n      const stepOrder = ['income', 'expenses', 'assets', 'debts'];\n      const currentStepIndex = stepOrder.indexOf(stepType);\n      const typeIndex = stepOrder.indexOf(type);\n      return typeIndex < currentStepIndex ? cats.length : 0;\n    })\n    .reduce((sum, count) => sum + count, 0);\n    \n  return Math.round((completedSteps / totalSteps) * 100);\n}\n\nconst progress = calculateProgress(stepData.category, stepData.stepType);\n\nreturn {\n  sessionId: stepData.sessionId,\n  guidance,\n  categoryPrompt,\n  nextCategory,\n  progress,\n  currentStep: stepData.category,\n  stepType: stepData.stepType,\n  timestamp: stepData.timestamp,\n  needsReview: !guidance.validation.isValid || guidance.validation.issues.length > 0\n};"
+      },
+      "id": "generate-response",
+      "name": "Generate Step Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify({\n  success: true,\n  sessionId: $node['Generate Step Response'].json.sessionId,\n  guidance: $node['Generate Step Response'].json.guidance,\n  categoryPrompt: $node['Generate Step Response'].json.categoryPrompt,\n  nextCategory: $node['Generate Step Response'].json.nextCategory,\n  progress: $node['Generate Step Response'].json.progress,\n  currentStep: $node['Generate Step Response'].json.currentStep,\n  timestamp: $node['Generate Step Response'].json.timestamp,\n  needsReview: $node['Generate Step Response'].json.needsReview\n}, null, 2)}}"
+      },
+      "id": "sfs-response",
+      "name": "SFS Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.CMA_API_BASE_URL}}/api/v1/sfs/sessions/{{$node['Generate Step Response'].json.sessionId}}/progress",
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$env.CMA_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "currentStep",
+              "value": "={{$node['Generate Step Response'].json.currentStep}}"
+            },
+            {
+              "name": "stepType",
+              "value": "={{$node['Generate Step Response'].json.stepType}}"
+            },
+            {
+              "name": "progress",
+              "value": "={{$node['Generate Step Response'].json.progress}}"
+            },
+            {
+              "name": "needsReview",
+              "value": "={{$node['Generate Step Response'].json.needsReview}}"
+            },
+            {
+              "name": "lastActivity",
+              "value": "={{$node['Generate Step Response'].json.timestamp}}"
+            }\n          ]\n        }\n      },\n      \"id\": \"update-progress\",\n      \"name\": \"Update SFS Progress\",\n      \"type\": \"n8n-nodes-base.httpRequest\",\n      \"typeVersion\": 3,\n      \"position\": [1340, 600]\n    },\n    {\n      \"parameters\": {\n        \"conditions\": {\n          \"string\": [\n            {\n              \"value1\": \"={{$node['Generate Step Response'].json.nextCategory.category}}\",\n              \"value2\": \"complete\"\n            }\n          ]\n        }\n      },\n      \"id\": \"completion-check\",\n      \"name\": \"SFS Completion Check\",\n      \"type\": \"n8n-nodes-base.if\",\n      \"typeVersion\": 1,\n      \"position\": [1120, 800]\n    },\n    {\n      \"parameters\": {\n        \"functionCode\": \"// Generate final SFS completion summary\\nconst sessionId = $node['Generate Step Response'].json.sessionId;\\n\\n// Call API to get complete SFS data\\nconst apiUrl = $env.CMA_API_BASE_URL || 'http://localhost:5000';\\nconst apiKey = $env.CMA_API_KEY;\\n\\nconst sfsResponse = await fetch(`${apiUrl}/api/v1/sfs/sessions/${sessionId}/complete`, {\\n  method: 'GET',\\n  headers: {\\n    'Authorization': `Bearer ${apiKey}`,\\n    'Content-Type': 'application/json'\\n  }\\n});\\n\\nif (!sfsResponse.ok) {\\n  throw new Error(`Failed to fetch SFS data: ${sfsResponse.statusText}`);\\n}\\n\\nconst sfsData = await sfsResponse.json();\\n\\n// Calculate financial summary\\nfunction calculateFinancialSummary(data) {\\n  const income = Object.values(data.income || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);\\n  const expenses = Object.values(data.expenses || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);\\n  const surplus = income - expenses;\\n  const totalDebts = Object.values(data.debts || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);\\n  const totalAssets = Object.values(data.assets || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);\\n  \\n  return {\\n    totalIncome: income,\\n    totalExpenses: expenses,\\n    monthlySurplus: surplus,\\n    totalDebts,\\n    totalAssets,\\n    debtToIncomeRatio: income > 0 ? (totalDebts / (income * 12)) : 0\\n  };\\n}\\n\\nconst financialSummary = calculateFinancialSummary(sfsData.data);\\n\\nreturn {\\n  sessionId,\\n  completionData: {\\n    completedAt: new Date().toISOString(),\\n    financialSummary,\\n    sfsData: sfsData.data,\\n    recommendations: [],\\n    nextSteps: [\\n      'Review the completed SFS with your advisor',\\n      'Discuss available debt solutions',\\n      'Consider your options carefully'\\n    ]\\n  }\\n};\"\n      },\n      \"id\": \"completion-summary\",\n      \"name\": \"Generate Completion Summary\",\n      \"type\": \"n8n-nodes-base.function\",\n      \"typeVersion\": 1,\n      \"position\": [1340, 800]\n    },\n    {\n      \"parameters\": {\n        \"url\": \"http://ollama:11434/api/generate\",\n        \"options\": {\n          \"timeout\": 60000\n        },\n        \"sendBody\": true,\n        \"bodyParameters\": {\n          \"parameters\": [\n            {\n              \"name\": \"model\",\n              \"value\": \"llama3.1:8b\"\n            },\n            {\n              \"name\": \"prompt\",\n              \"value\": \"={{`Analyze this completed Statement of Financial Situation and provide recommendations:\\n\\nFinancial Summary: ${JSON.stringify($node['Generate Completion Summary'].json.completionData.financialSummary)}\\n\\nPlease provide:\\n1. Assessment of the financial situation\\n2. Potential debt solution options\\n3. Areas of concern or opportunity\\n4. Recommendations for the advisor\\n5. Priority actions\\n\\nRespond in JSON format.`}}\"\n            },\n            {\n              \"name\": \"system\",\n              \"value\": \"You are a debt advice specialist analyzing a completed financial statement. Provide practical, actionable recommendations based on FCA guidelines and debt advice best practices.\"\n            },\n            {\n              \"name\": \"stream\",\n              \"value\": \"false\"\n            }\n          ]\n        }\n      },\n      \"id\": \"ai-recommendations\",\n      \"name\": \"AI Completion Analysis\",\n      \"type\": \"n8n-nodes-base.httpRequest\",\n      \"typeVersion\": 3,\n      \"position\": [1560, 800]\n    },\n    {\n      \"parameters\": {\n        \"url\": \"={{$env.CMA_API_BASE_URL}}/api/v1/sfs/sessions/{{$node['Generate Completion Summary'].json.sessionId}}/complete\",\n        \"sendBody\": true,\n        \"sendHeaders\": true,\n        \"headerParameters\": {\n          \"parameters\": [\n            {\n              \"name\": \"Authorization\",\n              \"value\": \"Bearer {{$env.CMA_API_KEY}}\"\n            },\n            {\n              \"name\": \"Content-Type\",\n              \"value\": \"application/json\"\n            }\n          ]\n        },\n        \"bodyParameters\": {\n          \"parameters\": [\n            {\n              \"name\": \"completionData\",\n              \"value\": \"={{$node['Generate Completion Summary'].json.completionData}}\"\n            },\n            {\n              \"name\": \"aiRecommendations\",\n              \"value\": \"={{$node['AI Completion Analysis'].json.response}}\"\n            },\n            {\n              \"name\": \"status\",\n              \"value\": \"completed\"\n            }\n          ]\n        }\n      },\n      \"id\": \"finalize-sfs\",\n      \"name\": \"Finalize SFS Session\",\n      \"type\": \"n8n-nodes-base.httpRequest\",\n      \"typeVersion\": 3,\n      \"position\": [1780, 800]\n    }\n  ],\n  \"connections\": {\n    \"QR SFS Initialization\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Initialize SFS Session\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"SFS Step Processor\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Process SFS Step\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Process SFS Step\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"AI Guidance Generation\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"AI Guidance Generation\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Generate Step Response\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Generate Step Response\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"SFS Response\",\n            \"type\": \"main\",\n            \"index\": 0\n          },\n          {\n            \"node\": \"Update SFS Progress\",\n            \"type\": \"main\",\n            \"index\": 0\n          },\n          {\n            \"node\": \"SFS Completion Check\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"SFS Completion Check\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Generate Completion Summary\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"Generate Completion Summary\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"AI Completion Analysis\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    },\n    \"AI Completion Analysis\": {\n      \"main\": [\n        [\n          {\n            \"node\": \"Finalize SFS Session\",\n            \"type\": \"main\",\n            \"index\": 0\n          }\n        ]\n      ]\n    }\n  },\n  \"active\": true,\n  \"settings\": {\n    \"executionOrder\": \"v1\"\n  },\n  \"versionId\": \"2\",\n  \"id\": \"2\",\n  \"meta\": {\n    \"templateCredsSetupCompleted\": true\n  },\n  \"pinData\": {},\n  \"tags\": [\n    {\n      \"createdAt\": \"2024-01-15T10:00:00.000Z\",\n      \"updatedAt\": \"2024-01-15T10:00:00.000Z\",\n      \"id\": \"1\",\n      \"name\": \"CMA Workflows\"\n    }\n  ]\n}

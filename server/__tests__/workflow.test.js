@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../index');
+const app = require('../app');
 const db = require('../config/database');
 
 describe('Agentic Workflow System', () => {

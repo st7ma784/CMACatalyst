@@ -73,9 +73,11 @@ const ClientList = () => {
         },
         params: { search, limit: 50 }
       });
-      setClients(response.data.clients || response.data);
+      const clientsData = response.data.clients || response.data;
+      setClients(Array.isArray(clientsData) ? clientsData : []);
     } catch (error) {
       console.error('Error fetching clients:', error);
+      setClients([]); // Ensure clients is always an array
     } finally {
       setLoading(false);
     }
@@ -157,11 +159,11 @@ const ClientList = () => {
     }));
   };
 
-  const filteredClients = clients.filter(client => 
-    client.first_name.toLowerCase().includes(search.toLowerCase()) || 
-    client.last_name.toLowerCase().includes(search.toLowerCase()) || 
-    client.email.toLowerCase().includes(search.toLowerCase()) || 
-    client.phone.toLowerCase().includes(search.toLowerCase())
+  const filteredClients = (Array.isArray(clients) ? clients : []).filter(client => 
+    client.first_name?.toLowerCase().includes(search.toLowerCase()) || 
+    client.last_name?.toLowerCase().includes(search.toLowerCase()) || 
+    client.email?.toLowerCase().includes(search.toLowerCase()) || 
+    client.phone?.toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {

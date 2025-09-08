@@ -23,6 +23,7 @@ import AutoActions from './components/AutoActions';
 import BrandingManagement from './components/BrandingManagement';
 import CenterManagement from './components/CenterManagement';
 import NetworkRegistration from './components/NetworkRegistration';
+import WorkflowManager from './components/WorkflowManager';
 
 const theme = createTheme({
   palette: {
@@ -296,6 +297,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <BrandingManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/workflow-automation" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkflowManager />
                   </Layout>
                 </ProtectedRoute>
               } />
