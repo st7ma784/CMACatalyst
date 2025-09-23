@@ -177,7 +177,7 @@ app.get('/api/cases/:caseId/files', async (req, res) => {
 });
 
 // Download file endpoint
-app.get('/api/files/:filePath(*)', async (req, res) => {
+app.get('/api/files/:filePath', async (req, res) => {
   try {
     const filePath = req.params.filePath;
     const result = await storageService.downloadFile(filePath);
@@ -196,7 +196,7 @@ app.get('/api/files/:filePath(*)', async (req, res) => {
 });
 
 // Delete file endpoint
-app.delete('/api/files/:filePath(*)', async (req, res) => {
+app.delete('/api/files/:filePath', async (req, res) => {
   try {
     const filePath = req.params.filePath;
     const result = await storageService.deleteFile(filePath);

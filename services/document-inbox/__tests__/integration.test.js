@@ -76,7 +76,7 @@ describe('Document Inbox Integration Tests', () => {
       }
     });
 
-    app.get('/api/files/:filePath(*)', async (req, res) => {
+    app.get('/api/files/:filePath', async (req, res) => {
       try {
         const filePath = req.params.filePath;
         const result = await storageService.downloadFile(filePath);
@@ -92,7 +92,7 @@ describe('Document Inbox Integration Tests', () => {
       }
     });
 
-    app.delete('/api/files/:filePath(*)', async (req, res) => {
+    app.delete('/api/files/:filePath', async (req, res) => {
       try {
         const filePath = req.params.filePath;
         const result = await storageService.deleteFile(filePath);
