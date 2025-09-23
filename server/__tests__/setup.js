@@ -1,14 +1,32 @@
 // Jest setup file for database tests
-const pool = require('../config/database');
+// Set test environment variables
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret';
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test_db';
 
-// Mock database connection for tests
-jest.mock('../config/database', () => ({
+// Mock console.error and console.log for cleaner test output
+global.console = {
+    ...console,
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+};
+
+// Mock the database pool
+const mockClient = {
     query: jest.fn(),
-    connect: jest.fn(() => ({
-        query: jest.fn(),
-        release: jest.fn()
-    }))
-}));
+    release: jest.fn(),
+};
+
+const mockPool = {
+    query: jest.fn(),
+    connect: jest.fn(() => mockClient),
+    end: jest.fn(),
+};
+
+// Mock database module
+jest.mock('../config/database', () => mockPool);
 
 // Global test setup
 beforeAll(async () => {
@@ -17,19 +35,18 @@ beforeAll(async () => {
 
 afterAll(async () => {
     // Cleanup test database connections
-    if (pool && pool.end) {
-        await pool.end();
-    }
+    jest.clearAllMocks();
 });
 
 // Reset mocks between tests
 beforeEach(() => {
     jest.clearAllMocks();
+    mockClient.query.mockClear();
+    mockClient.release.mockClear();
+    mockPool.query.mockClear();
+    mockPool.connect.mockClear();
 });
 
-// Dummy test to prevent Jest from failing on empty test file
-describe('Setup', () => {
-    test('should setup test environment', () => {
-        expect(true).toBe(true);
-    });
-});
+// Export mocks for use in tests
+global.mockClient = mockClient;
+global.mockPool = mockPool;

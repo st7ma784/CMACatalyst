@@ -23,5 +23,15 @@ module.exports = {
             statements: 70
         }
     },
-    testTimeout: 30000
+    testTimeout: 30000,
+    transform: {
+        '^.+\\.js$': 'babel-jest'
+    },
+    transformIgnorePatterns: [
+        'node_modules/(?!(uuid|tesseract\\.js)/)'
+    ],
+    moduleNameMapper: {
+        '^uuid$': require.resolve('uuid'),
+        '^tesseract\\.js$': '<rootDir>/server/__tests__/__mocks__/tesseract.js'
+    }
 };
