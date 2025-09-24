@@ -1,0 +1,54 @@
+version: 2
+updates:
+  # Main package.json dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "st7ma784"
+    assignees:
+      - "st7ma784"
+
+  # Document inbox service
+  - package-ecosystem: "npm"
+    directory: "/services/document-inbox"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # OCR processor service
+  - package-ecosystem: "npm"
+    directory: "/services/ocr-processor"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Translation service (Python)
+  - package-ecosystem: "pip"
+    directory: "/services/translation-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Chatbot service (Python)
+  - package-ecosystem: "pip"
+    directory: "/chatbot"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Docker images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

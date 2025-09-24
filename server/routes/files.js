@@ -63,7 +63,28 @@ router.get('/case/:caseId', authenticateToken, async (req, res) => {
     }
 });
 
-// Upload file
+// Get files for a client
+router.get('/client/:clientId', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.clientId;
+
+        const result = await pool.query(`
+            SELECT f.*, u.first_name || ' ' || u.last_name as uploaded_by
+            FROM files f
+            JOIN users u ON f.user_id = u.id
+            JOIN clients c ON f.client_id = c.id
+            WHERE f.client_id = $1 AND c.centre_id = $2
+            ORDER BY f.created_at DESC
+        `, [clientId, req.user.centre_id]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client files error:', error);
+        res.status(500).json({ message: 'Error fetching client files' });
+    }
+});
+
+// Upload file to case
 router.post('/upload/:caseId', authenticateToken, upload.single('file'), async (req, res) => {
     try {
         const caseId = req.params.caseId;
@@ -104,16 +125,59 @@ router.post('/upload/:caseId', authenticateToken, upload.single('file'), async (
     }
 });
 
+// Upload file to client
+router.post('/upload/client/:clientId', authenticateToken, upload.single('file'), async (req, res) => {
+    try {
+        const clientId = req.params.clientId;
+        const { file_type, description } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Verify client belongs to centre
+        const clientCheck = await pool.query(
+            'SELECT id FROM clients WHERE id = $1 AND centre_id = $2',
+            [clientId, req.user.centre_id]
+        );
+
+        if (clientCheck.rows.length === 0) {
+            return res.status(404).json({ message: 'Client not found' });
+        }
+
+        const result = await pool.query(`
+            INSERT INTO files (
+                client_id, user_id, filename, original_filename, file_path, 
+                file_size, mime_type, file_type, description
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *
+        `, [
+            clientId, req.user.id, req.file.filename, req.file.originalname,
+            req.file.path, req.file.size, req.file.mimetype, file_type, description
+        ]);
+
+        res.status(201).json({
+            message: 'File uploaded successfully',
+            file: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Upload client file error:', error);
+        res.status(500).json({ message: 'Error uploading file' });
+    }
+});
+
 // Download file
 router.get('/download/:id', authenticateToken, async (req, res) => {
     try {
         const fileId = req.params.id;
 
+        // Try to get file from either case or client context
         const result = await pool.query(`
-            SELECT f.*, c.centre_id
+            SELECT f.*, COALESCE(c.centre_id, cl.centre_id) as centre_id
             FROM files f
-            JOIN cases c ON f.case_id = c.id
-            WHERE f.id = $1 AND c.centre_id = $2
+            LEFT JOIN cases c ON f.case_id = c.id
+            LEFT JOIN clients cl ON f.client_id = cl.id
+            WHERE f.id = $1 AND COALESCE(c.centre_id, cl.centre_id) = $2
         `, [fileId, req.user.centre_id]);
 
         if (result.rows.length === 0) {

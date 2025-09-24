@@ -6,25 +6,26 @@ const pdfParse = require('pdf-parse');
 const sharp = require('sharp');
 const mammoth = require('mammoth');
 const winston = require('winston');
-const AWS = require('aws-sdk');
 const amqp = require('amqplib');
 const natural = require('natural');
 const nlp = require('compromise');
 const moment = require('moment');
+const { MinioStorage } = require('./storage/MinioStorage');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Configure AWS
-AWS.config.update({
-  region: process.env.AWS_REGION || 'us-east-1',
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-});
+// Initialize MinIO storage for local file storage
+const minioConfig = {
+  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+  port: parseInt(process.env.MINIO_PORT) || 9000,
+  useSSL: process.env.MINIO_USE_SSL === 'true',
+  accessKey: process.env.MINIO_ROOT_USER || 'minioadmin',
+  secretKey: process.env.MINIO_ROOT_PASSWORD || 'minioadmin'
+};
 
-const s3 = new AWS.S3();
-const textract = new AWS.Textract();
+const minioStorage = new MinioStorage(minioConfig);
 
 // Configure logging
 const logger = winston.createLogger({
@@ -118,12 +119,8 @@ const extractText = async (fileBuffer, mimeType) => {
       case 'image/png':
       case 'image/gif':
       case 'image/bmp':
-        // Use AWS Textract for better accuracy on financial documents
-        if (process.env.USE_AWS_TEXTRACT === 'true') {
-          return await extractWithTextract(fileBuffer);
-        } else {
-          return await extractWithTesseract(fileBuffer);
-        }
+        // Use local Tesseract for OCR (no external dependencies)
+        return await extractWithTesseract(fileBuffer);
         
       default:
         throw new Error(`Unsupported file type: ${mimeType}`);
@@ -134,41 +131,81 @@ const extractText = async (fileBuffer, mimeType) => {
   }
 };
 
-// Extract text using AWS Textract
-const extractWithTextract = async (fileBuffer) => {
+// Enhanced Tesseract OCR with preprocessing
+const enhancedTesseractOCR = async (fileBuffer) => {
   try {
-    const params = {
-      Document: {
-        Bytes: fileBuffer
+    // Multiple preprocessing approaches for better accuracy
+    const preprocessingOptions = [
+      // Standard preprocessing
+      {
+        normalize: true,
+        sharpen: true,
+        greyscale: true,
+        threshold: false
+      },
+      // High contrast preprocessing
+      {
+        normalize: true,
+        sharpen: { sigma: 1.5 },
+        greyscale: true,
+        threshold: 128
+      },
+      // Enhanced preprocessing for financial documents
+      {
+        normalize: true,
+        sharpen: { sigma: 2.0 },
+        greyscale: true,
+        linear: { a: 1.5, b: -20 }, // Increase contrast
+        threshold: false
       }
-    };
+    ];
+
+    let bestResult = { text: '', confidence: 0 };
+
+    for (const options of preprocessingOptions) {
+      try {
+        let processedImage = sharp(fileBuffer);
+        
+        if (options.greyscale) processedImage = processedImage.greyscale();
+        if (options.normalize) processedImage = processedImage.normalize();
+        if (options.sharpen) {
+          processedImage = typeof options.sharpen === 'object' 
+            ? processedImage.sharpen(options.sharpen)
+            : processedImage.sharpen();
+        }
+        if (options.linear) processedImage = processedImage.linear(options.linear.a, options.linear.b);
+        if (options.threshold) processedImage = processedImage.threshold(options.threshold);
+        
+        const buffer = await processedImage.toBuffer();
+        
+        const { data } = await Tesseract.recognize(buffer, 'eng', {
+          logger: m => logger.debug('Tesseract:', m.status, m.progress),
+          psm: Tesseract.PSM.AUTO,
+          oem: Tesseract.OEM.LSTM_ONLY
+        });
+        
+        if (data.confidence > bestResult.confidence) {
+          bestResult = { text: data.text, confidence: data.confidence };
+        }
+        
+      } catch (error) {
+        logger.warn(`Preprocessing option failed: ${error.message}`);
+      }
+    }
+
+    return bestResult.text || '';
     
-    const result = await textract.detectDocumentText(params).promise();
-    return result.Blocks
-      .filter(block => block.BlockType === 'LINE')
-      .map(block => block.Text)
-      .join('\n');
   } catch (error) {
-    logger.warn('Textract failed, falling back to Tesseract:', error.message);
-    return await extractWithTesseract(fileBuffer);
+    logger.error('Enhanced Tesseract OCR error:', error);
+    throw error;
   }
 };
 
-// Extract text using Tesseract
+// Extract text using Tesseract (fallback method)
 const extractWithTesseract = async (fileBuffer) => {
   try {
-    // Preprocess image for better OCR
-    const processedImage = await sharp(fileBuffer)
-      .greyscale()
-      .normalize()
-      .sharpen()
-      .toBuffer();
-    
-    const { data: { text } } = await Tesseract.recognize(processedImage, 'eng', {
-      logger: m => logger.debug('Tesseract:', m)
-    });
-    
-    return text;
+    // Use enhanced OCR method
+    return await enhancedTesseractOCR(fileBuffer);
   } catch (error) {
     logger.error('Tesseract OCR error:', error);
     throw error;
@@ -289,14 +326,8 @@ const processDocument = async (msg) => {
     const fileMetadata = JSON.parse(msg.content.toString());
     logger.info(`Processing document: ${fileMetadata.fileName}`);
     
-    // Download file from S3
-    const s3Params = {
-      Bucket: process.env.S3_BUCKET || 'mordecai-documents',
-      Key: fileMetadata.s3Key
-    };
-    
-    const s3Object = await s3.getObject(s3Params).promise();
-    const fileBuffer = s3Object.Body;
+    // Download file from MinIO
+    const fileBuffer = await minioStorage.getObject(fileMetadata.filePath || fileMetadata.s3Key);
     
     // Extract text
     const extractedText = await extractText(fileBuffer, fileMetadata.mimeType);
@@ -351,14 +382,8 @@ app.post('/api/ocr/process', async (req, res) => {
       return res.status(400).json({ message: 'S3 key and mime type required' });
     }
     
-    // Download file from S3
-    const s3Params = {
-      Bucket: process.env.S3_BUCKET || 'mordecai-documents',
-      Key: s3Key
-    };
-    
-    const s3Object = await s3.getObject(s3Params).promise();
-    const fileBuffer = s3Object.Body;
+    // Download file from MinIO
+    const fileBuffer = await minioStorage.getObject(s3Key);
     
     // Process document
     const extractedText = await extractText(fileBuffer, mimeType);

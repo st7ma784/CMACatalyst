@@ -40,7 +40,10 @@ import {
     FilterList as FilterListIcon,
     Edit as EditIcon,
     CheckCircle as CheckCircleIcon,
-    Warning as WarningIcon
+    Warning as WarningIcon,
+    Description as CoaIcon,
+    Translate as TranslateIcon,
+    FileCopy as CopyIcon
 } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -56,8 +59,15 @@ const EnhancedNotes = ({ caseId, users = [] }) => {
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
     const [openFollowUpDialog, setOpenFollowUpDialog] = useState(false);
+    const [openCoaDialog, setOpenCoaDialog] = useState(false);
+    const [openTranslateDialog, setOpenTranslateDialog] = useState(false);
     const [selectedNote, setSelectedNote] = useState(null);
     const [activeTab, setActiveTab] = useState(0);
+    const [coaContent, setCoaContent] = useState('');
+    const [coaLoading, setCoaLoading] = useState(false);
+    const [translatedContent, setTranslatedContent] = useState('');
+    const [translateLoading, setTranslateLoading] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState('es');
 
     // Form states
     const [noteForm, setNoteForm] = useState({
@@ -93,6 +103,19 @@ const EnhancedNotes = ({ caseId, users = [] }) => {
     ];
 
     const priorities = ['low', 'normal', 'high', 'urgent'];
+
+    const languages = [
+        { code: 'es', name: 'Spanish' },
+        { code: 'fr', name: 'French' },
+        { code: 'de', name: 'German' },
+        { code: 'it', name: 'Italian' },
+        { code: 'pt', name: 'Portuguese' },
+        { code: 'pl', name: 'Polish' },
+        { code: 'ar', name: 'Arabic' },
+        { code: 'ur', name: 'Urdu' },
+        { code: 'hi', name: 'Hindi' },
+        { code: 'zh', name: 'Chinese' }
+    ];
 
     useEffect(() => {
         if (caseId) {
@@ -198,6 +221,51 @@ const EnhancedNotes = ({ caseId, users = [] }) => {
         } catch (error) {
             console.error('Error updating follow-up:', error);
         }
+    };
+
+    const handleGenerateCoA = async (note) => {
+        setSelectedNote(note);
+        setCoaLoading(true);
+        setOpenCoaDialog(true);
+        
+        try {
+            const response = await axios.post('/api/enhanced-notes/generate-coa', {
+                case_id: caseId,
+                notes: [note],
+                include_case_context: true
+            });
+            setCoaContent(response.data.confirmation_of_advice);
+        } catch (error) {
+            console.error('Error generating CoA:', error);
+            setCoaContent('Error generating Confirmation of Advice. Please try again.');
+        } finally {
+            setCoaLoading(false);
+        }
+    };
+
+    const handleTranslateContent = async (content, targetLanguage) => {
+        setTranslateLoading(true);
+        setOpenTranslateDialog(true);
+        
+        try {
+            const response = await axios.post('/api/translation/translate', {
+                text: content,
+                target_language: targetLanguage,
+                source_language: 'en'
+            });
+            setTranslatedContent(response.data.translated_text);
+        } catch (error) {
+            console.error('Error translating content:', error);
+            setTranslatedContent('Translation service temporarily unavailable.');
+        } finally {
+            setTranslateLoading(false);
+        }
+    };
+
+    const copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            // Could add a snackbar notification here
+        });
     };
 
     const resetForm = () => {
@@ -357,13 +425,32 @@ const EnhancedNotes = ({ caseId, users = [] }) => {
                                                 By {note.first_name} {note.last_name} • {dayjs(note.created_at).format('MMM DD, YYYY HH:mm')}
                                             </Typography>
                                         </Box>
-                                        <Box>
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => handleGenerateCoA(note)}
+                                                title="Generate Confirmation of Advice"
+                                            >
+                                                <CoaIcon />
+                                            </IconButton>
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => {
+                                                    setSelectedNote(note);
+                                                    setTranslatedContent(note.content);
+                                                    setOpenTranslateDialog(true);
+                                                }}
+                                                title="Translate Note"
+                                            >
+                                                <TranslateIcon />
+                                            </IconButton>
                                             <IconButton
                                                 size="small"
                                                 onClick={() => {
                                                     setSelectedNote(note);
                                                     setOpenFollowUpDialog(true);
                                                 }}
+                                                title="Schedule Follow-up"
                                             >
                                                 <ScheduleIcon />
                                             </IconButton>
@@ -570,6 +657,127 @@ const EnhancedNotes = ({ caseId, users = [] }) => {
                             onCancel={() => setOpenFollowUpDialog(false)}
                         />
                     </DialogContent>
+                </Dialog>
+
+                {/* Confirmation of Advice Dialog */}
+                <Dialog open={openCoaDialog} onClose={() => setOpenCoaDialog(false)} maxWidth="md" fullWidth>
+                    <DialogTitle>
+                        Confirmation of Advice - {selectedNote?.title}
+                    </DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ mt: 2 }}>
+                            {coaLoading ? (
+                                <Box sx={{ textAlign: 'center', py: 4 }}>
+                                    <Typography>Generating Confirmation of Advice using AI...</Typography>
+                                </Box>
+                            ) : (
+                                <>
+                                    <Alert severity="info" sx={{ mb: 2 }}>
+                                        This Confirmation of Advice was automatically generated from case notes using local AI. 
+                                        Please review and modify as needed before sharing with the client.
+                                    </Alert>
+                                    <TextField
+                                        fullWidth
+                                        multiline
+                                        rows={15}
+                                        label="Confirmation of Advice"
+                                        value={coaContent}
+                                        onChange={(e) => setCoaContent(e.target.value)}
+                                    />
+                                </>
+                            )}
+                        </Box>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button 
+                            onClick={() => copyToClipboard(coaContent)}
+                            startIcon={<CopyIcon />}
+                            disabled={!coaContent}
+                        >
+                            Copy
+                        </Button>
+                        <Button 
+                            onClick={() => {
+                                setSelectedNote({...selectedNote, content: coaContent});
+                                setOpenTranslateDialog(true);
+                            }}
+                            startIcon={<TranslateIcon />}
+                            disabled={!coaContent}
+                        >
+                            Translate
+                        </Button>
+                        <Button onClick={() => setOpenCoaDialog(false)}>Close</Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Translation Dialog */}
+                <Dialog open={openTranslateDialog} onClose={() => setOpenTranslateDialog(false)} maxWidth="md" fullWidth>
+                    <DialogTitle>
+                        Translate Content
+                    </DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ mt: 2 }}>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} md={6}>
+                                    <FormControl fullWidth sx={{ mb: 2 }}>
+                                        <InputLabel>Target Language</InputLabel>
+                                        <Select
+                                            value={selectedLanguage}
+                                            onChange={(e) => {
+                                                setSelectedLanguage(e.target.value);
+                                                const content = selectedNote?.content || coaContent;
+                                                if (content) {
+                                                    handleTranslateContent(content, e.target.value);
+                                                }
+                                            }}
+                                        >
+                                            {languages.map(lang => (
+                                                <MenuItem key={lang.code} value={lang.code}>
+                                                    {lang.name}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Typography variant="h6" sx={{ mb: 1 }}>Original (English):</Typography>
+                                    <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                            {selectedNote?.content || coaContent}
+                                        </Typography>
+                                    </Paper>
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <Typography variant="h6" sx={{ mb: 1 }}>
+                                        Translated ({languages.find(l => l.code === selectedLanguage)?.name}):
+                                    </Typography>
+                                    {translateLoading ? (
+                                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                                            <Typography>Translating...</Typography>
+                                        </Box>
+                                    ) : (
+                                        <TextField
+                                            fullWidth
+                                            multiline
+                                            rows={10}
+                                            value={translatedContent}
+                                            onChange={(e) => setTranslatedContent(e.target.value)}
+                                        />
+                                    )}
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button 
+                            onClick={() => copyToClipboard(translatedContent)}
+                            startIcon={<CopyIcon />}
+                            disabled={!translatedContent}
+                        >
+                            Copy Translation
+                        </Button>
+                        <Button onClick={() => setOpenTranslateDialog(false)}>Close</Button>
+                    </DialogActions>
                 </Dialog>
             </Box>
         </LocalizationProvider>

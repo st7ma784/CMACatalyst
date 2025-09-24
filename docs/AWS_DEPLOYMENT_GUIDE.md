@@ -6,21 +6,25 @@ This guide provides comprehensive instructions for deploying the CMA Case Manage
 
 ## Architecture Options
 
-### Option 1: Cost-Effective Starter (Est. $50-100/month)
-- **Compute**: ECS Fargate (2 vCPU, 4GB RAM)
+### Option 1: Cost-Effective Starter (Est. $80-150/month)
+- **Compute**: ECS Fargate (6 services: 2 vCPU, 4GB RAM each)
 - **Database**: RDS PostgreSQL (db.t3.micro)
 - **Cache**: ElastiCache Redis (cache.t3.micro)
-- **Storage**: EFS for file uploads
+- **Storage**: S3 for documents + EFS for temporary files
 - **Load Balancer**: Application Load Balancer
+- **Message Queue**: Amazon MQ (RabbitMQ)
+- **AI Models**: EFS volumes for model caching
 - **SSL**: AWS Certificate Manager (free)
 
-### Option 2: Production Scale (Est. $200-500/month)
-- **Compute**: EKS cluster with auto-scaling
+### Option 2: Production Scale (Est. $300-700/month)
+- **Compute**: EKS cluster with auto-scaling (all 6 microservices)
 - **Database**: RDS PostgreSQL (db.t3.small with Multi-AZ)
 - **Cache**: ElastiCache Redis cluster
 - **Storage**: S3 + CloudFront CDN
-- **Monitoring**: CloudWatch + X-Ray
-- **Backup**: Automated RDS snapshots
+- **Message Queue**: Amazon MQ with clustering
+- **AI Infrastructure**: GPU instances for LLM and translation services
+- **Monitoring**: CloudWatch + X-Ray + Container Insights
+- **Backup**: Automated RDS snapshots + S3 versioning
 
 ### Option 3: Enterprise (Est. $500+/month)
 - **Compute**: EKS with spot instances
@@ -42,9 +46,12 @@ This guide provides comprehensive instructions for deploying the CMA Case Manage
 ### Step 1: Create ECR Repositories
 
 ```bash
-# Create repositories for container images
+# Create repositories for all container images
 aws ecr create-repository --repository-name cma-app
 aws ecr create-repository --repository-name cma-chatbot
+aws ecr create-repository --repository-name cma-document-inbox
+aws ecr create-repository --repository-name cma-ocr-processor
+aws ecr create-repository --repository-name cma-translation-service
 
 # Get login token
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <account-id>.dkr.ecr.us-east-1.amazonaws.com
@@ -53,17 +60,29 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 ### Step 2: Build and Push Images
 
 ```bash
-# Build and tag images
+# Build and tag all images
 docker build -t cma-app .
 docker build -f Dockerfile.chatbot -t cma-chatbot .
+docker build -f Dockerfile.llama -t cma-llama .
+docker build -t cma-document-inbox ./services/document-inbox
+docker build -t cma-ocr-processor ./services/ocr-processor
+docker build -t cma-translation-service ./services/translation-service
 
 # Tag for ECR
 docker tag cma-app:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-app:latest
 docker tag cma-chatbot:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-chatbot:latest
+docker tag cma-llama:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-llama:latest
+docker tag cma-document-inbox:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-document-inbox:latest
+docker tag cma-ocr-processor:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-ocr-processor:latest
+docker tag cma-translation-service:latest <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-translation-service:latest
 
 # Push to ECR
 docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-app:latest
 docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-chatbot:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-llama:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-document-inbox:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-ocr-processor:latest
+docker push <account-id>.dkr.ecr.us-east-1.amazonaws.com/cma-translation-service:latest
 ```
 
 ### Step 3: Create RDS Database

@@ -36,6 +36,7 @@ const ChatbotWidget = ({ caseId = null, isOpen, onToggle }) => {
     const [socket, setSocket] = useState(null);
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
     const [isMinimized, setIsMinimized] = useState(false);
+    const [capabilities, setCapabilities] = useState([]);
     const messagesEndRef = useRef(null);
     const sessionId = useRef(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
@@ -74,16 +75,31 @@ const ChatbotWidget = ({ caseId = null, isOpen, onToggle }) => {
                 if (caseId) {
                     addMessage({
                         type: 'system',
-                        content: `Connected to AI assistant for case ${caseId}. I can help you with debt advice, compliance questions, and case management.`,
+                        content: `Connected to AI assistant for case ${caseId}. I can help you with:
+• Calculate debt figures and budgets
+• View case details and history
+• Search local council information
+• Provide debt advice guidance
+• FCA compliance questions`,
                         timestamp: new Date()
                     });
                 } else {
                     addMessage({
                         type: 'system',
-                        content: 'Connected to AI assistant. How can I help you today?',
+                        content: `Connected to AI assistant. I can help you with:
+• Financial calculations
+• General debt advice
+• Local council searches
+• Compliance guidance`,
                         timestamp: new Date()
                     });
                 }
+                
+                // Request capabilities from server
+                ws.send(JSON.stringify({ 
+                    type: 'get_capabilities',
+                    case_id: caseId 
+                }));
             };
 
             ws.onmessage = (event) => {

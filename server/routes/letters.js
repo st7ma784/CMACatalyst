@@ -172,6 +172,29 @@ router.get('/case/:caseId', authenticateToken, async (req, res) => {
     }
 });
 
+// Get generated letters for a client
+router.get('/client/:clientId', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.clientId;
+
+        const result = await pool.query(`
+            SELECT gl.*, lt.name as template_name, u.first_name || ' ' || u.last_name as generated_by,
+                   'client' as context_type
+            FROM generated_letters gl
+            LEFT JOIN letter_templates lt ON gl.template_id = lt.id
+            JOIN users u ON gl.user_id = u.id
+            JOIN clients c ON gl.client_id = c.id
+            WHERE gl.client_id = $1 AND c.centre_id = $2
+            ORDER BY gl.generated_at DESC
+        `, [clientId, req.user.centre_id]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client generated letters error:', error);
+        res.status(500).json({ message: 'Error fetching client generated letters' });
+    }
+});
+
 // Generate PDF from letter
 router.post('/:id/pdf', authenticateToken, async (req, res) => {
     try {

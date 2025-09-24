@@ -6,29 +6,32 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "docker:build": "docker build -t cma/document-inbox ."
   },
   "dependencies": {
     "amqplib": "^0.10.9",
-    "aws-sdk": "^2.1490.0",
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "helmet": "^7.0.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
     "imap": "^0.8.19",
     "mailparser": "^3.6.5",
-    "mammoth": "^1.6.0",
-    "multer": "^1.4.5-lts.1",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
     "pdf-parse": "^1.1.1",
-    "sharp": "^0.34.3",
-    "uuid": "^9.0.1",
+    "sharp": "^0.34.4",
+    "uuid": "^13.0.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
+    "jest": "^30.1.3",
     "nodemon": "^3.0.1",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "@types/jest": "^30.0.0"
   }
 }

@@ -25,30 +25,71 @@ router.get('/case/:caseId', authenticateToken, async (req, res) => {
     }
 });
 
+// Get notes for a client
+router.get('/client/:clientId', authenticateToken, async (req, res) => {
+    try {
+        const clientId = req.params.clientId;
+
+        const result = await pool.query(`
+            SELECT n.*, u.first_name || ' ' || u.last_name as author_name
+            FROM notes n
+            JOIN users u ON n.user_id = u.id
+            JOIN clients c ON n.client_id = c.id
+            WHERE n.client_id = $1 AND c.centre_id = $2
+            ORDER BY n.created_at DESC
+        `, [clientId, req.user.centre_id]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Get client notes error:', error);
+        res.status(500).json({ message: 'Error fetching client notes' });
+    }
+});
+
 // Create note
 router.post('/', authenticateToken, async (req, res) => {
     try {
-        const { case_id, title, content, note_type = 'general', is_private = false } = req.body;
+        const { case_id, client_id, title, content, note_type = 'general', is_private = false } = req.body;
 
-        if (!case_id || !content) {
-            return res.status(400).json({ message: 'Case ID and content are required' });
+        if ((!case_id && !client_id) || !content) {
+            return res.status(400).json({ message: 'Either Case ID or Client ID and content are required' });
         }
 
-        // Verify case belongs to centre
-        const caseCheck = await pool.query(
-            'SELECT id FROM cases WHERE id = $1 AND centre_id = $2',
-            [case_id, req.user.centre_id]
-        );
-
-        if (caseCheck.rows.length === 0) {
-            return res.status(404).json({ message: 'Case not found' });
+        if (case_id && client_id) {
+            return res.status(400).json({ message: 'Cannot specify both case_id and client_id' });
         }
 
-        const result = await pool.query(`
-            INSERT INTO notes (case_id, user_id, title, content, note_type, is_private)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
-        `, [case_id, req.user.id, title, content, note_type, is_private]);
+        let query, params;
+
+        if (case_id) {
+            // Verify case belongs to centre
+            const caseCheck = await pool.query(
+                'SELECT id FROM cases WHERE id = $1 AND centre_id = $2',
+                [case_id, req.user.centre_id]
+            );
+
+            if (caseCheck.rows.length === 0) {
+                return res.status(404).json({ message: 'Case not found' });
+            }
+
+            query = `INSERT INTO notes (case_id, user_id, title, content, note_type, is_private) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+            params = [case_id, req.user.id, title, content, note_type, is_private];
+        } else {
+            // Verify client belongs to centre
+            const clientCheck = await pool.query(
+                'SELECT id FROM clients WHERE id = $1 AND centre_id = $2',
+                [client_id, req.user.centre_id]
+            );
+
+            if (clientCheck.rows.length === 0) {
+                return res.status(404).json({ message: 'Client not found' });
+            }
+
+            query = `INSERT INTO notes (client_id, user_id, title, content, note_type, is_private) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+            params = [client_id, req.user.id, title, content, note_type, is_private];
+        }
+
+        const result = await pool.query(query, params);
 
         res.status(201).json({
             message: 'Note created successfully',
