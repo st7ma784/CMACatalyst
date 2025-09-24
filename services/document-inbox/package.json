@@ -13,19 +13,19 @@
   },
   "dependencies": {
     "amqplib": "^0.10.9",
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "imap": "^0.8.19",
     "mailparser": "^3.6.5",
-    "mammoth": "^1.6.0",
+    "mammoth": "^1.11.0",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
     "pdf-parse": "^1.1.1",
-    "sharp": "^0.34.3",
-    "uuid": "^12.0.0",
+    "sharp": "^0.34.4",
+    "uuid": "^13.0.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
