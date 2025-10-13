@@ -1,0 +1,165 @@
+{
+  "name": "RAG-Enhanced AI Assistant Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-assistant",
+        "responseMode": "responseNode"
+      },
+      "id": "a1a2b3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+      "name": "RAG Assistant Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://postgres:5432",
+        "operation": "executeQuery",
+        "query": "SELECT * FROM cases WHERE client_id = {{ $json.client_id }} ORDER BY created_at DESC LIMIT 5"
+      },
+      "id": "b2b3c4c5-6d7e-8f9a-0b1c-2d3e4f5a6b7c",
+      "name": "Get Client Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.question }}\",\n  \"manual_type\": \"{{ $json.manual_type || null }}\",\n  \"top_k\": 3,\n  \"score_threshold\": 0.7\n}"
+      },
+      "id": "c3c4d5d6-7e8f-9a0b-1c2d-3e4f5a6b7c8d",
+      "name": "Search Training Manuals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build enhanced prompt with RAG context\nconst userQuery = $input.first().json.question;\nconst clientContext = $input.first().json.client_context || {};\nconst ragResults = $input.first().json.rag_results || [];\n\n// Build context from RAG results\nlet contextText = '';\nif (ragResults.length > 0) {\n  contextText = ragResults.map((doc, i) => {\n    const source = doc.metadata?.file_name || 'Training Manual';\n    return `Source ${i+1} (${source}):\\n${doc.content}\\n`;\n  }).join('\\n');\n}\n\n// Build comprehensive prompt\nlet prompt = `You are a professional debt advice assistant following FCA guidelines. Provide empathetic, accurate guidance based on training materials.\n\nIMPORTANT GUIDELINES:\n- Follow FCA regulations and best practices\n- Be professional, empathetic, and non-judgmental  \n- Prioritize client wellbeing and financial stability\n- If unsure, recommend consulting a qualified advisor\n`;\n\nif (contextText) {\n  prompt += `\\nRELEVANT TRAINING MATERIAL:\\n${contextText}\\n\\nUse this training material to inform your response.\\n`;\n}\n\nif (clientContext.client_id) {\n  prompt += `\\nCLIENT CONTEXT:\\n- Client ID: ${clientContext.client_id}\\n- Previous cases: ${clientContext.case_count || 0}\\n`;\n}\n\nprompt += `\\nCLIENT QUESTION: ${userQuery}\\n\\nRESPONSE:\\nProvide helpful guidance based on the training materials and FCA guidelines.`;\n\nreturn {\n  enhanced_prompt: prompt,\n  rag_sources: ragResults,\n  has_rag_context: ragResults.length > 0\n};"
+      },
+      "id": "d4d5e6e7-8f9a-0b1c-2d3e-4f5a6b7c8d9e",
+      "name": "Build Enhanced Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.1:8b\",\n  \"prompt\": \"{{ $json.enhanced_prompt }}\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"top_p\": 0.9,\n    \"max_tokens\": 500\n  }\n}"
+      },
+      "id": "e5e6f7f8-9a0b-1c2d-3e4f-5a6b7c8d9e0f",
+      "name": "Generate AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:5000/api/chat/log",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"client_id\": \"{{ $json.client_id }}\",\n  \"question\": \"{{ $json.question }}\",\n  \"response\": \"{{ $json.response }}\",\n  \"rag_used\": \"{{ $json.has_rag_context }}\",\n  \"sources\": \"{{ $json.rag_sources }}\",\n  \"timestamp\": \"{{ $now }}\"\n}"
+      },
+      "id": "f6f7g8g9-0a1b-2c3d-4e5f-6a7b8c9d0e1f",
+      "name": "Log RAG Conversation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.response }}\",\n  \"sources\": \"{{ $json.rag_sources }}\",\n  \"rag_used\": \"{{ $json.has_rag_context }}\",\n  \"confidence\": \"{{ $json.has_rag_context ? 0.85 : 0.6 }}\"\n}"
+      },
+      "id": "g7g8h9h0-1b2c-3d4e-5f6a-7b8c9d0e1f2a",
+      "name": "RAG Assistant Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1580, 300]
+    }
+  ],
+  "connections": {
+    "RAG Assistant Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Client Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Client Context": {
+      "main": [
+        [
+          {
+            "node": "Search Training Manuals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Training Manuals": {
+      "main": [
+        [
+          {
+            "node": "Build Enhanced Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Enhanced Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Log RAG Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log RAG Conversation": {
+      "main": [
+        [
+          {
+            "node": "RAG Assistant Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "rag-enhanced-assistant",
+  "tags": ["rag", "assistant", "training-manuals"]
+}

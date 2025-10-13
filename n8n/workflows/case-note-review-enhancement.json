@@ -1,0 +1,242 @@
+{
+  "name": "Case Note Review & Enhancement Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "case-note-review",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-case-note-review",
+      "name": "Case Note Review Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and extract case note data\nconst noteData = $input.first().json;\n\n// Validate required fields\nif (!noteData.note_id || !noteData.note_content) {\n  throw new Error('Missing required fields: note_id or note_content');\n}\n\n// Extract key information for analysis\nconst analysisContext = {\n  note_id: noteData.note_id,\n  case_id: noteData.case_id,\n  note_content: noteData.note_content,\n  note_type: noteData.note_type || 'general',\n  client_situation: noteData.client_situation || '',\n  advisor_id: noteData.advisor_id,\n  action: noteData.action || 'create',\n  timestamp: new Date().toISOString()\n};\n\n// Create search queries for different aspects\nconst searchQueries = {\n  // Find relevant training materials\n  training_query: `${noteData.client_situation} ${noteData.note_type} procedures guidance`,\n  \n  // Find similar cases\n  case_similarity_query: noteData.note_content.substring(0, 500),\n  \n  // Find compliance requirements\n  compliance_query: `${noteData.note_type} compliance FCA requirements documentation`\n};\n\nreturn {\n  analysis_context: analysisContext,\n  search_queries: searchQueries\n};"
+      },
+      "id": "validate-extract-data",
+      "name": "Validate & Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.search_queries.training_query }}\",\n  \"manual_type\": \"debt-procedures\",\n  \"top_k\": 3,\n  \"score_threshold\": 0.7\n}"
+      },
+      "id": "search-training-materials",
+      "name": "Search Training Materials",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.search_queries.case_similarity_query }}\",\n  \"collection_name\": \"case_notes\",\n  \"top_k\": 3,\n  \"score_threshold\": 0.6\n}"
+      },
+      "id": "search-similar-cases",
+      "name": "Search Similar Cases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.search_queries.compliance_query }}\",\n  \"manual_type\": \"fca-guidelines\",\n  \"top_k\": 2,\n  \"score_threshold\": 0.7\n}"
+      },
+      "id": "search-compliance-requirements",
+      "name": "Search Compliance Requirements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine all search results for analysis\nconst analysisContext = $input.first().json.analysis_context;\nconst trainingResults = $input.all().find(item => item.json.training_materials)?.json.results || [];\nconst similarCases = $input.all().find(item => item.json.similar_cases)?.json.results || [];\nconst complianceResults = $input.all().find(item => item.json.compliance_requirements)?.json.results || [];\n\n// Create comprehensive context for AI analysis\nconst enhancementContext = {\n  original_note: analysisContext.note_content,\n  note_metadata: {\n    note_id: analysisContext.note_id,\n    case_id: analysisContext.case_id,\n    note_type: analysisContext.note_type,\n    client_situation: analysisContext.client_situation\n  },\n  \n  // Training material context\n  training_guidance: trainingResults.map(result => ({\n    source: result.metadata?.file_name || 'Training Manual',\n    content: result.content,\n    relevance_score: result.score\n  })),\n  \n  // Similar case precedents\n  case_precedents: similarCases.map(result => ({\n    case_id: result.metadata?.case_id || 'Unknown',\n    content: result.content,\n    similarity_score: result.score,\n    outcome: result.metadata?.outcome || 'Unknown'\n  })),\n  \n  // Compliance requirements\n  compliance_requirements: complianceResults.map(result => ({\n    source: result.metadata?.file_name || 'FCA Guidelines',\n    content: result.content,\n    relevance_score: result.score\n  }))\n};\n\nreturn {\n  enhancement_context: enhancementContext,\n  has_training_guidance: trainingResults.length > 0,\n  has_case_precedents: similarCases.length > 0,\n  has_compliance_requirements: complianceResults.length > 0\n};"
+      },
+      "id": "combine-search-results",
+      "name": "Combine Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.1:8b\",\n  \"prompt\": \"You are an expert debt advisor quality assurance specialist. Your task is to review and enhance case notes to ensure they are comprehensive, compliant, and professionally written.\\n\\nORIGINAL CASE NOTE:\\n{{ $json.enhancement_context.original_note }}\\n\\nCLIENT SITUATION: {{ $json.enhancement_context.note_metadata.client_situation }}\\nNOTE TYPE: {{ $json.enhancement_context.note_metadata.note_type }}\\n\\n{% if $json.has_training_guidance %}RELEVANT TRAINING GUIDANCE:\\n{% for guidance in $json.enhancement_context.training_guidance %}Source: {{ guidance.source }}\\nContent: {{ guidance.content }}\\n\\n{% endfor %}{% endif %}\\n\\n{% if $json.has_case_precedents %}SIMILAR CASE PRECEDENTS:\\n{% for precedent in $json.enhancement_context.case_precedents %}Case: {{ precedent.case_id }}\\nOutcome: {{ precedent.outcome }}\\nApproach: {{ precedent.content }}\\n\\n{% endfor %}{% endif %}\\n\\n{% if $json.has_compliance_requirements %}COMPLIANCE REQUIREMENTS:\\n{% for requirement in $json.enhancement_context.compliance_requirements %}Source: {{ requirement.source }}\\nRequirement: {{ requirement.content }}\\n\\n{% endfor %}{% endif %}\\n\\nPlease provide:\\n1. ENHANCED NOTE: Rewrite the case note to be more comprehensive, professional, and compliant\\n2. TRAINING LINKS: List specific training manual sections that are relevant\\n3. IMPROVEMENT SUGGESTIONS: Key areas where the original note could be strengthened\\n4. COMPLIANCE CHECKLIST: Ensure all FCA requirements are addressed\\n\\nFormat your response as JSON with keys: enhanced_note, training_links, improvement_suggestions, compliance_checklist\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.8,\n    \"max_tokens\": 1500\n  }\n}"
+      },
+      "id": "generate-enhanced-note",
+      "name": "Generate Enhanced Note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and structure enhancement data\nconst aiResponse = $input.first().json.response;\nconst enhancementContext = $input.first().json.enhancement_context;\n\nlet enhancementData;\ntry {\n  // Try to parse JSON response from AI\n  enhancementData = JSON.parse(aiResponse);\n} catch (error) {\n  // Fallback: extract structured data from text response\n  enhancementData = {\n    enhanced_note: aiResponse.split('ENHANCED NOTE:')[1]?.split('TRAINING LINKS:')[0]?.trim() || aiResponse,\n    training_links: [],\n    improvement_suggestions: [],\n    compliance_checklist: []\n  };\n}\n\n// Ensure all required fields exist\nconst structuredEnhancement = {\n  note_id: enhancementContext.note_metadata.note_id,\n  case_id: enhancementContext.note_metadata.case_id,\n  original_note: enhancementContext.original_note,\n  enhanced_note: enhancementData.enhanced_note || enhancementContext.original_note,\n  \n  training_links: Array.isArray(enhancementData.training_links) \n    ? enhancementData.training_links \n    : enhancementContext.training_guidance.map(guidance => ({\n        source: guidance.source,\n        relevance: guidance.relevance_score,\n        content_preview: guidance.content.substring(0, 200)\n      })),\n  \n  improvement_suggestions: Array.isArray(enhancementData.improvement_suggestions)\n    ? enhancementData.improvement_suggestions\n    : ['Review note for completeness', 'Ensure compliance requirements are met'],\n  \n  compliance_checklist: Array.isArray(enhancementData.compliance_checklist)\n    ? enhancementData.compliance_checklist\n    : ['FCA guidelines followed', 'Client circumstances documented'],\n  \n  similar_cases: enhancementContext.case_precedents.map(precedent => ({\n    case_id: precedent.case_id,\n    similarity_score: precedent.similarity_score,\n    outcome: precedent.outcome\n  })),\n  \n  enhancement_timestamp: new Date().toISOString(),\n  enhancement_quality_score: calculateQualityScore(enhancementData, enhancementContext)\n};\n\nfunction calculateQualityScore(enhancement, context) {\n  let score = 0.5; // Base score\n  \n  if (context.has_training_guidance) score += 0.2;\n  if (context.has_case_precedents) score += 0.2;\n  if (context.has_compliance_requirements) score += 0.1;\n  \n  return Math.min(score, 1.0);\n}\n\nreturn structuredEnhancement;"
+      },
+      "id": "structure-enhancement-data",
+      "name": "Structure Enhancement Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:5000/api/case-notes/enhancement-review",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "save-enhancement-review",
+      "name": "Save Enhancement Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1580, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"note_id\": \"{{ $json.note_id }}\",\n  \"enhancement_applied\": true,\n  \"training_links_found\": {{ $json.training_links.length }},\n  \"similar_cases_found\": {{ $json.similar_cases.length }},\n  \"quality_score\": {{ $json.enhancement_quality_score }},\n  \"review_timestamp\": \"{{ $now }}\"\n}"
+      },
+      "id": "enhancement-response",
+      "name": "Enhancement Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    }
+  ],
+  "connections": {
+    "Case Note Review Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Search Training Materials",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search Similar Cases",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search Compliance Requirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Training Materials": {
+      "main": [
+        [
+          {
+            "node": "Combine Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Similar Cases": {
+      "main": [
+        [
+          {
+            "node": "Combine Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Compliance Requirements": {
+      "main": [
+        [
+          {
+            "node": "Combine Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Search Results": {
+      "main": [
+        [
+          {
+            "node": "Generate Enhanced Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Enhanced Note": {
+      "main": [
+        [
+          {
+            "node": "Structure Enhancement Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure Enhancement Data": {
+      "main": [
+        [
+          {
+            "node": "Save Enhancement Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Enhancement Review": {
+      "main": [
+        [
+          {
+            "node": "Enhancement Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "case-note-review-enhancement",
+  "tags": ["rag", "case-notes", "quality-assurance", "enhancement"]
+}

@@ -23,3 +23,12 @@ yarn-debug.log*
 yarn-error.log*
 services/document-inbox/node_modules/
 services/ocr-processor/node_modules/
+*.pdf
+*.pyc
+OCRDemo/.env
+OCRDemo/.env.local
+OCRDemo/credentials/*
+OCRDemo/credentials/token.json
+OCRDemo/credentials/credentials.json
+OCRDemo/data/*.db
+OCRDemo/logs/*.log

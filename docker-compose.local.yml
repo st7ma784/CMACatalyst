@@ -1,0 +1,310 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: cma-postgres-local
+    environment:
+      POSTGRES_DB: cma_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/02-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    container_name: cma-redis-local
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_local:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Ollama service with GPU support
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cma-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./scripts/ollama-init.sh:/usr/local/bin/ollama-init.sh
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      bash -c "
+        ollama serve &
+        sleep 10 &&
+        ollama pull llama2:7b &&
+        ollama pull codellama:7b &&
+        ollama pull mistral:7b &&
+        wait
+      "
+
+  # n8n workflow automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: cma-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=password
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: cma-minio-local
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data_local:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cma-rabbitmq-local
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data_local:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  # Enhanced chatbot with Ollama integration
+  chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile.chatbot.local
+    container_name: cma-chatbot-local
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=cma_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+      - MODEL_NAME=llama2:7b
+      - DEVICE=cuda
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  document-inbox:
+    build:
+      context: ./services/document-inbox
+      dockerfile: Dockerfile
+    container_name: cma-document-inbox-local
+    ports:
+      - "3001:3001"
+    environment:
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_BUCKET=cma-documents
+      - RABBITMQ_URL=amqp://admin:password@rabbitmq:5672
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/document-processed
+    depends_on:
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+
+  ocr-processor:
+    build:
+      context: ./services/ocr-processor
+      dockerfile: Dockerfile
+    container_name: cma-ocr-processor-local
+    ports:
+      - "3002:3002"
+    environment:
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_BUCKET=cma-documents
+      - RABBITMQ_URL=amqp://admin:password@rabbitmq:5672
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/ocr-complete
+    depends_on:
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cma-app-local
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=cma_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - FILE_STORAGE_PATH=/app/uploads
+      - CHATBOT_URL=http://chatbot:8001
+      - DOCUMENT_INBOX_URL=http://document-inbox:3001
+      - OCR_PROCESSOR_URL=http://ocr-processor:3002
+      - OLLAMA_URL=http://ollama:11434
+      - N8N_URL=http://n8n:5678
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - RABBITMQ_URL=amqp://admin:password@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+      document-inbox:
+        condition: service_started
+      ocr-processor:
+        condition: service_started
+    volumes:
+      - ./uploads:/app/uploads
+      - ./client/build:/app/client/build
+
+  # Frontend build service
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: cma-frontend-local
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - REACT_APP_CHATBOT_URL=http://localhost:8001
+      - REACT_APP_N8N_URL=http://localhost:5678
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    depends_on:
+      - app
+    command: npm start
+
+  nginx:
+    image: nginx:alpine
+    container_name: cma-nginx-local
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf.local:/etc/nginx/nginx.conf
+      - ./uploads:/var/www/uploads
+    depends_on:
+      - app
+      - chatbot
+      - frontend
+      - n8n
+
+volumes:
+  postgres_data_local:
+  redis_data_local:
+  minio_data_local:
+  rabbitmq_data_local:
+  ollama_data:
+  n8n_data:
+
+networks:
+  default:
+    name: cma-local-network

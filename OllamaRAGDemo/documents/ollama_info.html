@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ollama - Run Large Language Models Locally</title>
+</head>
+<body>
+    <h1>Ollama: Open Source LLM Platform</h1>
+
+    <h2>What is Ollama?</h2>
+    <p>
+        Ollama is an open-source platform that makes it easy to run large language models locally on your own hardware.
+        It provides a simple interface to download, run, and manage various open-source language models without
+        requiring extensive technical knowledge or cloud services.
+    </p>
+
+    <h2>Key Features</h2>
+    <ul>
+        <li><strong>Local Execution:</strong> Run models entirely on your own hardware, ensuring data privacy and eliminating API costs</li>
+        <li><strong>GPU Acceleration:</strong> Supports NVIDIA CUDA and Apple Metal for fast inference</li>
+        <li><strong>Model Library:</strong> Access to popular models like Llama 3.2, Mistral, Code Llama, and many others</li>
+        <li><strong>REST API:</strong> Simple HTTP API for integration with applications</li>
+        <li><strong>Model Customization:</strong> Create custom models with specific prompts and parameters</li>
+    </ul>
+
+    <h2>Popular Models Available</h2>
+    <div>
+        <h3>Llama 3.2</h3>
+        <p>Meta's latest open-source language model, available in various sizes (1B, 3B, 8B, 70B parameters).
+        Excellent for general-purpose text generation, conversation, and reasoning tasks.</p>
+
+        <h3>Mistral</h3>
+        <p>A 7B parameter model that delivers strong performance on various benchmarks while being
+        efficient enough to run on consumer hardware.</p>
+
+        <h3>Code Llama</h3>
+        <p>Specialized for code generation and programming tasks. Available in base, Python-specialized,
+        and instruction-tuned variants.</p>
+
+        <h3>Nomic Embed Text</h3>
+        <p>A specialized embedding model for converting text into vector representations.
+        Essential for RAG applications and semantic search.</p>
+    </div>
+
+    <h2>System Requirements</h2>
+    <ul>
+        <li>Minimum 8GB RAM (16GB+ recommended)</li>
+        <li>GPU recommended for optimal performance (NVIDIA with CUDA or Apple Silicon)</li>
+        <li>Sufficient disk space for models (2GB-40GB per model depending on size)</li>
+        <li>Linux, macOS, or Windows operating system</li>
+    </ul>
+
+    <h2>Use Cases</h2>
+    <div>
+        <p>Ollama is ideal for:</p>
+        <ul>
+            <li>Development and testing of AI applications</li>
+            <li>Privacy-sensitive applications requiring local processing</li>
+            <li>Prototyping without cloud dependencies</li>
+            <li>Educational purposes and learning about LLMs</li>
+            <li>Building RAG systems with custom knowledge bases</li>
+            <li>Code assistance and generation</li>
+        </ul>
+    </div>
+
+    <h2>Integration</h2>
+    <p>
+        Ollama provides a REST API that can be easily integrated with various frameworks and tools:
+    </p>
+    <ul>
+        <li>LangChain - For building LLM applications</li>
+        <li>LlamaIndex - For data framework integration</li>
+        <li>Python, JavaScript, Go, and other programming languages via HTTP API</li>
+        <li>Docker containers for easy deployment</li>
+    </ul>
+
+    <h2>Getting Started</h2>
+    <p>
+        To start using Ollama, you typically:
+    </p>
+    <ol>
+        <li>Install Ollama on your system</li>
+        <li>Pull a model using: <code>ollama pull llama3.2</code></li>
+        <li>Run the model: <code>ollama run llama3.2</code></li>
+        <li>Or integrate via API in your applications</li>
+    </ol>
+
+    <footer>
+        <p>For more information, visit the official Ollama documentation and GitHub repository.</p>
+    </footer>
+</body>
+</html>

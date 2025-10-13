@@ -165,6 +165,61 @@ services:
     volumes:
       - translation_models:/app/models
 
+  rag-ingestion:
+    build:
+      context: ./services/rag-ingestion
+      dockerfile: Dockerfile
+    container_name: cma-rag-ingestion
+    ports:
+      - "8004:8004"
+    environment:
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - TRAINING_MANUALS_BUCKET=training-manuals
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - rag_models:/app/models
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: cma-chromadb
+    ports:
+      - "8005:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["http://localhost:5000","http://localhost:3000","http://localhost:8001","http://localhost:8004"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cma-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_ORIGINS=http://localhost:5000,http://localhost:3000,http://localhost:8001,http://localhost:8004
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
   app:
     build:
       context: .
@@ -187,6 +242,9 @@ services:
       - DOCUMENT_INBOX_URL=http://document-inbox:3001
       - OCR_PROCESSOR_URL=http://ocr-processor:3002
       - TRANSLATION_SERVICE_URL=http://translation-service:8003
+      - RAG_INGESTION_URL=http://rag-ingestion:8004
+      - CHROMADB_URL=http://chromadb:8000
+      - OLLAMA_URL=http://ollama:11434
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - RABBITMQ_URL=amqp://admin:password@rabbitmq:5672
@@ -204,6 +262,12 @@ services:
       ocr-processor:
         condition: service_started
       translation-service:
+        condition: service_started
+      rag-ingestion:
+        condition: service_started
+      chromadb:
+        condition: service_started
+      ollama:
         condition: service_started
     volumes:
       - ./uploads:/app/uploads
@@ -230,3 +294,6 @@ volumes:
   chatbot_models:
   llama_models:
   translation_models:
+  rag_models:
+  chroma_data:
+  ollama_data:

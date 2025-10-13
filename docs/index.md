@@ -42,6 +42,12 @@ tech-stack/ai-integration
 ```
 
 ```{toctree}
+```{toctree}
+:maxdepth: 1
+:caption: Root Documentation Summaries
+
+root_summaries
+```
 :maxdepth: 2
 :caption: Deployment & Hosting
 

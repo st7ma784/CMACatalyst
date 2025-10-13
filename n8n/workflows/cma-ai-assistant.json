@@ -1,0 +1,144 @@
+{
+  "name": "CMA AI Assistant Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-assistant",
+        "responseMode": "responseNode"
+      },
+      "id": "a1a2b3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+      "name": "AI Assistant Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://postgres:5432",
+        "operation": "executeQuery",
+        "query": "SELECT * FROM cases WHERE client_id = {{ $json.client_id }} ORDER BY created_at DESC LIMIT 5"
+      },
+      "id": "b2b3c4c5-6d7e-8f9a-0b1c-2d3e4f5a6b7c",
+      "name": "Get Client Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"{{ $json.question }}\",\n  \"top_k\": 2,\n  \"score_threshold\": 0.7\n}"
+      },
+      "id": "c2c3d4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
+      "name": "Search RAG Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.1:8b\",\n  \"prompt\": \"You are a professional debt advice assistant following FCA guidelines. Use the provided context from training materials to give accurate advice.\\n\\nCLIENT CONTEXT: {{ $json.context }}\\n\\nTRAINING MATERIAL: {{ $json.rag_results ? $json.rag_results.map(doc => doc.content).join('\\n\\n') : 'No specific training material found.' }}\\n\\nCLIENT QUESTION: {{ $json.question }}\\n\\nProvide professional, empathetic guidance based on FCA regulations and the training materials.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"top_p\": 0.9\n  }\n}"
+      },
+      "id": "c3c4d5d6-7e8f-9a0b-1c2d-3e4f5a6b7c8d",
+      "name": "Generate AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:5000/api/chat/log",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"client_id\": \"{{ $json.client_id }}\",\n  \"question\": \"{{ $json.question }}\",\n  \"response\": \"{{ $json.response }}\",\n  \"timestamp\": \"{{ $now }}\"\n}"
+      },
+      "id": "d4d5e6e7-8f9a-0b1c-2d3e-4f5a6b7c8d9e",
+      "name": "Log Conversation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"response\": \"{{ $json.response }}\",\n  \"confidence\": \"{{ $json.confidence }}\",\n  \"sources\": \"{{ $json.sources }}\"\n}"
+      },
+      "id": "e5e6f7f8-9a0b-1c2d-3e4f-5a6b7c8d9e0f",
+      "name": "AI Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "AI Assistant Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Client Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Client Context": {
+      "main": [
+        [
+          {
+            "node": "Search RAG Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search RAG Context": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "Log Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Conversation": {
+      "main": [
+        [
+          {
+            "node": "AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "cma-ai-assistant",
+  "tags": []
+}

@@ -1,0 +1,145 @@
+{
+  "name": "CMA Document Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-upload",
+        "responseMode": "responseNode"
+      },
+      "id": "b4b7c5c1-8b1a-4c2d-9e3f-4a5b6c7d8e9f",
+      "name": "Document Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ocr-processor:3002/process",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "c5c6d7d8-9e0f-1a2b-3c4d-5e6f7a8b9c0d",
+      "name": "OCR Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/search",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"query\": \"document analysis financial information {{ $json.document_type || 'general' }}\",\n  \"manual_type\": \"debt-procedures\",\n  \"top_k\": 2,\n  \"score_threshold\": 0.6\n}"
+      },
+      "id": "d5d6e7e8-9f0a-1b2c-3d4e-5f6a7b8c9d0e",
+      "name": "Get Analysis Guidelines",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.1:8b\",\n  \"prompt\": \"You are a financial document analyst. Based on the training guidelines below, analyze the document content and extract key financial information.\\n\\nTRAINING GUIDELINES:\\n{{ $json.rag_results ? $json.rag_results.map(doc => doc.content).join('\\n\\n') : 'Follow standard debt advice procedures.' }}\\n\\nDOCUMENT CONTENT:\\n{{ $json.extracted_text }}\\n\\nPlease extract and categorize financial information including debts, income, expenses, and provide compliance recommendations.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.3,\n    \"top_p\": 0.8\n  }\n}"
+      },
+      "id": "d6d7e8e9-0f1a-2b3c-4d5e-6f7a8b9c0d1e",
+      "name": "AI Analysis with RAG Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:5000/api/documents/processed",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json }}"
+      },
+      "id": "e7e8f9f0-1a2b-3c4d-5e6f-7a8b9c0d1e2f",
+      "name": "Save to CMA System",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"document_id\": \"{{ $json.document_id }}\",\n  \"processed_at\": \"{{ $now }}\"\n}"
+      },
+      "id": "f8f9g0g1-2b3c-4d5e-6f7a-8b9c0d1e2f3a",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "Document Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "OCR Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OCR Processing": {
+      "main": [
+        [
+          {
+            "node": "Get Analysis Guidelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Analysis Guidelines": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis with RAG Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis with RAG Context": {
+      "main": [
+        [
+          {
+            "node": "Save to CMA System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to CMA System": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "cma-document-processing",
+  "tags": []
+}

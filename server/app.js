@@ -33,6 +33,8 @@ const translationRoutes = require('./routes/translation');
 const agenticFlowsRoutes = require('./routes/agenticFlows');
 const agenticDemosRoutes = require('./routes/agenticDemos');
 const n8nIntegrationRoutes = require('./routes/n8n-integration');
+const ragRoutes = require('./routes/rag');
+const caseNotesTriggersRoutes = require('./routes/case-notes-triggers');
 
 const app = express();
 
@@ -76,6 +78,8 @@ app.use('/api/translation', translationRoutes);
 app.use('/api/agentic-flows', agenticFlowsRoutes);
 app.use('/api/agentic-demos', agenticDemosRoutes);
 app.use('/api/n8n', n8nIntegrationRoutes);
+app.use('/api/rag', ragRoutes);
+app.use('/api/case-notes', caseNotesTriggersRoutes);
 app.use('/api/centres', centreRoutes);
 app.use('/api/users', userRoutes);
 

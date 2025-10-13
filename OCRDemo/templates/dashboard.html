@@ -1,0 +1,646 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - OCR Demo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    .status-idle { background-color: #28a745; }
+    .status-processing { background-color: #ffc107; }
+    .status-error { background-color: #dc3545; }
+    .document-card {
+        border-left: 4px solid #667eea;
+        margin-bottom: 1rem;
+    }
+    .confidence-bar {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .confidence-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    .confidence-high { background-color: #28a745; }
+    .confidence-medium { background-color: #ffc107; }
+    .confidence-low { background-color: #dc3545; }
+    .debt-amount {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .log-container {
+        max-height: 400px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 1rem;
+    }
+    .refresh-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <div class="dashboard-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-envelope-open-text me-3"></i>OCR Email Processing Dashboard</h1>
+                    <p class="mb-0">Automated document processing for debt advice emails</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex align-items-center justify-content-end">
+                        <span class="status-indicator status-{{ 'idle' if stats.current_status == 'Idle' else 'processing' if 'processing' in stats.current_status.lower() else 'error' }}"></span>
+                        <span>{{ stats.current_status }}</span>
+                    </div>
+                    <small>Last check: {{ stats.last_check or 'Never' }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <!-- Statistics Row -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                    <div class="stat-number">{{ stats.total_emails }}</div>
+                    <div class="text-muted">Emails Processed</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <i class="fas fa-file-alt fa-2x text-info mb-2"></i>
+                    <div class="stat-number">{{ stats.total_documents }}</div>
+                    <div class="text-muted">Documents Extracted</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <i class="fas fa-cloud-upload-alt fa-2x text-success mb-2"></i>
+                    <div class="stat-number">{{ stats.successful_uploads }}</div>
+                    <div class="text-muted">Successful Uploads</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                    <div class="stat-number">{{ stats.failed_uploads }}</div>
+                    <div class="text-muted">Failed Uploads</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs me-2"></i>Control Panel</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button id="processNowBtn" class="btn btn-primary me-2">
+                                    <i class="fas fa-play me-1"></i>Process Emails Now
+                                </button>
+                                <button id="testApiBtn" class="btn btn-outline-secondary me-2">
+                                    <i class="fas fa-link me-1"></i>Test API Connection
+                                </button>
+                                <button id="refreshBtn" class="btn btn-outline-success">
+                                    <i class="fas fa-sync me-1"></i>Refresh Data
+                                </button>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="form-check form-switch d-inline-block">
+                                    <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                                    <label class="form-check-label" for="autoRefresh">
+                                        Auto-refresh (30s)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unprocessed Documents -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-inbox me-2"></i>Pending Documents (Awaiting LlamaParse Processing)</h5>
+                        <span class="badge bg-warning" id="unprocessedCount">0 pending</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="unprocessedDocuments">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-spinner fa-spin me-2"></i>Loading unprocessed documents...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Documents -->
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-file-invoice-dollar me-2"></i>Processed Documents</h5>
+                        <span class="badge bg-primary">{{ recent_docs|length }} documents</span>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_docs %}
+                            {% for doc in recent_docs %}
+                            <div class="document-card card mb-3">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <h6 class="card-title">
+                                                <i class="fas fa-file-pdf me-2 text-danger"></i>
+                                                {{ doc.processed_filename or doc.original_filename }}
+                                            </h6>
+                                            <p class="text-muted mb-2">
+                                                <strong>Client:</strong> {{ doc.client_name or 'Unknown' }} |
+                                                <strong>Case:</strong> {{ doc.case_number }} |
+                                                <strong>Status:</strong> 
+                                                <span class="badge {% if doc.status == 'Uploaded' %}bg-success{% elif doc.status == 'Error' %}bg-danger{% else %}bg-warning{% endif %}">
+                                                    {{ doc.status }}
+                                                </span>
+                                            </p>
+                                            
+                                            {% if doc.debts %}
+                                            <div class="mt-2">
+                                                <strong>Extracted Debts:</strong>
+                                                {% for debt in doc.debts %}
+                                                <div class="ms-3 mt-1">
+                                                    <i class="fas fa-pound-sign text-danger"></i>
+                                                    <span class="debt-amount">£{{ "%.2f"|format(debt.amount or 0) }}</span>
+                                                    - {{ debt.creditor_name or 'Unknown Creditor' }}
+                                                    {% if debt.account_number %}
+                                                    <small class="text-muted">({{ debt.account_number }})</small>
+                                                    {% endif %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <small class="text-muted">{{ doc.processing_timestamp.strftime('%Y-%m-%d %H:%M') if doc.processing_timestamp else 'Unknown' }}</small>
+                                            
+                                            {% if doc.confidence %}
+                                            <div class="mt-2">
+                                                <small class="text-muted">Confidence:</small>
+                                                <div class="confidence-bar mt-1">
+                                                    <div class="confidence-fill {% if doc.confidence > 0.7 %}confidence-high{% elif doc.confidence > 0.4 %}confidence-medium{% else %}confidence-low{% endif %}" 
+                                                         style="width: {{ (doc.confidence * 100)|round }}%"></div>
+                                                </div>
+                                                <small class="text-muted">{{ (doc.confidence * 100)|round }}%</small>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <div class="mt-2">
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewDocumentEnhanced('{{ doc.email_id }}')">
+                                                        <i class="fas fa-search"></i> View & Analyze
+                                                    </button>
+                                                    {% if doc.processed_filename %}
+                                                    <button class="btn btn-sm btn-outline-success" onclick="downloadCustomFilename('{{ doc.email_id }}')">
+                                                        <i class="fas fa-download"></i> Download RMA
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-danger" onclick="reportErrors('{{ doc.email_id }}')">
+                                                    <i class="fas fa-exclamation-triangle"></i> Report Errors
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if doc.error_message %}
+                                    <div class="alert alert-danger mt-2">
+                                        <i class="fas fa-exclamation-circle me-2"></i>{{ doc.error_message }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No documents processed yet</p>
+                                <p><small>Documents will appear here when emails are processed</small></p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Status Sidebar -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-heartbeat me-2"></i>System Health</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="healthStatus">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Checking system health...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list-alt me-2"></i>Activity Log</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="activityLog" class="log-container">
+                            <div class="text-muted text-center">
+                                <i class="fas fa-clock me-1"></i>Activity log will appear here
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Refresh Button -->
+    <button id="floatingRefresh" class="btn btn-primary btn-lg refresh-btn rounded-circle">
+        <i class="fas fa-sync"></i>
+    </button>
+
+    <!-- Document Details Modal -->
+    <div class="modal fade" id="documentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Document Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="documentDetails">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <!-- Enhanced Document Viewer Modal -->
+    <div class="modal fade" id="pdfModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        <span id="modalDocumentTitle">Document Viewer</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <!-- Navigation Tabs -->
+                    <ul class="nav nav-tabs" id="documentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf-pane" type="button" role="tab">
+                                <i class="fas fa-file-pdf me-1"></i>PDF View
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-pane" type="button" role="tab">
+                                <i class="fas fa-database me-1"></i>Extracted Data
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ocr-tab" data-bs-toggle="tab" data-bs-target="#ocr-pane" type="button" role="tab">
+                                <i class="fas fa-text-width me-1"></i>OCR Text
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="documentTabContent">
+                        <!-- PDF Viewer Tab -->
+                        <div class="tab-pane fade show active" id="pdf-pane" role="tabpanel">
+                            <!-- PDF Viewer Controls -->
+                            <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                                <div class="btn-group" role="group" aria-label="Document Version">
+                                    <input type="radio" class="btn-check" name="docVersion" id="viewProcessed" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary btn-sm" for="viewProcessed">
+                                        <i class="fas fa-cogs me-1"></i>Processed
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="docVersion" id="viewOriginal" autocomplete="off">
+                                    <label class="btn btn-outline-secondary btn-sm" for="viewOriginal">
+                                        <i class="fas fa-file me-1"></i>Original
+                                    </label>
+                                </div>
+                                
+                                <div>
+                                    <span id="currentViewLabel" class="badge bg-primary">Processed Version</span>
+                                </div>
+                            </div>
+                            
+                            <div id="documentViewer" style="height: 65vh;">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading PDF...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Extracted Data Tab -->
+                        <div class="tab-pane fade" id="data-pane" role="tabpanel">
+                            <div class="p-4" style="height: 70vh; overflow-y: auto;">
+                                <!-- Document Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-info-circle me-2"></i>Document Information</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <table class="table table-sm">
+                                                    <tr><td><strong>Original Filename:</strong></td><td id="orig-filename">-</td></tr>
+                                                    <tr><td><strong>Processed Filename:</strong></td><td id="proc-filename">-</td></tr>
+                                                    <tr><td><strong>Client Name:</strong></td><td id="client-name">-</td></tr>
+                                                    <tr><td><strong>Case Number:</strong></td><td id="case-number">-</td></tr>
+                                                    <tr><td><strong>Processing Time:</strong></td><td id="process-time">-</td></tr>
+                                                    <tr><td><strong>Status:</strong></td><td id="doc-status">-</td></tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-pound-sign me-2"></i>Monetary Analysis</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="monetary-summary" class="mb-2">
+                                                    <span class="badge bg-info">Loading...</span>
+                                                </div>
+                                                <div id="monetary-validation" class="mb-2"></div>
+                                                <div id="monetary-issues"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- AI Analysis Results -->
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <h6><i class="fas fa-brain me-2 text-primary"></i>AI-Enhanced Document Analysis</h6>
+                                                <span id="ai-extraction-method" class="badge bg-secondary">Loading...</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <div class="card border-primary h-100">
+                                                            <div class="card-header bg-primary text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-user me-2"></i>Client Information</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <table class="table table-sm table-borderless">
+                                                                    <tr><td><strong>Name:</strong></td><td id="ai-client-name">-</td></tr>
+                                                                    <tr><td><strong>Document Summary:</strong></td><td id="ai-file-summary">-</td></tr>
+                                                                    <tr><td><strong>Document Type:</strong></td><td id="ai-document-type">-</td></tr>
+                                                                    <tr><td><strong>Document Date:</strong></td><td id="ai-document-date">-</td></tr>
+                                                                    <tr><td><strong>Urgency Level:</strong></td><td id="ai-urgency-level">-</td></tr>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card border-danger h-100">
+                                                            <div class="card-header bg-danger text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Debt Information</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <table class="table table-sm table-borderless">
+                                                                    <tr><td><strong>Debt Type:</strong></td><td id="ai-debt-type">-</td></tr>
+                                                                    <tr><td><strong>Debt Amount:</strong></td><td id="ai-debt-amount">-</td></tr>
+                                                                    <tr><td><strong>Creditor:</strong></td><td id="ai-creditor-name">-</td></tr>
+                                                                    <tr><td><strong>Account Reference:</strong></td><td id="ai-account-reference">-</td></tr>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card border-info h-100">
+                                                            <div class="card-header bg-info text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-hashtag me-2"></i>References & IDs</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <div id="ai-additional-references">
+                                                                    <span class="text-muted">Loading references...</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- AI Analysis Quality Indicator -->
+                                                <div class="mt-3">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-info-circle me-1"></i>
+                                                            This analysis was generated using AI to extract structured information from the document text.
+                                                        </small>
+                                                        <div id="ai-quality-indicator" class="badge bg-success">
+                                                            AI Analysis Complete
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Extracted Debts -->
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6><i class="fas fa-money-bill-wave me-2"></i>Extracted Debts</h6>
+                                        <button id="advisorEditBtn" class="btn btn-sm btn-outline-warning" onclick="toggleAdvisorMode()" style="display: none;">
+                                            <i class="fas fa-edit me-1"></i>Advisor Override
+                                        </button>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Advisor Override Notice -->
+                                        <div id="advisorOverrideNotice" class="alert alert-info" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <i class="fas fa-user-edit me-2"></i>
+                                                    <strong>Advisor Override Active</strong>
+                                                    <div class="mt-1" id="overrideDetails">
+                                                        <small class="text-muted">Loading override details...</small>
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="viewOverrideHistory()">
+                                                    <i class="fas fa-history me-1"></i>History
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Advisor Edit Form (Hidden by default) -->
+                                        <div id="advisorEditForm" class="border rounded p-3 mb-3" style="display: none; background-color: #fff3cd;">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0"><i class="fas fa-user-shield me-2"></i>Advisor Corrections</h6>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelAdvisorEdit()">
+                                                    <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="advisorName" class="form-label">Advisor Name</label>
+                                                    <input type="text" class="form-control" id="advisorName" placeholder="Enter your name">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="advisorNotes" class="form-label">Notes (Optional)</label>
+                                                    <input type="text" class="form-control" id="advisorNotes" placeholder="Reason for changes">
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="advisorDebtsContainer">
+                                                <!-- Dynamic debt editing fields will be added here -->
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                                <button type="button" class="btn btn-success" onclick="saveAdvisorOverride()">
+                                                    <i class="fas fa-save me-1"></i>Save Override
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="debts-container">
+                                            <p class="text-muted">Loading debt information...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- OCR Text Tab -->
+                        <div class="tab-pane fade" id="ocr-pane" role="tabpanel">
+                            <div class="p-4" style="height: 70vh; overflow-y: auto;">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h6><i class="fas fa-text-width me-2"></i>OCR Extracted Text</h6>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <span id="text-stats" class="badge bg-secondary">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="card">
+                                    <div class="card-body">
+                                        <pre id="ocr-text-content" class="pre-scrollable" style="max-height: 55vh; font-size: 0.9em; white-space: pre-wrap;">
+Loading OCR text...
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Close
+                        </button>
+                    </div>
+
+                    <div class="btn-group" role="group">
+                        <button id="viewJsonBtn" class="btn btn-outline-info" onclick="viewDocumentJSON(currentDocumentId)">
+                            <i class="fas fa-code me-1"></i>View JSON
+                        </button>
+                        <button id="viewMarkdownBtn" class="btn btn-outline-info" onclick="viewDocumentMarkdown(currentDocumentId)">
+                            <i class="fas fa-file-alt me-1"></i>View Markdown
+                        </button>
+                        <button id="processLlamaParseBtn" class="btn btn-outline-warning" onclick="processWithLlamaParse(currentDocumentId)">
+                            <i class="fas fa-robot me-1"></i>Process with LlamaParse
+                        </button>
+                    </div>
+
+                    <div class="btn-group" role="group">
+                        <button id="downloadOriginalRmaBtn" class="btn btn-outline-success" onclick="downloadOriginalCustomFilename()">
+                            <i class="fas fa-download me-1"></i>Download Original (RMA)
+                        </button>
+                        <button id="downloadProcessedRmaBtn" class="btn btn-primary" onclick="downloadCustomFilename()">
+                            <i class="fas fa-download me-1"></i>Download Processed (RMA)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dashboard-specific JavaScript can go here
+    document.addEventListener('DOMContentLoaded', function() {
+        // Additional initialization if needed
+        console.log('Dashboard loaded');
+    });
+</script>
+{% endblock %}

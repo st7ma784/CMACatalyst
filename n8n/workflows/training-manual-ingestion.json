@@ -1,0 +1,171 @@
+{
+  "name": "Training Manual Ingestion Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingest-manual",
+        "responseMode": "responseNode"
+      },
+      "id": "a1a2b3b4-5c6d-7e8f-9a0b-1c2d3e4f5a6b",
+      "name": "Manual Ingestion Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and prepare ingestion request\nconst requestData = $input.first().json;\n\n// Validate required fields\nif (!requestData.file_path && !requestData.bucket_path) {\n  throw new Error('Either file_path or bucket_path must be provided');\n}\n\n// Set defaults\nconst ingestionRequest = {\n  file_path: requestData.file_path || null,\n  bucket_path: requestData.bucket_path || null,\n  manual_type: requestData.manual_type || 'general',\n  force_reprocess: requestData.force_reprocess || false\n};\n\n// Validate manual type\nconst validTypes = ['general', 'fca-guidelines', 'debt-procedures', 'compliance', 'training'];\nif (!validTypes.includes(ingestionRequest.manual_type)) {\n  ingestionRequest.manual_type = 'general';\n}\n\nreturn {\n  ingestion_request: ingestionRequest,\n  timestamp: new Date().toISOString(),\n  processed_by: 'n8n-workflow'\n};"
+      },
+      "id": "b2b3c4c5-6d7e-8f9a-0b1c-2d3e4f5a6b7c",
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/ingest/manual",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ $json.ingestion_request }}"
+      },
+      "id": "c3c4d5d6-7e8f-9a0b-1c2d-3e4f5a6b7c8d",
+      "name": "Trigger RAG Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "mode": "sleep",
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "d4d5e6e7-8f9a-0b1c-2d3e-4f5a6b7c8d9e",
+      "name": "Wait for Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://rag-ingestion:8004/collections/stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "e5e6f7f8-9a0b-1c2d-3e4f-5a6b7c8d9e0f",
+      "name": "Get Collection Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://app:5000/api/admin/ingestion-log",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"action\": \"manual_ingestion\",\n  \"request\": \"{{ $json.ingestion_request }}\",\n  \"result\": \"{{ $json.ingestion_result }}\",\n  \"collection_stats\": \"{{ $json.collection_stats }}\",\n  \"timestamp\": \"{{ $now }}\",\n  \"workflow_id\": \"training-manual-ingestion\"\n}"
+      },
+      "id": "f6f7g8g9-0a1b-2c3d-4e5f-6a7b8c9d0e1f",
+      "name": "Log Ingestion Activity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"message\": \"Training manual ingestion initiated\",\n  \"ingestion_id\": \"{{ $json.ingestion_id }}\",\n  \"collection_stats\": \"{{ $json.collection_stats }}\",\n  \"processed_at\": \"{{ $now }}\"\n}"
+      },
+      "id": "g7g8h9h0-1b2c-3d4e-5f6a-7b8c9d0e1f2a",
+      "name": "Ingestion Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1580, 300]
+    }
+  ],
+  "connections": {
+    "Manual Ingestion Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Request": {
+      "main": [
+        [
+          {
+            "node": "Trigger RAG Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger RAG Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Wait for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Processing": {
+      "main": [
+        [
+          {
+            "node": "Get Collection Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Collection Stats": {
+      "main": [
+        [
+          {
+            "node": "Log Ingestion Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Ingestion Activity": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "training-manual-ingestion",
+  "tags": ["rag", "ingestion", "training-manuals", "admin"]
+}
