@@ -64,9 +64,10 @@ def create_vector_store(documents, metadata, persist_directory="/data/vectorstor
     """Create and persist ChromaDB vector store with document embeddings."""
 
     # Initialize embeddings using Ollama
+    ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     embeddings = OllamaEmbeddings(
         model="nomic-embed-text",
-        base_url="http://localhost:11434"
+        base_url=ollama_base_url
     )
 
     # Split documents into chunks

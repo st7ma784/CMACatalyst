@@ -1,0 +1,203 @@
+UK ESTATE PLANNING AND INHERITANCE TAX
+
+Estate Planning Essentials
+
+Estate planning ensures your assets are distributed according to your wishes after death while minimizing tax liability and administrative burden on your loved ones.
+
+Making a Will
+
+A will is a legal document specifying how your estate should be distributed. Without one, intestacy rules apply, which may not match your wishes.
+
+Key elements of a will:
+- Executors: People who administer your estate
+- Guardians: For children under 18
+- Beneficiaries: Who receives what
+- Specific bequests: Particular items to particular people
+- Residuary estate: What happens to everything else
+
+Update your will after major life changes: marriage, divorce, children, significant asset changes.
+
+Cost: DIY wills from £10-50, solicitor-drafted £100-500 depending on complexity.
+
+Inheritance Tax (IHT)
+
+IHT is charged at 40% on estates over £325,000 (nil-rate band). Everyone gets this allowance, and it's transferable between spouses.
+
+Residence Nil-Rate Band (RNRB): Additional £175,000 allowance when passing main residence to direct descendants (children or grandchildren). Also transferable between spouses.
+
+Combined, a married couple can pass up to £1 million tax-free (£325,000 x 2 + £175,000 x 2).
+
+Calculating IHT
+
+Estate value: £800,000
+Less: Nil-rate band £325,000
+Less: RNRB £175,000
+Taxable amount: £300,000
+IHT due (40%): £120,000
+
+Reducing Inheritance Tax
+
+Lifetime Gifts
+Gifts made more than 7 years before death are exempt from IHT. Taper relief applies to gifts made 3-7 years before death:
+- 3-4 years: 32% rate
+- 4-5 years: 24% rate
+- 5-6 years: 16% rate
+- 6-7 years: 8% rate
+- 7+ years: 0% rate
+
+Annual Exemptions:
+- £3,000 annual gift allowance (can carry forward one year if unused)
+- Small gifts of £250 per person to unlimited recipients
+- Wedding gifts: £5,000 to child, £2,500 to grandchild, £1,000 to others
+- Regular gifts from income (not capital) that don't affect lifestyle
+- Gifts to spouse/civil partner: unlimited and tax-free
+- Gifts to charities: unlimited and tax-free
+
+Trusts
+Complex but powerful tax planning tools. Common types:
+- Bare trusts
+- Interest in possession trusts
+- Discretionary trusts
+- Accumulation trusts
+
+Trusts have their own tax treatment and require professional advice.
+
+Life Insurance in Trust
+Life insurance payouts normally form part of your estate. Writing policies in trust keeps proceeds outside your estate, avoiding IHT and speeding payment to beneficiaries.
+
+Business Relief
+Business assets may qualify for 50% or 100% IHT relief, including shares in unlisted trading companies held for 2+ years.
+
+Agricultural Relief
+Agricultural property may qualify for 50% or 100% relief.
+
+Spending It
+Can't take it with you! Enjoying your wealth while alive reduces estate value naturally.
+
+Charitable Giving
+Gifts to UK charities are exempt from IHT. If you leave 10%+ of net estate to charity, the IHT rate on the remainder reduces from 40% to 36%.
+
+Powers of Attorney
+
+Lasting Power of Attorney (LPA) allows someone to make decisions on your behalf if you lose capacity. Two types:
+
+Property and Financial Affairs LPA: Manages money and property
+Health and Welfare LPA: Makes healthcare and personal welfare decisions
+
+Registration cost: £82 per LPA. Essential part of estate planning - without them, family must apply to Court of Protection (expensive and time-consuming).
+
+Probate Process
+
+Probate is the legal process of administering a deceased person's estate:
+
+1. Register the death
+2. Value the estate
+3. Apply for Grant of Probate (or Letters of Administration if no will)
+4. Pay IHT if due
+5. Collect assets
+6. Pay debts
+7. Distribute estate to beneficiaries
+
+Timeline: 6-12 months typical, longer for complex estates.
+
+Probate Registry fee: No fee (was £273, abolished 2021).
+
+Executors can do it themselves or instruct solicitors (typically £1,500-£5,000+ depending on complexity, often charged as percentage of estate value).
+
+Digital Assets
+
+Don't forget digital assets in estate planning:
+- Online bank accounts
+- Cryptocurrency
+- Social media accounts
+- Photo storage
+- Domain names
+- Digital subscriptions
+
+Maintain list of accounts with access instructions (stored securely).
+
+International Considerations
+
+If you own overseas assets or have connections to other countries, international inheritance laws may apply. Some countries have forced heirship rules overriding your will. Seek specialist advice for:
+- Foreign property ownership
+- Dual citizenship
+- Non-UK domicile status
+- International business interests
+
+Reviewing Your Estate Plan
+
+Review every 3-5 years or after:
+- Marriage or divorce
+- Birth of children/grandchildren
+- Death of beneficiary or executor
+- Significant asset changes
+- Changes in tax law
+- Moving house
+- Business sale or retirement
+
+Common Estate Planning Mistakes
+
+1. No Will
+Intestacy rules may not reflect your wishes. Estate distribution is predetermined by law.
+
+2. Outdated Will
+Marriage revokes previous wills (unless specifically stated otherwise). Old wills may reference deceased people or inappropriate guardians.
+
+3. No Power of Attorney
+Without LPA, family faces costly court applications to manage your affairs.
+
+4. Ignoring IHT
+Failing to plan means maximum tax liability.
+
+5. Poor Beneficiary Choices
+Leaving assets to minors requires trust arrangements. Consider if beneficiaries can manage inheritances.
+
+6. Insufficient Liquidity
+If estate consists mainly of property, executors may need to sell assets quickly to pay IHT, potentially at disadvantageous prices.
+
+7. Joint Ownership Issues
+Joint bank accounts pass automatically to survivor outside will provisions. May cause unintended consequences.
+
+8. Not Communicating Plans
+Family disputes often arise from surprises. Consider discussing plans with beneficiaries.
+
+Taxation After Death
+
+Estates remain taxable for income and capital gains during administration:
+
+Income Tax: Income received by estate during administration is taxable. First £500 (or £1,000 if estate includes property sold during administration) is tax-free, remainder taxed at 20% (savings income) or 45% (other income).
+
+Capital Gains Tax: Assets gain tax-free uplift to probate value on death, resetting potential capital gains. Sales during administration may incur CGT using estate's annual exemption.
+
+Contested Wills
+
+Wills can be challenged on grounds of:
+- Lack of testamentary capacity
+- Undue influence or coercion
+- Improper execution
+- Fraud or forgery
+
+Dependents may claim under Inheritance (Provision for Family and Dependents) Act 1975 if they believe will doesn't make reasonable provision for them.
+
+Professional Advice
+
+Estate planning benefits from professional input:
+
+Solicitors: Will drafting, trusts, probate administration
+Accountants: Tax planning, estate valuation
+Independent Financial Advisers: Overall wealth and tax planning
+Specialist IHT advisers: Complex estates
+
+For straightforward estates, DIY will plus basic planning may suffice. Complex situations (significant wealth, business ownership, blended families, foreign assets) warrant professional advice.
+
+Costs vs. Benefits
+
+Professional estate planning costs money upfront but can save significantly in taxes and administrative costs. Saving 10% of an £800,000 estate (£80,000) easily justifies £2,000-£5,000 in planning costs.
+
+Conclusion
+
+Effective estate planning ensures your assets pass to chosen beneficiaries efficiently and tax-effectively. Key steps: make a will, create powers of attorney, understand IHT position, and implement tax planning strategies.
+
+Estate planning isn't just for the wealthy - anyone with property, savings, or family should plan. While the topic is uncomfortable, dealing with it now prevents problems and distress for your loved ones later.
+
+Start with the basics (will and powers of attorney), then address tax planning based on your circumstances. Review regularly to keep plans current. Professional advice is invaluable for complex situations and often pays for itself many times over.

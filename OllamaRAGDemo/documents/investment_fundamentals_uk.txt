@@ -1,0 +1,122 @@
+INVESTMENT FUNDAMENTALS FOR UK INVESTORS
+
+Understanding Different Investment Types
+
+Stocks and Shares
+When you buy shares, you own a small part of a company. Share prices fluctuate based on company performance and market conditions. You can profit through capital growth (share price increase) and dividends (profit distributions).
+
+Bonds
+Bonds are loans to governments or companies. You receive regular interest payments and get your money back at maturity. Generally lower risk than shares but lower returns.
+
+Funds
+Pooled investments managed by professionals:
+- Unit Trusts: Open-ended funds, price based on underlying assets
+- OEICs (Open-Ended Investment Companies): Similar to unit trusts
+- Investment Trusts: Closed-ended, traded on stock market
+- ETFs (Exchange-Traded Funds): Track indices, trade like shares
+
+Property
+Investing in residential or commercial property, either directly or through REITs (Real Estate Investment Trusts).
+
+Investment Accounts
+
+General Investment Account (GIA): No tax benefits but no contribution limits. You pay tax on gains and income.
+
+Stocks and Shares ISA: Tax-free gains and income. £20,000 annual limit.
+
+Self-Invested Personal Pension (SIPP): Tax relief on contributions, tax-free growth, but can't access until 55 (rising to 57).
+
+Risk and Return
+
+Higher potential returns generally mean higher risk. Your risk tolerance depends on:
+- Investment timeframe
+- Financial situation
+- Age
+- Experience
+- Personal comfort with volatility
+
+Diversification
+
+Don't put all eggs in one basket. Spread investments across:
+- Different asset classes (shares, bonds, property)
+- Geographic regions
+- Industry sectors
+- Individual companies
+
+Costs and Fees
+
+Platform fees: 0.25%-0.45% annually
+Fund management fees: 0.1%-2% annually
+Transaction costs: £5-£12 per trade typically
+Stamp Duty: 0.5% on UK share purchases
+
+Fees compound over time. A 1% fee difference can cost tens of thousands over decades.
+
+Investment Strategies
+
+Lump Sum Investing: Invest available money immediately. Historically performs better but psychologically harder.
+
+Pound Cost Averaging: Invest regular amounts over time. Reduces timing risk and makes investing more manageable.
+
+Value Investing: Buy undervalued companies trading below intrinsic value.
+
+Growth Investing: Invest in companies expected to grow faster than market average.
+
+Passive Investing: Track market indices through low-cost funds. Simple, cheap, effective for most investors.
+
+Active Investing: Try to beat the market through stock selection or timing. Higher costs, most active managers underperform.
+
+Investment Timeframes
+
+Short-term (0-3 years): Cash, bonds. Preservation over growth.
+Medium-term (3-10 years): Balanced portfolio of shares and bonds.
+Long-term (10+ years): Higher equity allocation for growth potential.
+
+Common Investment Mistakes
+
+1. Timing the market - Time in the market beats timing the market
+2. Emotional decisions - Don't panic sell during downturns
+3. Overtrading - Excess fees erode returns
+4. Insufficient diversification - Concentration risk
+5. Ignoring costs - Fees compound negatively
+6. Chasing performance - Past performance doesn't predict future
+7. Not having a plan - Define goals and stick to strategy
+
+Tax-Efficient Investing
+
+Use allowances fully:
+- ISA allowance (£20,000)
+- Personal Savings Allowance (£1,000/£500)
+- Dividend Allowance (£1,000)
+- Capital Gains Allowance (£6,000)
+
+Pension contributions receive tax relief up to £60,000 annually.
+
+Bed and ISA: Sell investments in taxable account and repurchase in ISA to utilize allowances.
+
+Getting Started
+
+1. Define goals and timeframe
+2. Determine risk tolerance
+3. Choose investment account type
+4. Select investment platform
+5. Build diversified portfolio
+6. Invest regularly
+7. Review annually
+8. Rebalance when necessary
+
+Recommended Reading
+
+- "The Intelligent Investor" by Benjamin Graham
+- "A Random Walk Down Wall Street" by Burton Malkiel
+- "Smarter Investing" by Tim Hale
+
+Consider Financial Advice
+
+Independent Financial Advisers can provide personalized guidance. Fee structures vary - some charge fixed fees, others percentage of assets. Ensure they're FCA regulated.
+
+For straightforward investing, robo-advisors offer algorithm-based portfolio management at lower costs than traditional advisers.
+
+Risk Warning
+
+Investments can go down as well as up. You may get back less than you invested. Past performance is not a guide to future returns. Consider seeking financial advice if unsure.
