@@ -1,9 +1,12 @@
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies for enhanced document processing
 RUN apt-get update && apt-get install -y \
     curl \
     poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

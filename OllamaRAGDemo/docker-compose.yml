@@ -8,6 +8,9 @@ services:
     container_name: rag-demo-app
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
+      - USE_VISION_MODEL=true
+      - VISION_MODEL=llava:7b
+      - TEXT_MODEL=llama2
     volumes:
       - ./documents:/documents
       - ./data/vectorstore:/data/vectorstore
