@@ -519,6 +519,60 @@ class OCRDemoApp:
                 )
                 
             except Exception as e:
+                logger.error(f"Error downloading document: {str(e)}")
+                return jsonify({'status': 'error', 'message': str(e)}), 500
+
+        @self.app.route('/api/document/<email_id>/image')
+        def get_document_image(email_id):
+            """Get document as image (PNG) - converts first page of PDF to image"""
+            try:
+                import os
+                from flask import send_file, abort
+                from pdf2image import convert_from_path
+                from PIL import Image
+                import io
+                
+                # Find document by email_id
+                doc = next((d for d in self.recent_documents if d.email_id == email_id), None)
+                if not doc:
+                    return jsonify({'status': 'error', 'message': 'Document not found'}), 404
+                
+                # Check if processed file exists
+                file_path = f"/app/processed_docs/{doc.processed_filename}"
+                if not os.path.exists(file_path):
+                    # Try original file path
+                    file_path = getattr(doc, 'original_filepath', None)
+                    if not file_path or not os.path.exists(file_path):
+                        return jsonify({'status': 'error', 'message': 'Document file not found'}), 404
+                
+                # If it's already an image, just send it
+                if file_path.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    return send_file(file_path, mimetype='image/png')
+                
+                # Convert PDF to image (first page only)
+                if file_path.lower().endswith('.pdf'):
+                    try:
+                        # Convert first page to image
+                        images = convert_from_path(file_path, first_page=1, last_page=1, dpi=150)
+                        if images:
+                            # Convert to PNG in memory
+                            img_io = io.BytesIO()
+                            images[0].save(img_io, 'PNG')
+                            img_io.seek(0)
+                            return send_file(img_io, mimetype='image/png')
+                        else:
+                            return jsonify({'status': 'error', 'message': 'Could not convert PDF to image'}), 500
+                    except Exception as e:
+                        logger.error(f"Error converting PDF to image: {str(e)}")
+                        return jsonify({'status': 'error', 'message': f'PDF conversion failed: {str(e)}'}), 500
+                
+                return jsonify({'status': 'error', 'message': 'Unsupported file type'}), 400
+                
+            except Exception as e:
+                logger.error(f"Error getting document image: {str(e)}")
+                return jsonify({'status': 'error', 'message': str(e)}), 500
+                
+            except Exception as e:
                 logger.error(f"Error downloading document for email_id {email_id}: {e}")
                 return jsonify({'status': 'error', 'message': str(e)}), 500
 

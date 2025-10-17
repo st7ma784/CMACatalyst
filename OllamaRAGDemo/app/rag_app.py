@@ -7,6 +7,7 @@ Provides both API endpoints and CLI interface.
 import os
 from typing import List, Dict
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import uvicorn
 from langchain_community.embeddings import OllamaEmbeddings
@@ -40,9 +41,10 @@ class QueryResponse(BaseModel):
 class RAGSystem:
     """RAG system managing vector store and LLM interactions."""
 
-    def __init__(self, persist_directory="/data/vectorstore", base_url="http://localhost:11434"):
+    def __init__(self, persist_directory="/data/vectorstore", base_url=None):
         self.persist_directory = persist_directory
-        self.base_url = base_url
+        # Use environment variable or default
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.embeddings = None
         self.vectorstore = None
         self.qa_chain = None
@@ -134,7 +136,255 @@ rag_system = RAGSystem()
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
+    """Root endpoint - serves web interface."""
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ollama RAG Demo</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                background: #f5f5f5;
+                padding: 20px;
+            }
+            .container {
+                max-width: 900px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                padding: 30px;
+            }
+            h1 {
+                color: #333;
+                margin-bottom: 10px;
+            }
+            .subtitle {
+                color: #666;
+                margin-bottom: 30px;
+            }
+            .query-section {
+                margin-bottom: 30px;
+            }
+            label {
+                display: block;
+                margin-bottom: 10px;
+                font-weight: bold;
+                color: #555;
+            }
+            input[type="text"] {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #ddd;
+                border-radius: 5px;
+                font-size: 16px;
+                transition: border-color 0.3s;
+            }
+            input[type="text"]:focus {
+                outline: none;
+                border-color: #4CAF50;
+            }
+            button {
+                background: #4CAF50;
+                color: white;
+                padding: 12px 30px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 10px;
+                transition: background 0.3s;
+            }
+            button:hover {
+                background: #45a049;
+            }
+            button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+            }
+            .results-section {
+                margin-top: 30px;
+                padding-top: 30px;
+                border-top: 2px solid #eee;
+            }
+            .result-card {
+                background: #f9f9f9;
+                border-left: 4px solid #4CAF50;
+                padding: 20px;
+                margin-bottom: 20px;
+                border-radius: 5px;
+            }
+            .answer {
+                color: #333;
+                line-height: 1.6;
+                margin-bottom: 15px;
+                white-space: pre-wrap;
+            }
+            .sources {
+                color: #666;
+                font-size: 14px;
+            }
+            .sources strong {
+                color: #333;
+            }
+            .source-item {
+                background: white;
+                padding: 5px 10px;
+                margin: 5px 5px 5px 0;
+                display: inline-block;
+                border-radius: 3px;
+                border: 1px solid #ddd;
+            }
+            .loading {
+                text-align: center;
+                color: #666;
+                padding: 20px;
+            }
+            .error {
+                background: #ffebee;
+                border-left-color: #f44336;
+                color: #c62828;
+            }
+            .timestamp {
+                color: #999;
+                font-size: 12px;
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔍 Ollama RAG Demo</h1>
+            <p class="subtitle">Retrieval-Augmented Generation with Haystack Search</p>
+            
+            <div class="query-section">
+                <label for="question">Ask a Question:</label>
+                <input type="text" id="question" name="question" 
+                       placeholder="e.g., What are Julian's hobbies?" 
+                       autocomplete="off"
+                       onkeypress="if(event.key==='Enter') askQuestion()">
+                <button onclick="askQuestion()" id="askBtn">Ask Question</button>
+            </div>
+            
+            <div class="results-section" id="results">
+                <p style="color: #999; text-align: center;">Your answers will appear here...</p>
+            </div>
+        </div>
+
+        <script>
+            async function askQuestion() {
+                const question = document.getElementById('question').value.trim();
+                if (!question) {
+                    alert('Please enter a question');
+                    return;
+                }
+
+                const resultsDiv = document.getElementById('results');
+                const askBtn = document.getElementById('askBtn');
+                
+                // Disable button and show loading
+                askBtn.disabled = true;
+                askBtn.textContent = 'Thinking...';
+                
+                // Add loading message
+                const loadingCard = document.createElement('div');
+                loadingCard.className = 'result-card loading';
+                loadingCard.innerHTML = '<p>🤔 Searching documents and generating answer...</p>';
+                resultsDiv.insertBefore(loadingCard, resultsDiv.firstChild);
+
+                try {
+                    const response = await fetch('/query', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            question: question,
+                            model: 'llama3.2',
+                            top_k: 4
+                        })
+                    });
+
+                    // Remove loading message
+                    resultsDiv.removeChild(loadingCard);
+
+                    if (!response.ok) {
+                        throw new Error('Failed to get answer');
+                    }
+
+                    const data = await response.json();
+                    
+                    // Create result card
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'result-card';
+                    
+                    const timestamp = new Date().toLocaleTimeString();
+                    
+                    let sourcesHtml = '';
+                    if (data.sources && data.sources.length > 0) {
+                        sourcesHtml = '<div class="sources"><strong>Sources:</strong><br>';
+                        data.sources.forEach(source => {
+                            const fileName = source.split('/').pop();
+                            sourcesHtml += `<span class="source-item">${fileName}</span>`;
+                        });
+                        sourcesHtml += '</div>';
+                    }
+                    
+                    resultCard.innerHTML = `
+                        <strong>Q: ${question}</strong>
+                        <div class="answer">${data.answer}</div>
+                        ${sourcesHtml}
+                        <div class="timestamp">${timestamp}</div>
+                    `;
+                    
+                    resultsDiv.insertBefore(resultCard, resultsDiv.firstChild);
+                    
+                    // Clear input
+                    document.getElementById('question').value = '';
+
+                } catch (error) {
+                    // Remove loading message
+                    if (resultsDiv.contains(loadingCard)) {
+                        resultsDiv.removeChild(loadingCard);
+                    }
+                    
+                    // Show error
+                    const errorCard = document.createElement('div');
+                    errorCard.className = 'result-card error';
+                    errorCard.innerHTML = `
+                        <strong>Error</strong>
+                        <div class="answer">Failed to get answer. Please make sure documents are loaded and try again.</div>
+                    `;
+                    resultsDiv.insertBefore(errorCard, resultsDiv.firstChild);
+                } finally {
+                    // Re-enable button
+                    askBtn.disabled = false;
+                    askBtn.textContent = 'Ask Question';
+                }
+            }
+            
+            // Focus the input field when page loads
+            window.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('question').focus();
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+
+@app.get("/api")
+async def api_info():
+    """API information endpoint."""
     return {
         "message": "Ollama RAG Demo API",
         "endpoints": {

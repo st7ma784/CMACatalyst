@@ -1,30 +1,55 @@
 version: '3.8'
 
 services:
-  ollama-rag:
-    build: .
-    container_name: ollama-rag-demo
-    runtime: nvidia
+  rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: rag-demo-app
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - ./documents:/documents
       - ./data/vectorstore:/data/vectorstore
-      - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"  # Ollama API
-      - "8000:8000"    # RAG application
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - "8000:8000"    # RAG application web interface
+    # depends_on:
+    #   - ollama
+    networks:
+      - shared-llm-network
+    restart: unless-stopped
     stdin_open: true
     tty: true
 
+  # Reference to shared Ollama service
+  # Start the shared Ollama service first:
+  # docker-compose -f ../docker-compose.ollama.yml up -d
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: shared-ollama-service
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   environment:
+  #     - OLLAMA_HOST=0.0.0.0
+  #   networks:
+  #     - shared-llm-network
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
 volumes:
-  ollama_data:
+  ollama_models:
+    external: true
+    name: shared_ollama_models
+
+networks:
+  shared-llm-network:
+    external: true
+    name: shared-llm-network

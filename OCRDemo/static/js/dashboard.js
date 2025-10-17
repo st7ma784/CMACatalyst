@@ -103,7 +103,8 @@ class OCRDashboard {
             
             if (data.status === 'success') {
                 this.addLogEntry('API connection test successful', 'success');
-                this.updateHealthStatus(data.health_data);
+                // Refresh health status separately after API test
+                this.checkSystemHealth();
             } else {
                 this.addLogEntry(`API test failed: ${data.message}`, 'error');
             }
@@ -169,6 +170,18 @@ class OCRDashboard {
     updateHealthStatus(healthData) {
         const container = document.getElementById('healthStatus');
         if (!container) return;
+        
+        // Handle null or undefined healthData
+        if (!healthData || !healthData.status) {
+            container.innerHTML = `
+                <div class="text-warning text-center mb-3 fade-in">
+                    <i class="fas fa-exclamation-triangle fa-2x health-icon"></i>
+                    <p class="fw-bold">Health Check Unavailable</p>
+                    <small class="text-muted">Unable to connect to health endpoint</small>
+                </div>
+            `;
+            return;
+        }
         
         if (healthData.status === 'healthy') {
             container.innerHTML = `
@@ -875,7 +888,251 @@ function handlePDFError() {
 }
 
 // Enhanced Document Viewer Function
+// Global zoom state
+let currentZoom = 1.0;
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragOffset = { x: 0, y: 0 };
+
+// Zoom functions
+function zoomIn() {
+    currentZoom = Math.min(currentZoom + 0.25, 3.0); // Max 3x zoom
+    applyZoom();
+}
+
+function zoomOut() {
+    currentZoom = Math.max(currentZoom - 0.25, 0.5); // Min 0.5x zoom
+    applyZoom();
+}
+
+function resetZoom() {
+    currentZoom = 1.0;
+    dragOffset = { x: 0, y: 0 };
+    applyZoom();
+}
+
+function applyZoom() {
+    const img = document.querySelector('#documentImageViewer img');
+    if (img) {
+        img.style.transform = `scale(${currentZoom}) translate(${dragOffset.x}px, ${dragOffset.y}px)`;
+        img.style.transformOrigin = 'center center';
+        img.style.transition = 'transform 0.2s';
+    }
+}
+
 function viewDocumentEnhanced(emailId) {
+    console.log('viewDocumentEnhanced called with emailId:', emailId);
+    
+    const modalElement = document.getElementById('pdfModal');
+    console.log('Modal element found:', modalElement);
+    
+    if (!modalElement) {
+        console.error('Modal element not found!');
+        alert('Error: Modal element not found. Please refresh the page.');
+        return;
+    }
+    
+    const modal = new bootstrap.Modal(modalElement);
+    console.log('Bootstrap modal instance created:', modal);
+    
+    // Reset zoom state
+    currentZoom = 1.0;
+    dragOffset = { x: 0, y: 0 };
+    
+    // Set current email ID for downloads
+    window.currentEmailId = emailId;
+    
+    // Show modal first
+    modal.show();
+    console.log('Modal show() called');
+    
+    // Load document details and image
+    loadDocumentForViewer(emailId);
+}
+
+async function loadDocumentForViewer(emailId) {
+    try {
+        // Show loading states
+        document.getElementById('documentImageViewer').innerHTML = `
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading document image...</span>
+                </div>
+                <p class="mt-3 text-muted">Loading document...</p>
+            </div>
+        `;
+        
+        document.getElementById('jsonDataDisplay').innerHTML = '<code>Loading JSON data...</code>';
+        
+        // Fetch document details
+        const response = await fetch(`/api/document/${emailId}/detailed`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const doc = data.document;
+            window.currentDocumentData = doc;
+            
+            // Load document image
+            loadDocumentImage(emailId);
+            
+            // Populate JSON tab
+            populateJSONTab(doc);
+            
+            // Populate Edit tab
+            populateEditTab(doc);
+            
+            // Populate Info tab
+            populateInfoTab(doc);
+            
+        } else {
+            throw new Error(data.message || 'Failed to load document');
+        }
+        
+    } catch (error) {
+        console.error('Error loading document:', error);
+        document.getElementById('documentImageViewer').innerHTML = `
+            <div class="alert alert-danger m-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                Error loading document: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function loadDocumentImage(emailId) {
+    const viewer = document.getElementById('documentImageViewer');
+    
+    // Create image element
+    const img = document.createElement('img');
+    img.src = `/api/document/${emailId}/image`;
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '0 auto';
+    img.style.cursor = 'move';
+    img.className = 'document-image';
+    
+    // Add drag functionality
+    img.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        dragStart = { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y };
+        img.style.cursor = 'grabbing';
+    });
+    
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging && currentZoom > 1.0) {
+            dragOffset = {
+                x: e.clientX - dragStart.x,
+                y: e.clientY - dragStart.y
+            };
+            applyZoom();
+        }
+    });
+    
+    window.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            const img = document.querySelector('#documentImageViewer img');
+            if (img) img.style.cursor = 'move';
+        }
+    });
+    
+    img.onload = () => {
+        viewer.innerHTML = '';
+        viewer.appendChild(img);
+        applyZoom();
+    };
+    
+    img.onerror = () => {
+        viewer.innerHTML = `
+            <div class="alert alert-warning m-4">
+                <i class="fas fa-exclamation-triangle"></i>
+                Could not load document image. Image may not be available yet.
+            </div>
+        `;
+    };
+}
+
+function populateJSONTab(doc) {
+    // Set proposed filename
+    const proposedFilename = doc.basic_info.processed_filename || doc.basic_info.original_filename || 'document.pdf';
+    document.getElementById('proposedFilename').textContent = proposedFilename;
+    
+    // Format and display JSON
+    const jsonData = {
+        email_id: doc.basic_info.email_id,
+        filename: proposedFilename,
+        client_name: doc.basic_info.client_name,
+        case_number: doc.basic_info.case_number,
+        processing_timestamp: doc.basic_info.processing_timestamp,
+        status: doc.basic_info.status,
+        ai_extracted_info: doc.ai_extracted_info,
+        debts: doc.extracted_data.debts,
+        total_debt_amount: doc.extracted_data.total_debt_amount,
+        debt_count: doc.extracted_data.debt_count
+    };
+    
+    const jsonDisplay = document.getElementById('jsonDataDisplay');
+    jsonDisplay.innerHTML = `<code>${JSON.stringify(jsonData, null, 2)}</code>`;
+}
+
+function populateEditTab(doc) {
+    const ai = doc.ai_extracted_info || {};
+    document.getElementById('editClientName').value = ai.client_name || doc.basic_info.client_name || '';
+    document.getElementById('editCaseNumber').value = doc.basic_info.case_number || '';
+    document.getElementById('editDocType').value = ai.document_type || '';
+    document.getElementById('editDebtAmount').value = ai.debt_amount || '';
+    document.getElementById('editCreditorName').value = ai.creditor_name || '';
+}
+
+function populateInfoTab(doc) {
+    document.getElementById('infoEmailId').textContent = doc.basic_info.email_id || '-';
+    document.getElementById('infoOriginalFilename').textContent = doc.basic_info.original_filename || '-';
+    document.getElementById('infoProcessedFilename').textContent = doc.basic_info.processed_filename || '-';
+    document.getElementById('infoClientName').textContent = doc.basic_info.client_name || '-';
+    document.getElementById('infoCaseNumber').textContent = doc.basic_info.case_number || '-';
+    document.getElementById('infoProcessingTime').textContent = doc.basic_info.processing_timestamp ? 
+        new Date(doc.basic_info.processing_timestamp).toLocaleString() : '-';
+    document.getElementById('infoStatus').textContent = doc.basic_info.status || '-';
+    
+    // AI Summary
+    const ai = doc.ai_extracted_info || {};
+    const aiSummary = `
+        <div class="mb-2"><strong>Document Type:</strong> ${ai.document_type || 'Unknown'}</div>
+        <div class="mb-2"><strong>Debt Type:</strong> ${ai.debt_type || 'Unknown'}</div>
+        <div class="mb-2"><strong>Debt Amount:</strong> £${ai.debt_amount || '0.00'}</div>
+        <div class="mb-2"><strong>Creditor:</strong> ${ai.creditor_name || 'Unknown'}</div>
+        <div class="mb-2"><strong>Urgency:</strong> <span class="badge ${ai.urgency_level === 'high' ? 'bg-danger' : ai.urgency_level === 'medium' ? 'bg-warning' : 'bg-secondary'}">${ai.urgency_level || 'normal'}</span></div>
+        <div class="mb-2"><strong>Summary:</strong> ${ai.file_summary || 'No summary available'}</div>
+    `;
+    document.getElementById('aiSummaryInfo').innerHTML = aiSummary;
+}
+
+// Download function
+function downloadCurrentDocument() {
+    if (window.currentEmailId) {
+        const filename = window.currentDocumentData?.basic_info?.processed_filename || 'document.pdf';
+        const downloadUrl = `/api/document/${window.currentEmailId}/download`;
+        
+        const tempLink = document.createElement('a');
+        tempLink.href = downloadUrl;
+        tempLink.download = filename;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+    }
+}
+
+// Helper function for copy to clipboard
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Filename copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+function viewDocumentEnhanced_OLD(emailId) {
     const modal = new bootstrap.Modal(document.getElementById('pdfModal'));
     const modalTitle = document.querySelector('#pdfModal .modal-title');
     const downloadRmaBtn = document.getElementById('downloadRmaBtn');
@@ -911,40 +1168,34 @@ function viewDocumentEnhanced(emailId) {
 
 // Custom Download Function
 function downloadCustomFilename(emailId) {
+    console.log('downloadCustomFilename called with emailId:', emailId);
+    
     if (!emailId && window.currentEmailId) {
         emailId = window.currentEmailId;
     }
     
     if (!emailId) {
         console.error('No email ID provided for download');
+        alert('Error: No email ID provided');
         return;
     }
     
-    // Show loading state
-    const downloadBtn = document.getElementById('downloadRmaBtn');
-    const originalText = downloadBtn.innerHTML;
-    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
-    downloadBtn.disabled = true;
+    console.log('Triggering download for emailId:', emailId);
     
     // Create a temporary link to trigger download
     const downloadUrl = `/api/document/${emailId}/download`;
+    console.log('Download URL:', downloadUrl);
     
     // Create temporary anchor and trigger download
     const tempLink = document.createElement('a');
     tempLink.href = downloadUrl;
+    tempLink.download = ''; // Let the server set the filename
     tempLink.style.display = 'none';
     document.body.appendChild(tempLink);
     tempLink.click();
     document.body.removeChild(tempLink);
     
-    // Reset button state
-    setTimeout(() => {
-        downloadBtn.innerHTML = originalText;
-        downloadBtn.disabled = false;
-    }, 2000);
-    
-    // Log the download
-    console.log(`Downloaded document with custom filename for email ID: ${emailId}`);
+    console.log('Download triggered successfully');
 }
 
 // Download Original Document with Custom Filename
