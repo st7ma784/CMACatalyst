@@ -1,0 +1,259 @@
+# Notes Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-service
+  namespace: rma-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notes-service
+  template:
+    metadata:
+      labels:
+        app: notes-service
+    spec:
+      containers:
+      - name: notes-service
+        image: <YOUR_ECR_REGISTRY>/rma-notes-service:latest
+        ports:
+        - containerPort: 8100
+        env:
+        - name: OLLAMA_URL
+          value: "http://ollama:11434"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notes-service
+  namespace: rma-demo
+spec:
+  selector:
+    app: notes-service
+  ports:
+  - port: 8100
+    targetPort: 8100
+---
+# Doc Processor Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doc-processor
+  namespace: rma-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: doc-processor
+  template:
+    metadata:
+      labels:
+        app: doc-processor
+    spec:
+      containers:
+      - name: doc-processor
+        image: <YOUR_ECR_REGISTRY>/rma-doc-processor:latest
+        ports:
+        - containerPort: 8101
+        env:
+        - name: LLAMA_PARSE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rma-secrets
+              key: llama-parse-api-key
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: doc-processor
+  namespace: rma-demo
+spec:
+  selector:
+    app: doc-processor
+  ports:
+  - port: 8101
+    targetPort: 8101
+---
+# RAG Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-service
+  namespace: rma-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-service
+  template:
+    metadata:
+      labels:
+        app: rag-service
+    spec:
+      containers:
+      - name: rag-service
+        image: <YOUR_ECR_REGISTRY>/rma-rag-service:latest
+        ports:
+        - containerPort: 8102
+        env:
+        - name: OLLAMA_URL
+          value: "http://ollama:11434"
+        - name: VECTORSTORE_PATH
+          value: "/data/vectorstore"
+        volumeMounts:
+        - name: vectorstore
+          mountPath: /data/vectorstore
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+      volumes:
+      - name: vectorstore
+        persistentVolumeClaim:
+          claimName: rag-vectorstore
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rag-vectorstore
+  namespace: rma-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-service
+  namespace: rma-demo
+spec:
+  selector:
+    app: rag-service
+  ports:
+  - port: 8102
+    targetPort: 8102
+---
+# Upload Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: upload-service
+  namespace: rma-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: upload-service
+  template:
+    metadata:
+      labels:
+        app: upload-service
+    spec:
+      containers:
+      - name: upload-service
+        image: <YOUR_ECR_REGISTRY>/rma-upload-service:latest
+        ports:
+        - containerPort: 8103
+        env:
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: rma-secrets
+              key: jwt-secret
+        - name: DOC_PROCESSOR_URL
+          value: "http://doc-processor:8101"
+        volumeMounts:
+        - name: uploads
+          mountPath: /data/uploads
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+      volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: upload-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: upload-data
+  namespace: rma-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: upload-service
+  namespace: rma-demo
+spec:
+  selector:
+    app: upload-service
+  ports:
+  - port: 8103
+    targetPort: 8103
+---
+# Frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: rma-demo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: <YOUR_ECR_REGISTRY>/rma-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_NOTES_SERVICE_URL
+          value: "http://notes-service:8100"
+        - name: NEXT_PUBLIC_DOC_PROCESSOR_URL
+          value: "http://doc-processor:8101"
+        - name: NEXT_PUBLIC_RAG_SERVICE_URL
+          value: "http://rag-service:8102"
+        - name: NEXT_PUBLIC_UPLOAD_SERVICE_URL
+          value: "http://upload-service:8103"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: rma-demo
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 3000
+    targetPort: 3000
+  type: LoadBalancer

@@ -1,0 +1,21 @@
+# Local Document Processing Requirements
+# No cloud dependencies - fully on-premises
+
+# Core framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+
+# Local LLM integration
+ollama==0.1.6
+
+# Image processing
+Pillow==10.2.0
+pdf2image==1.17.0
+
+# OCR fallback
+pytesseract==0.3.10
+
+# Optional: LlamaParse for cloud fallback (can be removed)
+# llama-parse==0.4.0

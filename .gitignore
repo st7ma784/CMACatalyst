@@ -32,3 +32,4 @@ OCRDemo/credentials/token.json
 OCRDemo/credentials/credentials.json
 OCRDemo/data/*.db
 OCRDemo/logs/*.log
+RMA-Demo/.env
