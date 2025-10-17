@@ -15,14 +15,23 @@ A comprehensive Risk Management Advice dashboard prototype for single-centre dep
 - Each client gets a personalized upload URL: `/uploads/<client-id>`
 - Secure document management with authentication
 
-### 3. Ask the Manuals
+### 3. Search Client Documents (NEW!)
+- **AI-powered search across client-specific documents**
+- Automatic vector indexing of all uploaded documents
+- Natural language queries: "What debts does this client have?"
+- Answers with source citations showing which documents were used
+- Each client has their own searchable knowledge base
+- Powered by ChromaDB and Ollama embeddings
+
+### 4. Ask the Manuals
 - RAG (Retrieval-Augmented Generation) interface for training manuals
 - ChromaDB vector storage for efficient document retrieval
 - Chat-style interface with source citations
 - PDF/markdown manual support via LLamaParse
 
-### 4. Document Processing
+### 5. Document Processing
 - Automatic PDF/image to markdown conversion
+- **Automatic indexing to client-specific vector stores**
 - LLamaParse as primary OCR (with Tesseract fallback)
 - Organized client file management
 - Authenticated upload and download
@@ -39,11 +48,12 @@ A comprehensive Risk Management Advice dashboard prototype for single-centre dep
 - **notes-service** (Port 8100): LLM-powered note conversion
 - **doc-processor** (Port 8101): Document OCR and conversion
 - **rag-service** (Port 8102): RAG for manual queries
-- **upload-service** (Port 8103): File upload with auth
+- **client-rag-service** (Port 8104): Client-specific document search
+- **upload-service** (Port 8103): File upload with auth and auto-indexing
 
 ### Infrastructure
 - **Ollama**: Local LLM inference (GPU-accelerated)
-- **ChromaDB**: Vector database for embeddings
+- **ChromaDB**: Shared vector database for all embeddings (manuals + client docs)
 - **Docker Compose**: Local development
 - **Kubernetes**: Production deployment on AWS EKS
 
@@ -151,6 +161,7 @@ kubectl logs -f deployment/frontend -n rma-demo
 - Doc Processor: http://localhost:8101
 - RAG Service: http://localhost:8102
 - Upload Service: http://localhost:8103
+- Client RAG Service: http://localhost:8104
 - Ollama: http://localhost:11434
 - ChromaDB: http://localhost:8005
 
@@ -198,11 +209,50 @@ Authorization: Bearer <token>
   "client_name": "John Smith"
 }
 
-# Upload document
+# Upload document (automatically indexes to vector store)
 POST /uploads/{client_id}
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 file: <document>
+
+# Query client documents
+POST /query-client-documents
+Authorization: Bearer <token>
+{
+  "client_id": "CLIENT001",
+  "question": "What debts does this client have?",
+  "model": "llama3.2"
+}
+
+# Get client document statistics
+GET /client-stats/{client_id}
+Authorization: Bearer <token>
+```
+
+### Client RAG Service
+```bash
+# Query client-specific documents
+POST /query
+{
+  "client_id": "CLIENT001",
+  "question": "What is the total debt amount?",
+  "top_k": 4
+}
+
+# Ingest document for client (called automatically by upload-service)
+POST /ingest
+{
+  "client_id": "CLIENT001",
+  "document_text": "markdown content...",
+  "filename": "bank-statement.pdf",
+  "metadata": {}
+}
+
+# Get client stats
+GET /stats/{client_id}
+
+# List all clients with documents
+GET /clients
 ```
 
 ## Configuration
@@ -280,13 +330,16 @@ RMA-Demo/
 │   ├── src/
 │   │   ├── app/             # Next.js app router
 │   │   ├── components/      # React components
+│   │   │   ├── ClientDocumentSearch.tsx  # NEW: Client doc search
+│   │   │   └── ...
 │   │   └── lib/             # Utilities
 │   └── Dockerfile
 ├── services/
 │   ├── notes-service/       # LLM note conversion
 │   ├── doc-processor/       # OCR processing
 │   ├── rag-service/         # RAG for manuals
-│   └── upload-service/      # File upload & auth
+│   ├── client-rag-service/  # NEW: Client-specific document search
+│   └── upload-service/      # File upload & auth (now with auto-indexing)
 ├── k8s/                     # Kubernetes manifests
 ├── aws-scripts/             # AWS deployment scripts
 ├── manuals/                 # Training manual PDFs
@@ -371,6 +424,22 @@ Proprietary - RMA Centre Prototype
 For issues or questions, contact your system administrator.
 
 ## Changelog
+
+### v1.2.0 (2025-01-XX)
+- **OPTIMIZATION:** Consolidated to single shared ChromaDB instance
+- **IMPROVEMENT:** Simplified architecture (3 volumes → 1 volume)
+- **IMPROVEMENT:** Better resource efficiency and scalability
+- All vector storage now in shared ChromaDB with collection-based isolation
+- Created automated isolation testing script
+- Updated documentation for consolidated architecture
+
+### v1.1.0 (2025-01-XX)
+- **NEW:** Client-specific document search with AI
+- **NEW:** Automatic vector indexing of uploaded documents
+- **NEW:** Natural language queries across client documents
+- **NEW:** client-rag-service for per-client knowledge bases
+- Enhanced upload-service with automatic RAG integration
+- Updated frontend with "Search Client Docs" tab
 
 ### v1.0.0 (2025-01-15)
 - Initial release

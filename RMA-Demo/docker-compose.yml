@@ -64,12 +64,28 @@ services:
     ports:
       - "8102:8102"
     volumes:
-      - rag_vectorstore:/data/vectorstore
       - ./manuals:/manuals
     environment:
       - OLLAMA_URL=http://ollama:11434
-      - VECTORSTORE_PATH=/data/vectorstore
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
       - MANUALS_PATH=/manuals
+    depends_on:
+      - ollama
+      - chromadb
+    restart: unless-stopped
+
+  client-rag-service:
+    build:
+      context: ./services/client-rag-service
+      dockerfile: Dockerfile
+    container_name: rma-client-rag-service
+    ports:
+      - "8104:8104"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
     depends_on:
       - ollama
       - chromadb
@@ -88,9 +104,11 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
       - UPLOAD_DIR=/data/uploads
       - DOC_PROCESSOR_URL=http://doc-processor:8101
+      - CLIENT_RAG_URL=http://client-rag-service:8104
       - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3000}
     depends_on:
       - doc-processor
+      - client-rag-service
     restart: unless-stopped
 
   frontend:
@@ -114,8 +132,7 @@ services:
 
 volumes:
   ollama_data:
-  chroma_data:
-  rag_vectorstore:
+  chroma_data:  # Shared ChromaDB storage for all collections
   upload_data:
 
 networks:

@@ -35,6 +35,9 @@ def load_txt_file(file_path):
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         return f.read()
 
+def load_pdf_file(file_path):
+    #convert to txt format and return text
+    pass 
 
 def load_documents(documents_dir="/documents"):
     """Load all HTML and TXT documents from the documents directory."""
@@ -56,7 +59,12 @@ def load_documents(documents_dir="/documents"):
         content = load_txt_file(file_path)
         documents.append(content)
         metadata.append({"source": file_path, "type": "txt"})
-
+    pdf_files= glob.glob(os.path.join(documents_dir, "**/*.pdf"), recursive=True)
+    for file_path in pdf_files:
+        print(f"Processing pdf: {file_path}")
+        content = load_pdf_file(file_path)
+        documents.append(content)
+        metadata.append({"source": file_path, "type": "pdf"})
     return documents, metadata
 
 

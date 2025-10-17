@@ -21,8 +21,22 @@ class OCRProcessor:
     def __init__(self):
         self.tesseract_cmd = os.getenv('TESSERACT_CMD', '/usr/bin/tesseract')
         self.language = os.getenv('OCR_LANGUAGE', 'eng')
-        self.dpi = int(os.getenv('OCR_DPI', 300))
+        # Increased DPI from 300 to 400 for better quality OCR
+        self.dpi = int(os.getenv('OCR_DPI', 400))
         self.confidence_threshold = int(os.getenv('CONFIDENCE_THRESHOLD', 60))
+        
+        # Option to use LLaVA vision model for enhanced extraction
+        self.use_vision_model = os.getenv('USE_VISION_MODEL', 'false').lower() == 'true'
+        self.vision_parser = None
+        
+        if self.use_vision_model:
+            try:
+                from local_parser import LocalDocumentParser
+                self.vision_parser = LocalDocumentParser()
+                logger.info("LLaVA vision model enabled for enhanced OCR")
+            except Exception as e:
+                logger.warning(f"Could not initialize vision model: {e}. Falling back to Tesseract only")
+                self.use_vision_model = False
 
         # Set tesseract command path
         pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
@@ -56,11 +70,22 @@ class OCRProcessor:
         return temp_path
     
     def extract_text(self, file_path: str) -> str:
-        """Extract text from document using OCR"""
+        """Extract text from document using OCR or vision model"""
         try:
+            # Try vision model first if enabled
+            if self.use_vision_model and self.vision_parser:
+                try:
+                    logger.info("Using LLaVA vision model for text extraction")
+                    result = self.vision_parser.parse_document(file_path, high_quality=True)
+                    logger.info(f"Vision model extraction successful: {len(result['text'])} characters")
+                    return result['text']
+                except Exception as e:
+                    logger.warning(f"Vision model extraction failed: {e}. Falling back to Tesseract")
+            
+            # Fallback to traditional OCR
             # Detect file type
             file_type = magic.from_file(file_path, mime=True)
-            logger.info(f"Processing file type: {file_type}")
+            logger.info(f"Processing file type: {file_type} with Tesseract OCR at {self.dpi} DPI")
             
             if file_type == 'application/pdf':
                 return self._extract_text_from_pdf(file_path)

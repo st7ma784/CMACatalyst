@@ -159,31 +159,12 @@
             </div>
         </div>
 
-        <!-- Unprocessed Documents -->
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card border-warning">
-                    <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-inbox me-2"></i>Pending Documents (Awaiting LlamaParse Processing)</h5>
-                        <span class="badge bg-warning" id="unprocessedCount">0 pending</span>
-                    </div>
-                    <div class="card-body">
-                        <div id="unprocessedDocuments">
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-spinner fa-spin me-2"></i>Loading unprocessed documents...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Recent Documents -->
         <div class="row mt-4">
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-file-invoice-dollar me-2"></i>Processed Documents</h5>
+                        <h5><i class="fas fa-file-invoice-dollar me-2"></i>Recent Documents</h5>
                         <span class="badge bg-primary">{{ recent_docs|length }} documents</span>
                     </div>
                     <div class="card-body">
@@ -247,11 +228,6 @@
                                                     </button>
                                                     {% endif %}
                                                 </div>
-                                            </div>
-                                            <div class="mt-2">
-                                                <button class="btn btn-sm btn-outline-danger" onclick="reportErrors('{{ doc.email_id }}')">
-                                                    <i class="fas fa-exclamation-triangle"></i> Report Errors
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -338,175 +314,259 @@
     <!-- PDF Viewer Modal -->
     <!-- Enhanced Document Viewer Modal -->
     <div class="modal fade" id="pdfModal" tabindex="-1">
-        <div class="modal-dialog modal-fullscreen">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header">
                     <h5 class="modal-title">
                         <i class="fas fa-file-alt me-2"></i>
-                        <span id="modalDocumentTitle">Document Analysis & Viewer</span>
+                        <span id="modalDocumentTitle">Document Viewer</span>
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-0" style="height: calc(100vh - 120px);">
-                    <div class="row g-0 h-100">
-                        <!-- Left Panel: Document Image Viewer -->
-                        <div class="col-md-7 border-end" style="height: 100%; overflow: hidden;">
-                            <div class="p-3 border-bottom bg-light">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0"><i class="fas fa-image me-2"></i>Document Image</h6>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-secondary" onclick="zoomIn()">
-                                            <i class="fas fa-search-plus"></i> Zoom In
-                                        </button>
-                                        <button class="btn btn-outline-secondary" onclick="zoomOut()">
-                                            <i class="fas fa-search-minus"></i> Zoom Out
-                                        </button>
-                                        <button class="btn btn-outline-secondary" onclick="resetZoom()">
-                                            <i class="fas fa-compress-arrows-alt"></i> Reset
-                                        </button>
-                                    </div>
+                <div class="modal-body p-0">
+                    <!-- Navigation Tabs -->
+                    <ul class="nav nav-tabs" id="documentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf-pane" type="button" role="tab">
+                                <i class="fas fa-file-pdf me-1"></i>PDF View
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data-pane" type="button" role="tab">
+                                <i class="fas fa-database me-1"></i>Extracted Data
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ocr-tab" data-bs-toggle="tab" data-bs-target="#ocr-pane" type="button" role="tab">
+                                <i class="fas fa-text-width me-1"></i>OCR Text
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="documentTabContent">
+                        <!-- PDF Viewer Tab -->
+                        <div class="tab-pane fade show active" id="pdf-pane" role="tabpanel">
+                            <!-- PDF Viewer Controls -->
+                            <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                                <div class="btn-group" role="group" aria-label="Document Version">
+                                    <input type="radio" class="btn-check" name="docVersion" id="viewProcessed" autocomplete="off" checked>
+                                    <label class="btn btn-outline-primary btn-sm" for="viewProcessed">
+                                        <i class="fas fa-cogs me-1"></i>Processed
+                                    </label>
+                                    
+                                    <input type="radio" class="btn-check" name="docVersion" id="viewOriginal" autocomplete="off">
+                                    <label class="btn btn-outline-secondary btn-sm" for="viewOriginal">
+                                        <i class="fas fa-file me-1"></i>Original
+                                    </label>
+                                </div>
+                                
+                                <div>
+                                    <span id="currentViewLabel" class="badge bg-primary">Processed Version</span>
                                 </div>
                             </div>
-                            <div id="documentImageViewer" style="height: calc(100% - 60px); overflow: auto; background: #f5f5f5; position: relative;">
-                                <div class="text-center p-5">
+                            
+                            <div id="documentViewer" style="height: 65vh;">
+                                <div class="text-center p-4">
                                     <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading document image...</span>
+                                        <span class="visually-hidden">Loading PDF...</span>
                                     </div>
-                                    <p class="mt-3 text-muted">Loading document...</p>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Right Panel: Tabbed Content -->
-                        <div class="col-md-5" style="height: 100%; overflow: hidden; display: flex; flex-direction: column;">
-                            <!-- Navigation Tabs -->
-                            <ul class="nav nav-tabs px-3 pt-2" id="documentTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="json-tab" data-bs-toggle="tab" data-bs-target="#json-pane" type="button" role="tab">
-                                        <i class="fas fa-code me-1"></i>Extracted JSON
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit-pane" type="button" role="tab">
-                                        <i class="fas fa-edit me-1"></i>Edit Details
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane" type="button" role="tab">
-                                        <i class="fas fa-info-circle me-1"></i>Info
-                                    </button>
-                                </li>
-                            </ul>
-                            
-                            <!-- Tab Content -->
-                            <div class="tab-content flex-grow-1" style="overflow-y: auto;">
-                                <!-- JSON Tab -->
-                                <div class="tab-pane fade show active p-4" id="json-pane" role="tabpanel">
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <h6><i class="fas fa-signature me-2"></i>Proposed Filename</h6>
-                                            <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard(document.getElementById('proposedFilename').textContent)">
-                                                <i class="fas fa-copy"></i> Copy
-                                            </button>
-                                        </div>
-                                        <div class="alert alert-info mb-0">
-                                            <code id="proposedFilename">loading...</code>
+                        <!-- Extracted Data Tab -->
+                        <div class="tab-pane fade" id="data-pane" role="tabpanel">
+                            <div class="p-4" style="height: 70vh; overflow-y: auto;">
+                                <!-- Document Information -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-info-circle me-2"></i>Document Information</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <table class="table table-sm">
+                                                    <tr><td><strong>Original Filename:</strong></td><td id="orig-filename">-</td></tr>
+                                                    <tr><td><strong>Processed Filename:</strong></td><td id="proc-filename">-</td></tr>
+                                                    <tr><td><strong>Client Name:</strong></td><td id="client-name">-</td></tr>
+                                                    <tr><td><strong>Case Number:</strong></td><td id="case-number">-</td></tr>
+                                                    <tr><td><strong>Processing Time:</strong></td><td id="process-time">-</td></tr>
+                                                    <tr><td><strong>Status:</strong></td><td id="doc-status">-</td></tr>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    <h6 class="mb-3"><i class="fas fa-code me-2"></i>Extracted JSON Data</h6>
-                                    <div class="card">
-                                        <div class="card-body p-0">
-                                            <pre id="jsonDataDisplay" class="mb-0 p-3" style="max-height: calc(100vh - 400px); overflow: auto; background: #f8f9fa;"><code>Loading JSON data...</code></pre>
+
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-pound-sign me-2"></i>Monetary Analysis</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="monetary-summary" class="mb-2">
+                                                    <span class="badge bg-info">Loading...</span>
+                                                </div>
+                                                <div id="monetary-validation" class="mb-2"></div>
+                                                <div id="monetary-issues"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- AI Analysis Results -->
+                                <div class="row mb-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <h6><i class="fas fa-brain me-2 text-primary"></i>AI-Enhanced Document Analysis</h6>
+                                                <span id="ai-extraction-method" class="badge bg-secondary">Loading...</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <div class="card border-primary h-100">
+                                                            <div class="card-header bg-primary text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-user me-2"></i>Client Information</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <table class="table table-sm table-borderless">
+                                                                    <tr><td><strong>Name:</strong></td><td id="ai-client-name">-</td></tr>
+                                                                    <tr><td><strong>Document Summary:</strong></td><td id="ai-file-summary">-</td></tr>
+                                                                    <tr><td><strong>Document Type:</strong></td><td id="ai-document-type">-</td></tr>
+                                                                    <tr><td><strong>Document Date:</strong></td><td id="ai-document-date">-</td></tr>
+                                                                    <tr><td><strong>Urgency Level:</strong></td><td id="ai-urgency-level">-</td></tr>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card border-danger h-100">
+                                                            <div class="card-header bg-danger text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Debt Information</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <table class="table table-sm table-borderless">
+                                                                    <tr><td><strong>Debt Type:</strong></td><td id="ai-debt-type">-</td></tr>
+                                                                    <tr><td><strong>Debt Amount:</strong></td><td id="ai-debt-amount">-</td></tr>
+                                                                    <tr><td><strong>Creditor:</strong></td><td id="ai-creditor-name">-</td></tr>
+                                                                    <tr><td><strong>Account Reference:</strong></td><td id="ai-account-reference">-</td></tr>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card border-info h-100">
+                                                            <div class="card-header bg-info text-white">
+                                                                <h6 class="mb-0"><i class="fas fa-hashtag me-2"></i>References & IDs</h6>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <div id="ai-additional-references">
+                                                                    <span class="text-muted">Loading references...</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- AI Analysis Quality Indicator -->
+                                                <div class="mt-3">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-info-circle me-1"></i>
+                                                            This analysis was generated using AI to extract structured information from the document text.
+                                                        </small>
+                                                        <div id="ai-quality-indicator" class="badge bg-success">
+                                                            AI Analysis Complete
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <!-- Edit Tab -->
-                                <div class="tab-pane fade p-4" id="edit-pane" role="tabpanel">
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <strong>Edit Functionality Coming Soon</strong>
-                                        <p class="mb-0 mt-2 small">This feature will allow you to edit extracted details and save corrected information to the database.</p>
+                                <!-- Extracted Debts -->
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6><i class="fas fa-money-bill-wave me-2"></i>Extracted Debts</h6>
+                                        <button id="advisorEditBtn" class="btn btn-sm btn-outline-warning" onclick="toggleAdvisorMode()" style="display: none;">
+                                            <i class="fas fa-edit me-1"></i>Advisor Override
+                                        </button>
                                     </div>
-                                    
-                                    <h6 class="mb-3"><i class="fas fa-edit me-2"></i>Editable Fields</h6>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Client Name</strong></label>
-                                        <input type="text" class="form-control" id="editClientName" placeholder="Loading..." disabled>
+                                    <div class="card-body">
+                                        <!-- Advisor Override Notice -->
+                                        <div id="advisorOverrideNotice" class="alert alert-info" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <i class="fas fa-user-edit me-2"></i>
+                                                    <strong>Advisor Override Active</strong>
+                                                    <div class="mt-1" id="overrideDetails">
+                                                        <small class="text-muted">Loading override details...</small>
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="viewOverrideHistory()">
+                                                    <i class="fas fa-history me-1"></i>History
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Advisor Edit Form (Hidden by default) -->
+                                        <div id="advisorEditForm" class="border rounded p-3 mb-3" style="display: none; background-color: #fff3cd;">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="mb-0"><i class="fas fa-user-shield me-2"></i>Advisor Corrections</h6>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelAdvisorEdit()">
+                                                    <i class="fas fa-times me-1"></i>Cancel
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="advisorName" class="form-label">Advisor Name</label>
+                                                    <input type="text" class="form-control" id="advisorName" placeholder="Enter your name">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="advisorNotes" class="form-label">Notes (Optional)</label>
+                                                    <input type="text" class="form-control" id="advisorNotes" placeholder="Reason for changes">
+                                                </div>
+                                            </div>
+                                            
+                                            <div id="advisorDebtsContainer">
+                                                <!-- Dynamic debt editing fields will be added here -->
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                                <button type="button" class="btn btn-success" onclick="saveAdvisorOverride()">
+                                                    <i class="fas fa-save me-1"></i>Save Override
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="debts-container">
+                                            <p class="text-muted">Loading debt information...</p>
+                                        </div>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Case Number</strong></label>
-                                        <input type="text" class="form-control" id="editCaseNumber" placeholder="Loading..." disabled>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- OCR Text Tab -->
+                        <div class="tab-pane fade" id="ocr-pane" role="tabpanel">
+                            <div class="p-4" style="height: 70vh; overflow-y: auto;">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <h6><i class="fas fa-text-width me-2"></i>OCR Extracted Text</h6>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Document Type</strong></label>
-                                        <input type="text" class="form-control" id="editDocType" placeholder="Loading..." disabled>
+                                    <div class="col-md-4 text-end">
+                                        <span id="text-stats" class="badge bg-secondary">Loading...</span>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Debt Amount</strong></label>
-                                        <input type="text" class="form-control" id="editDebtAmount" placeholder="Loading..." disabled>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Creditor Name</strong></label>
-                                        <input type="text" class="form-control" id="editCreditorName" placeholder="Loading..." disabled>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Notes</strong></label>
-                                        <textarea class="form-control" id="editNotes" rows="3" placeholder="Add any corrections or notes..." disabled></textarea>
-                                    </div>
-                                    
-                                    <button class="btn btn-success" onclick="saveEditedDetails()" disabled>
-                                        <i class="fas fa-save me-1"></i>Save Changes (Coming Soon)
-                                    </button>
                                 </div>
                                 
-                                <!-- Info Tab -->
-                                <div class="tab-pane fade p-4" id="info-pane" role="tabpanel">
-                                    <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Document Information</h6>
-                                    
-                                    <table class="table table-sm table-bordered">
-                                        <tr>
-                                            <th style="width: 40%;">Email ID</th>
-                                            <td id="infoEmailId">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Original Filename</th>
-                                            <td id="infoOriginalFilename">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Processed Filename</th>
-                                            <td id="infoProcessedFilename">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Client Name</th>
-                                            <td id="infoClientName">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Case Number</th>
-                                            <td id="infoCaseNumber">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Processing Time</th>
-                                            <td id="infoProcessingTime">-</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Status</th>
-                                            <td id="infoStatus">-</td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <h6 class="mb-3 mt-4"><i class="fas fa-robot me-2"></i>AI Analysis Summary</h6>
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <div id="aiSummaryInfo">Loading AI analysis...</div>
-                                        </div>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <pre id="ocr-text-content" class="pre-scrollable" style="max-height: 55vh; font-size: 0.9em; white-space: pre-wrap;">
+Loading OCR text...
+                                        </pre>
                                     </div>
                                 </div>
                             </div>
@@ -517,9 +577,15 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Close
                     </button>
-                    <button id="downloadDocumentBtn" class="btn btn-primary" onclick="downloadCurrentDocument()">
-                        <i class="fas fa-download me-1"></i>Download Document
-                    </button>
+                    
+                    <div class="btn-group" role="group">
+                        <button id="downloadOriginalRmaBtn" class="btn btn-outline-success" onclick="downloadOriginalCustomFilename()">
+                            <i class="fas fa-download me-1"></i>Download Original (RMA)
+                        </button>
+                        <button id="downloadProcessedRmaBtn" class="btn btn-primary" onclick="downloadCustomFilename()">
+                            <i class="fas fa-download me-1"></i>Download Processed (RMA)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -528,7 +594,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=2.0"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}
 
 {% block extra_js %}

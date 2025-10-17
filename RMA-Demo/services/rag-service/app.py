@@ -19,6 +19,7 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
 from pathlib import Path
+import chromadb
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +66,8 @@ class RAGService:
         self.persist_directory = os.getenv('VECTORSTORE_PATH', '/data/vectorstore')
         self.manuals_directory = os.getenv('MANUALS_PATH', '/manuals')
         self.ollama_url = os.getenv('OLLAMA_URL', 'http://ollama:11434')
+        self.chromadb_host = os.getenv('CHROMADB_HOST', 'chromadb')
+        self.chromadb_port = int(os.getenv('CHROMADB_PORT', '8000'))
 
         self.embeddings = None
         self.vectorstore = None
@@ -73,7 +76,7 @@ class RAGService:
         self.initialize()
 
     def initialize(self):
-        """Initialize embeddings and vector store."""
+        """Initialize embeddings and connect to shared ChromaDB."""
         logger.info("Initializing RAG system...")
 
         try:
@@ -83,16 +86,26 @@ class RAGService:
                 base_url=self.ollama_url
             )
 
-            # Load or create vector store
-            if os.path.exists(self.persist_directory):
-                logger.info(f"Loading existing vector store from {self.persist_directory}")
+            # Connect to shared ChromaDB instance
+            self.chroma_client = chromadb.HttpClient(
+                host=self.chromadb_host,
+                port=self.chromadb_port
+            )
+            logger.info(f"Connected to shared ChromaDB at {self.chromadb_host}:{self.chromadb_port}")
+
+            # Try to load existing "manuals" collection
+            try:
                 self.vectorstore = Chroma(
-                    persist_directory=self.persist_directory,
-                    embedding_function=self.embeddings,
-                    collection_name="manuals"
+                    client=self.chroma_client,
+                    collection_name="manuals",
+                    embedding_function=self.embeddings
                 )
-            else:
-                logger.info("No vector store found. Will create on first ingestion.")
+                if self.vectorstore._collection.count() > 0:
+                    logger.info(f"Loaded existing 'manuals' collection with {self.vectorstore._collection.count()} items")
+                else:
+                    logger.info("'manuals' collection exists but is empty")
+            except Exception as e:
+                logger.info(f"'manuals' collection not found: {e}. Will create on first ingestion.")
                 self.vectorstore = None
 
             logger.info("RAG system initialized")
@@ -128,21 +141,18 @@ class RAGService:
 
             logger.info(f"Created {len(docs)} chunks from {len(documents)} documents")
 
-            # Create or update vector store
+            # Create or update vector store in shared ChromaDB
             if self.vectorstore is None:
-                logger.info("Creating new vector store")
+                logger.info("Creating new 'manuals' collection in shared ChromaDB")
                 self.vectorstore = Chroma.from_documents(
                     documents=docs,
                     embedding=self.embeddings,
-                    persist_directory=self.persist_directory,
+                    client=self.chroma_client,
                     collection_name="manuals"
                 )
             else:
-                logger.info("Adding to existing vector store")
+                logger.info("Adding to existing 'manuals' collection in shared ChromaDB")
                 self.vectorstore.add_documents(docs)
-
-            # Persist
-            self.vectorstore.persist()
 
             return {
                 "success": True,
