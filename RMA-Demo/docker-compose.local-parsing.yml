@@ -23,7 +23,7 @@ services:
               capabilities: [gpu]
 
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.4.24  # Pin to 0.4.24 for compatibility with Python client
     container_name: rma-chromadb
     ports:
       - "8005:8000"
