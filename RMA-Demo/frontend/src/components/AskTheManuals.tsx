@@ -3,12 +3,33 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const RAG_SERVICE_URL = process.env.NEXT_PUBLIC_RAG_SERVICE_URL || 'http://localhost:8102'
+const DEFAULT_RAG_SERVICE_URL = process.env.NEXT_PUBLIC_RAG_SERVICE_URL || 'http://localhost:8102'
+
+const getRagServiceUrl = () => {
+  if (typeof window === 'undefined') return DEFAULT_RAG_SERVICE_URL
+  try {
+    const url = new URL(DEFAULT_RAG_SERVICE_URL)
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      const host = window.location.hostname
+      if (host && host !== 'localhost' && host !== '127.0.0.1') {
+        return `${window.location.protocol}//${host}:${url.port}`
+      }
+    }
+    return DEFAULT_RAG_SERVICE_URL
+  } catch (e) {
+    return DEFAULT_RAG_SERVICE_URL
+  }
+}
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   sources?: string[]
+  retrieved_chunks?: Array<{
+    text: string
+    source: string
+    chunk_id: number | string
+  }>
 }
 
 export default function AskTheManuals() {
@@ -25,14 +46,17 @@ export default function AskTheManuals() {
     setLoading(true)
 
     try {
-      const response = await axios.post(`${RAG_SERVICE_URL}/query`, {
-        question
-      })
+      const headers: Record<string, string> = {'Content-Type': 'application/json'}
+      const token = typeof window !== 'undefined' ? localStorage.getItem('advisor_token') : null
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const response = await axios.post(`${getRagServiceUrl()}/query`, { question }, { headers })
 
       const assistantMessage: Message = {
         role: 'assistant',
         content: response.data.answer,
-        sources: response.data.sources
+        sources: response.data.sources,
+        retrieved_chunks: response.data.retrieved_chunks
       }
 
       setMessages(prev => [...prev, assistantMessage])
@@ -95,6 +119,25 @@ export default function AskTheManuals() {
                       ))}
                     </ul>
                   </div>
+                )}
+                {msg.retrieved_chunks && msg.retrieved_chunks.length > 0 && (
+                  <details className="mt-3 pt-3 border-t border-gray-200">
+                    <summary className="text-xs font-semibold text-blue-600 cursor-pointer hover:text-blue-700">
+                      🔍 View Retrieved Chunks ({msg.retrieved_chunks.length})
+                    </summary>
+                    <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                      {msg.retrieved_chunks.map((chunk, i) => (
+                        <div key={i} className="text-xs bg-gray-50 p-2 rounded border border-gray-200">
+                          <div className="font-semibold text-gray-700 mb-1">
+                            {chunk.source} (Chunk {chunk.chunk_id})
+                          </div>
+                          <div className="text-gray-600 whitespace-pre-wrap text-xs">
+                            {chunk.text}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
                 )}
               </div>
             </div>

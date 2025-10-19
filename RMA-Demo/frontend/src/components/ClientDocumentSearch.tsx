@@ -53,7 +53,7 @@ export default function ClientDocumentSearch() {
     setError('')
 
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('advisor_token')
       if (!token) {
         setError('Please login first')
         return
@@ -97,7 +97,7 @@ export default function ClientDocumentSearch() {
     setResult(null)
 
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('advisor_token')
       if (!token) {
         setError('Please login first')
         setLoading(false)

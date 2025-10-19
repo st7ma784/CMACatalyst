@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench } from 'lucide-react'
+import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database } from 'lucide-react'
+import ManualsViewer from './ManualsViewer'
 
-type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting'
+type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture'
 
 export default function Documentation() {
   const [activeSection, setActiveSection] = useState<DocSection>('usage')
@@ -15,6 +16,17 @@ export default function Documentation() {
         <h2 className="text-xl font-bold mb-4 text-gray-900">Documentation</h2>
         <nav className="space-y-2">
           <button
+            onClick={() => setActiveSection('manuals')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'manuals'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Database className="h-5 w-5" />
+            Ingested Manuals
+          </button>
+          <button
             onClick={() => setActiveSection('usage')}
             className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
               activeSection === 'usage'
@@ -24,6 +36,17 @@ export default function Documentation() {
           >
             <BookOpen className="h-5 w-5" />
             Using for Money Advice
+          </button>
+          <button
+            onClick={() => setActiveSection('ai-architecture')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'ai-architecture'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <HelpCircle className="h-5 w-5" />
+            AI & Privacy
           </button>
           <button
             onClick={() => setActiveSection('deployment')}
@@ -74,7 +97,9 @@ export default function Documentation() {
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto">
+        {activeSection === 'manuals' && <ManualsViewer />}
         {activeSection === 'usage' && <UsageGuide />}
+        {activeSection === 'ai-architecture' && <AIArchitectureGuide />}
         {activeSection === 'deployment' && <DeploymentGuide />}
         {activeSection === 'aws' && <AWSGuide />}
         {activeSection === 'domain' && <DomainGuide />}
@@ -336,6 +361,389 @@ Priority: Council tax payment plan first`}
             </ul>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function AIArchitectureGuide() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">AI Architecture & Privacy</h1>
+
+      <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-green-800">🔒 Privacy First</h3>
+            <p className="text-sm text-green-700">
+              All AI processing happens locally on your infrastructure. No client data, manual content, 
+              or queries are ever sent to external servers or third-party AI services.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How Our AI Services Work</h2>
+
+      <p className="text-gray-700 mb-6">
+        RMA Dashboard uses three main AI services to help money advisors work more efficiently while 
+        maintaining complete data privacy. All services run locally on your server using open-source models.
+      </p>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">1. Notes to CoA Service</h3>
+      
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+        <h4 className="font-semibold text-gray-900 mb-2">What it does:</h4>
+        <p className="text-gray-700 mb-3">
+          Converts your technical advisor notes into clear, client-friendly letters with three structured sections:
+        </p>
+        <ul className="list-disc list-inside text-gray-700 space-y-1 mb-3">
+          <li><strong>Matters Discussed:</strong> Plain English summary of the consultation</li>
+          <li><strong>Our Actions:</strong> What you (the advisor) will do next</li>
+          <li><strong>Your Actions:</strong> What the client needs to do</li>
+        </ul>
+        
+        <h4 className="font-semibold text-gray-900 mb-2 mt-4">How it works:</h4>
+        <ol className="list-decimal list-inside text-gray-700 space-y-2 text-sm">
+          <li>You paste your technical case notes into the system</li>
+          <li>The AI model (Llama 3.2) reads and understands the content</li>
+          <li>It restructures the information following Money Advice best practices</li>
+          <li>Generates clear, empathetic language suitable for clients</li>
+          <li>Returns the formatted letter in ~10-15 seconds</li>
+        </ol>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-3">
+          <p className="text-xs font-semibold text-blue-900 mb-1">🔒 Privacy:</p>
+          <p className="text-xs text-blue-800">
+            Your notes never leave your server. Processing happens entirely on your local infrastructure.
+          </p>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">2. Document Processing Service</h3>
+      
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+        <h4 className="font-semibold text-gray-900 mb-2">What it does:</h4>
+        <p className="text-gray-700 mb-3">
+          Converts client-uploaded documents (PDFs, images) into searchable text and analyzes them for 
+          risk assessment ("Should I worry about this?" button).
+        </p>
+        
+        <h4 className="font-semibold text-gray-900 mb-2 mt-4">How it works:</h4>
+        <ol className="list-decimal list-inside text-gray-700 space-y-2 text-sm">
+          <li><strong>Text Extraction:</strong> Uses OCR (Tesseract) to read scanned documents</li>
+          <li><strong>Vision Analysis:</strong> LLaVA model (13B parameters) "sees" and understands document layouts</li>
+          <li><strong>Content Understanding:</strong> Identifies debt letters, court notices, payment demands, etc.</li>
+          <li><strong>Risk Assessment:</strong> Evaluates urgency and priority (court dates, eviction notices, etc.)</li>
+          <li><strong>Markdown Conversion:</strong> Saves structured, searchable version of each document</li>
+        </ol>
+        
+        <h4 className="font-semibold text-gray-900 mb-2 mt-4">Vision AI Capability:</h4>
+        <p className="text-gray-700 text-sm mb-2">
+          The LLaVA model doesn't just read text—it understands visual context:
+        </p>
+        <ul className="list-disc list-inside text-gray-700 text-sm space-y-1">
+          <li>Recognizes logos of creditors and official bodies</li>
+          <li>Understands tables, forms, and structured layouts</li>
+          <li>Identifies highlighted or bolded urgent sections</li>
+          <li>Interprets signatures, stamps, and official marks</li>
+        </ul>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-3">
+          <p className="text-xs font-semibold text-blue-900 mb-1">🔒 Privacy:</p>
+          <p className="text-xs text-blue-800">
+            Client documents are processed locally. Images and PDFs stay on your server and are never 
+            sent to external OCR or vision AI services.
+          </p>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">3. RAG Service - "Ask the Manuals"</h3>
+      
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <h4 className="font-semibold text-gray-900 mb-2">What it does:</h4>
+        <p className="text-gray-700 mb-3">
+          Lets you query your training manuals, policies, and procedures in natural language. 
+          The AI retrieves relevant information and provides answers with source citations.
+        </p>
+        
+        <h4 className="font-semibold text-gray-900 mb-2 mt-4">How it works (RAG explained):</h4>
+        <p className="text-gray-700 text-sm mb-3">
+          RAG stands for <strong>Retrieval-Augmented Generation</strong>. It's a two-step process:
+        </p>
+        
+        <div className="bg-white border border-gray-300 rounded p-3 mb-3">
+          <p className="font-semibold text-gray-900 text-sm mb-2">Step 1: Document Ingestion (happens at startup)</p>
+          <ol className="list-decimal list-inside text-gray-700 text-xs space-y-1">
+            <li>All PDF manuals in the <code className="bg-gray-100 px-1 rounded">/manuals</code> directory are automatically processed</li>
+            <li>Text is extracted from each PDF (using PyPDF2 or OCR for scanned documents)</li>
+            <li>Long documents are split into ~1000 character chunks with 200 character overlap</li>
+            <li>Each chunk is converted into a mathematical "embedding" (a list of numbers representing meaning)</li>
+            <li>Embeddings are stored in ChromaDB vector database for fast similarity search</li>
+          </ol>
+        </div>
+        
+        <div className="bg-white border border-gray-300 rounded p-3 mb-3">
+          <p className="font-semibold text-gray-900 text-sm mb-2">Step 2: Query Processing (when you ask a question)</p>
+          <ol className="list-decimal list-inside text-gray-700 text-xs space-y-1">
+            <li>Your question is converted into an embedding using the same model (nomic-embed-text)</li>
+            <li>The system searches the vector database for chunks with similar meanings (not just keyword matching)</li>
+            <li>Top 4 most relevant chunks are retrieved from different manuals</li>
+            <li>These chunks are provided as "context" to the Llama 3.2 language model</li>
+            <li>Llama reads the context and generates an answer to your specific question</li>
+            <li>Response includes source citations showing which manuals were used</li>
+          </ol>
+        </div>
+        
+        <h4 className="font-semibold text-gray-900 mb-2 mt-4">Why this is better than keyword search:</h4>
+        <ul className="list-disc list-inside text-gray-700 text-sm space-y-1 mb-3">
+          <li><strong>Semantic Understanding:</strong> Finds information based on meaning, not just matching words</li>
+          <li><strong>Context Aware:</strong> Understands questions phrased in different ways</li>
+          <li><strong>Synthesizes Information:</strong> Combines relevant sections from multiple manuals</li>
+          <li><strong>No Hallucination:</strong> Only uses information from your actual manuals</li>
+        </ul>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-3">
+          <p className="text-xs font-semibold text-blue-900 mb-1">🔒 Privacy:</p>
+          <p className="text-xs text-blue-800">
+            Your training manuals are processed and stored locally in ChromaDB. Questions and answers 
+            never leave your infrastructure. The embedding model runs on your server.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">AI Models Used</h2>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-300">
+              <th className="text-left py-2 pr-4">Model</th>
+              <th className="text-left py-2 pr-4">Size</th>
+              <th className="text-left py-2 pr-4">Used For</th>
+              <th className="text-left py-2">License</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4 font-semibold">Llama 3.2</td>
+              <td className="py-2 pr-4">3.8GB</td>
+              <td className="py-2 pr-4">Text generation (Notes, RAG answers)</td>
+              <td className="py-2">Open (Meta)</td>
+            </tr>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4 font-semibold">LLaVA 13B</td>
+              <td className="py-2 pr-4">7.4GB</td>
+              <td className="py-2 pr-4">Vision + Text (Document understanding)</td>
+              <td className="py-2">Open (UW/MBZUAI)</td>
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-semibold">nomic-embed-text</td>
+              <td className="py-2 pr-4">274MB</td>
+              <td className="py-2 pr-4">Creating embeddings for RAG search</td>
+              <td className="py-2">Open (Nomic AI)</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <p className="text-xs text-gray-600 mt-3">
+          All models are fully open-source and run via Ollama, a local AI runtime. 
+          Total storage required: ~12GB for all models.
+        </p>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How to Ask Good Questions</h2>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Best Practices for "Ask the Manuals"</h3>
+
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+        <h4 className="font-semibold text-yellow-900 mb-2">✅ DO: Ask Specific, Clear Questions</h4>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="text-green-700 font-semibold mb-1">✓ Good: "What are the income requirements for a DRO?"</p>
+            <p className="text-gray-700">Clear, specific, and likely answered in manuals</p>
+          </div>
+          <div>
+            <p className="text-green-700 font-semibold mb-1">✓ Good: "How do I handle rent arrears for a tenant with Universal Credit?"</p>
+            <p className="text-gray-700">Specific scenario with clear context</p>
+          </div>
+          <div>
+            <p className="text-green-700 font-semibold mb-1">✓ Good: "What documents do I need to complete a full income and expenditure assessment?"</p>
+            <p className="text-gray-700">Procedural question about your processes</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <h4 className="font-semibold text-red-900 mb-2">❌ DON'T: Ask Vague or Out-of-Scope Questions</h4>
+        <div className="space-y-3 text-sm">
+          <div>
+            <p className="text-red-700 font-semibold mb-1">✗ Poor: "Tell me about debt"</p>
+            <p className="text-gray-700">Too vague—will return generic information</p>
+          </div>
+          <div>
+            <p className="text-red-700 font-semibold mb-1">✗ Poor: "What's the weather like today?"</p>
+            <p className="text-gray-700">Not related to your manuals—AI will correctly say it doesn't know</p>
+          </div>
+          <div>
+            <p className="text-red-700 font-semibold mb-1">✗ Poor: "Should I recommend bankruptcy for client John?"</p>
+            <p className="text-gray-700">AI can't make client-specific decisions—ask about criteria instead</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">What the AI CAN Answer</h3>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Procedures & Policies:</strong> "What's the process for referring to specialist debt advice?"</li>
+        <li><strong>Eligibility Criteria:</strong> "What are the requirements for an IVA?"</li>
+        <li><strong>Definitions:</strong> "What's the difference between priority and non-priority debts?"</li>
+        <li><strong>Documentation:</strong> "What evidence do I need for a DRO application?"</li>
+        <li><strong>Time Limits:</strong> "How long do creditors have to pursue a debt?"</li>
+        <li><strong>Calculations:</strong> "How is disposable income calculated for a DMP?"</li>
+        <li><strong>Legal Requirements:</strong> "What are the FCA rules for debt advice?"</li>
+        <li><strong>Best Practices:</strong> "How should I handle a vulnerable client with mental health issues?"</li>
+      </ul>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">What the AI CANNOT Answer</h3>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Real-Time Information:</strong> Current interest rates, today's news, or live data</li>
+        <li><strong>Client-Specific Advice:</strong> Decisions about individual client cases</li>
+        <li><strong>Information Not in Manuals:</strong> External policies, other organizations' procedures</li>
+        <li><strong>Predictions:</strong> "What will happen if..." scenarios not covered in manuals</li>
+        <li><strong>Personal Opinions:</strong> Subjective judgments or recommendations</li>
+        <li><strong>External Contacts:</strong> Phone numbers, websites not documented in manuals</li>
+      </ul>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Tips for Better Results</h3>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <ol className="list-decimal list-inside space-y-3 text-gray-700 text-sm">
+          <li>
+            <strong>Include Context:</strong> "For a single parent with two children..." helps narrow results
+          </li>
+          <li>
+            <strong>Use Specific Terms:</strong> Use correct terminology from manuals (DRO, IVA, DMP, etc.)
+          </li>
+          <li>
+            <strong>Ask Follow-Up Questions:</strong> If first answer isn't quite right, refine your question
+          </li>
+          <li>
+            <strong>Check Source Citations:</strong> Always verify which manual the answer came from
+          </li>
+          <li>
+            <strong>Use the Debug Tab:</strong> View extracted text to ensure manuals were ingested correctly
+          </li>
+          <li>
+            <strong>Combine with Manual Reading:</strong> Use AI for quick lookups, but read full sections for complex cases
+          </li>
+        </ol>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Understanding AI Limitations</h2>
+
+      <div className="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-orange-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-orange-800">Important: AI is a Tool, Not a Replacement</h3>
+            <p className="text-sm text-orange-700 mb-2">
+              The AI services are designed to assist money advisors, not replace professional judgment.
+            </p>
+            <ul className="text-sm text-orange-700 list-disc list-inside space-y-1">
+              <li>Always review AI-generated letters before sending to clients</li>
+              <li>Verify critical information (dates, amounts, procedures) independently</li>
+              <li>Use your professional expertise for complex or sensitive cases</li>
+              <li>Consult supervisors when in doubt—don't rely solely on AI responses</li>
+              <li>The AI doesn't know your client personally—you do</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Why "Hallucinations" Are Rare (But Check Anyway)</h3>
+      <p className="text-gray-700 mb-4">
+        Unlike ChatGPT or other AI chatbots, the RAG system is designed to minimize "hallucinations" 
+        (making up information):
+      </p>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 text-sm mb-6">
+        <li><strong>Grounded in Your Manuals:</strong> Only uses actual text from ingested documents</li>
+        <li><strong>Source Citations:</strong> Every answer shows which manuals were referenced</li>
+        <li><strong>Context Awareness:</strong> If relevant info isn't found, AI says "I don't know"</li>
+        <li><strong>No External Training:</strong> Not mixing your procedures with internet knowledge</li>
+        <li><strong>Debug Visibility:</strong> You can view extracted text to verify accuracy</li>
+      </ul>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Data Privacy & GDPR Compliance</h2>
+
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-green-900 mb-3">Why Local Hosting Matters</h3>
+        <p className="text-green-800 text-sm mb-3">
+          Running AI models locally (instead of using cloud services like OpenAI, Anthropic, or Google) 
+          provides critical advantages for money advice:
+        </p>
+        <ul className="text-green-800 text-sm list-disc list-inside space-y-2">
+          <li>
+            <strong>GDPR Compliance:</strong> Client data stays within your organization's infrastructure—no third-party processing
+          </li>
+          <li>
+            <strong>No Data Leakage:</strong> Sensitive financial information never sent over the internet to AI providers
+          </li>
+          <li>
+            <strong>No Training on Your Data:</strong> External AI services learn from queries—yours doesn't
+          </li>
+          <li>
+            <strong>Complete Control:</strong> You control model updates, retention policies, and access logs
+          </li>
+          <li>
+            <strong>Cost Predictable:</strong> No per-API-call charges or surprise bills for high usage
+          </li>
+          <li>
+            <strong>No Internet Required:</strong> Works even if external services are down or blocked
+          </li>
+        </ul>
+      </div>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-3">What Stays Local</h3>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-300">
+              <th className="text-left py-2 pr-4">Data Type</th>
+              <th className="text-left py-2">Storage Location</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4">Client notes</td>
+              <td className="py-2">Processed in-memory, not permanently stored</td>
+            </tr>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4">Uploaded documents</td>
+              <td className="py-2">Your server's <code className="bg-gray-100 px-1 rounded">/data/uploads</code> directory</td>
+            </tr>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4">Training manuals</td>
+              <td className="py-2">ChromaDB vector database (local volume)</td>
+            </tr>
+            <tr className="border-b border-gray-200">
+              <td className="py-2 pr-4">AI models</td>
+              <td className="py-2">Ollama volume (12GB total)</td>
+            </tr>
+            <tr>
+              <td className="py-2 pr-4">Query history</td>
+              <td className="py-2">Not stored (unless you enable logging)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+        <h3 className="text-sm font-medium text-blue-800 mb-2">💡 Best Practice</h3>
+        <p className="text-sm text-blue-700">
+          Even though the system is designed for privacy, follow your organization's data protection 
+          policies. Don't include unnecessary personal details in notes or queries. Use client IDs 
+          instead of names where possible. Regularly backup data and maintain access logs for compliance.
+        </p>
       </div>
     </div>
   )

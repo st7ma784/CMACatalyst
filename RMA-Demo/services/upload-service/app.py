@@ -156,7 +156,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired"
         )
-    except jwt.JWTError:
+    except (jwt.PyJWTError, jwt.DecodeError, Exception):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
@@ -189,17 +189,25 @@ def save_client_metadata(client_id: str, metadata: dict):
 async def process_document_to_markdown(file_path: Path) -> Optional[str]:
     """Process document using doc-processor service."""
     try:
+        # Determine correct MIME type based on file extension
+        import mimetypes
+        mime_type = mimetypes.guess_type(str(file_path))[0]
+        if not mime_type:
+            # Default to PDF if we can't determine type
+            mime_type = 'application/pdf' if file_path.suffix.lower() == '.pdf' else 'application/octet-stream'
+        
         async with httpx.AsyncClient(timeout=60.0) as client:
             with open(file_path, 'rb') as f:
-                files = {'file': (file_path.name, f, 'application/octet-stream')}
+                files = {'file': (file_path.name, f, mime_type)}
                 response = await client.post(f"{DOC_PROCESSOR_URL}/process", files=files)
+            
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        return result.get('markdown')
+                else:
+                    logger.warning(f"Document processing failed for {file_path}: HTTP {response.status_code} - {response.text[:200]}")
 
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    return result.get('markdown')
-
-        logger.warning(f"Document processing failed for {file_path}")
         return None
 
     except Exception as e:
@@ -286,9 +294,30 @@ async def generate_qr_code(
     username: str = Depends(verify_token)
 ):
     """Generate QR code for client upload portal."""
-    # Generate QR code URL
+    # Get base URL - if localhost, try to detect actual host IP
     base_url = os.getenv('APP_BASE_URL', 'http://localhost:3000')
-    upload_url = f"{base_url}/uploads/{request.client_id}"
+    
+    # If using localhost, try to get the actual network IP for QR code
+    if 'localhost' in base_url or '127.0.0.1' in base_url:
+        try:
+            import socket
+            # Get hostname
+            hostname = socket.gethostname()
+            # Try to get IP address
+            ip_address = socket.gethostbyname(hostname)
+            
+            # Only replace if we got a real IP (not localhost)
+            if ip_address and ip_address != '127.0.0.1' and not ip_address.startswith('127.'):
+                # Extract port from base_url if present
+                import re
+                port_match = re.search(r':(\d+)', base_url)
+                port = f":{port_match.group(1)}" if port_match else ':3000'
+                base_url = f"http://{ip_address}{port}"
+                logger.info(f"Using detected IP for QR code: {base_url}")
+        except Exception as e:
+            logger.warning(f"Could not detect network IP, using configured base URL: {e}")
+    
+    upload_url = f"{base_url}/client-upload/{request.client_id}"
 
     # Generate QR code
     qr = qrcode.QRCode(
@@ -324,10 +353,9 @@ async def generate_qr_code(
 @app.post("/uploads/{client_id}", response_model=UploadResponse)
 async def upload_document(
     client_id: str,
-    file: UploadFile = File(...),
-    username: str = Depends(verify_token)
+    file: UploadFile = File(...)
 ):
-    """Upload document for a client."""
+    """Upload document for a client (public endpoint - no auth required)."""
     try:
         # Create client directory
         client_dir = get_client_dir(client_id)
@@ -363,7 +391,7 @@ async def upload_document(
             doc_metadata = {
                 "original_filename": file.filename,
                 "uploaded_at": datetime.now().isoformat(),
-                "uploaded_by": username
+                "uploaded_by": "client"
             }
             indexed = await index_document_to_rag(
                 client_id=client_id,
@@ -378,7 +406,7 @@ async def upload_document(
             "filename": unique_filename,
             "original_filename": file.filename,
             "uploaded_at": datetime.now().isoformat(),
-            "uploaded_by": username,
+            "uploaded_by": "client",
             "size": len(content),
             "markdown_filename": markdown_filename if markdown else None,
             "indexed_to_rag": indexed
@@ -480,6 +508,36 @@ async def query_client_documents(
         )
 
 
+@app.get("/clients")
+async def list_all_clients(
+    username: str = Depends(verify_token)
+):
+    """List all clients with uploaded documents."""
+    try:
+        clients = []
+        if UPLOAD_DIR.exists():
+            for client_dir in UPLOAD_DIR.iterdir():
+                if client_dir.is_dir():
+                    metadata = get_client_metadata(client_dir.name)
+                    doc_count = len(metadata.get("documents", []))
+                    clients.append({
+                        "client_id": client_dir.name,
+                        "client_name": metadata.get("client_name", "Unknown"),
+                        "document_count": doc_count
+                    })
+        
+        return {
+            "clients": sorted(clients, key=lambda x: x["client_id"]),
+            "total_count": len(clients)
+        }
+    except Exception as e:
+        logger.error(f"Error listing clients: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing clients: {str(e)}"
+        )
+
+
 @app.get("/client-stats/{client_id}")
 async def get_client_document_stats(
     client_id: str,
@@ -505,11 +563,10 @@ async def get_client_document_stats(
 
 @app.post("/triage-document", response_model=TriageResponse)
 async def triage_document(
-    request: TriageRequest,
-    username: str = Depends(verify_token)
+    request: TriageRequest
 ):
     """
-    Triage a document: analyze it and provide reassuring advice.
+    Triage a document: analyze it and provide reassuring advice (public endpoint - no auth required).
     Uses the document content + training manuals RAG to provide context-aware guidance.
     """
     try:

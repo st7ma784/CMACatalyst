@@ -54,7 +54,17 @@ services:
       - "8101:8101"
     environment:
       - LLAMA_PARSE_API_KEY=${LLAMA_PARSE_API_KEY:-}
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - ollama
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   rag-service:
     build:

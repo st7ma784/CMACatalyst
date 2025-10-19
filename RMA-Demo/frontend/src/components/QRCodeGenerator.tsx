@@ -20,7 +20,14 @@ export default function QRCodeGenerator() {
 
     setLoading(true)
     try {
-      // For demo, we'll use a mock token. In production, implement proper auth
+      // Get the actual token from localStorage
+      const token = localStorage.getItem('advisor_token')
+      if (!token) {
+        alert('You must be logged in to generate QR codes')
+        setLoading(false)
+        return
+      }
+
       const response = await axios.post(
         `${UPLOAD_SERVICE_URL}/generate-qr`,
         {
@@ -29,11 +36,18 @@ export default function QRCodeGenerator() {
         },
         {
           headers: {
-            Authorization: `Bearer demo-token-replace-with-real-auth`
+            Authorization: `Bearer ${token}`
           }
         }
       )
       setQrData(response.data)
+      
+      // Track this client ID for advisor dashboard
+      const knownClients = JSON.parse(localStorage.getItem('known_clients') || '[]')
+      if (!knownClients.includes(clientId)) {
+        knownClients.push(clientId)
+        localStorage.setItem('known_clients', JSON.stringify(knownClients))
+      }
     } catch (error: any) {
       alert(`Error: ${error.response?.data?.detail || error.message}`)
     } finally {
