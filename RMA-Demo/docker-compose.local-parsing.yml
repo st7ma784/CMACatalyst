@@ -11,9 +11,26 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+      - /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
     environment:
       - OLLAMA_HOST=0.0.0.0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+      - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+      - /dev/nvidiactl:/dev/nvidiactl      
     deploy:
       resources:
         reservations:
@@ -45,7 +62,8 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
 
   doc-processor:
@@ -59,12 +77,13 @@ services:
       # Enable local parsing (no cloud)
       - USE_LOCAL_PARSING=true
       - OLLAMA_URL=http://ollama:11434
-      - VISION_MODEL=llava:13b
+      - VISION_MODEL=llava:7b
       - TEXT_MODEL=llama3.2
       # Optional: LlamaParse fallback (leave empty for local-only)
       - LLAMA_PARSE_API_KEY=
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
     restart: unless-stopped
 
   rag-service:
@@ -82,8 +101,10 @@ services:
       - CHROMADB_PORT=8000
       - MANUALS_PATH=/manuals
     depends_on:
-      - ollama
-      - chromadb
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
     restart: unless-stopped
 
   client-rag-service:
@@ -98,8 +119,10 @@ services:
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
     depends_on:
-      - ollama
-      - chromadb
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
     restart: unless-stopped
 
   upload-service:
@@ -126,14 +149,21 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_NOTES_SERVICE_URL=http://${SERVER_HOST:-localhost}:8100
+        - NEXT_PUBLIC_DOC_PROCESSOR_URL=http://${SERVER_HOST:-localhost}:8101
+        - NEXT_PUBLIC_RAG_SERVICE_URL=http://${SERVER_HOST:-localhost}:8102
+        - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://${SERVER_HOST:-localhost}:8103
     container_name: rma-frontend
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_NOTES_SERVICE_URL=http://localhost:8100
-      - NEXT_PUBLIC_DOC_PROCESSOR_URL=http://localhost:8101
-      - NEXT_PUBLIC_RAG_SERVICE_URL=http://localhost:8102
-      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://localhost:8103
+      # Use SERVER_HOST env var or default to localhost for local dev
+      # For external access: export SERVER_HOST=192.168.5.70 (or your server IP/hostname)
+      - NEXT_PUBLIC_NOTES_SERVICE_URL=http://${SERVER_HOST:-localhost}:8100
+      - NEXT_PUBLIC_DOC_PROCESSOR_URL=http://${SERVER_HOST:-localhost}:8101
+      - NEXT_PUBLIC_RAG_SERVICE_URL=http://${SERVER_HOST:-localhost}:8102
+      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://${SERVER_HOST:-localhost}:8103
     depends_on:
       - notes-service
       - doc-processor

@@ -141,6 +141,14 @@ class ClientRAGService:
     ) -> Dict:
         """Ingest a single document into client's vector store."""
         try:
+            logger.info(f"=" * 70)
+            logger.info(f"📥 [INGEST] Starting document ingestion")
+            logger.info(f"   ├─ Client ID: {client_id}")
+            logger.info(f"   ├─ Filename: {filename}")
+            logger.info(f"   ├─ Text length: {len(document_text)} chars")
+            logger.info(f"   ├─ Text preview: {document_text[:200]}...")
+            logger.info(f"   └─ Metadata: {metadata}")
+            
             # Split document into chunks
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
@@ -148,7 +156,9 @@ class ClientRAGService:
                 length_function=len
             )
 
+            logger.info(f"   → Splitting text into chunks...")
             chunks = text_splitter.split_text(document_text)
+            logger.info(f"   ✓ Created {len(chunks)} chunks")
 
             # Create Document objects for each chunk
             docs = []
@@ -165,15 +175,23 @@ class ClientRAGService:
                     page_content=chunk,
                     metadata=doc_metadata
                 ))
+                
+                if i == 0:  # Log first chunk as sample
+                    logger.info(f"   → Sample chunk 0: {chunk[:150]}...")
 
-            logger.info(f"Created {len(docs)} chunks from {filename} for client {client_id}")
+            logger.info(f"   ✓ Created {len(docs)} Document objects")
 
             # Get or create vector store in shared ChromaDB
             collection_name = f"client_{client_id}"
+            logger.info(f"   → Collection name: {collection_name}")
+            
             vectorstore = self.get_client_vectorstore(client_id)
 
             if vectorstore is None:
-                logger.info(f"Creating new collection {collection_name} in shared ChromaDB")
+                logger.info(f"   → Creating NEW collection in shared ChromaDB...")
+                logger.info(f"      ├─ ChromaDB host: {self.chromadb_host}:{self.chromadb_port}")
+                logger.info(f"      └─ Embedding model: nomic-embed-text")
+                
                 vectorstore = Chroma.from_documents(
                     documents=docs,
                     embedding=self.embeddings,
@@ -181,19 +199,51 @@ class ClientRAGService:
                     collection_name=collection_name
                 )
                 self.vectorstores[client_id] = vectorstore
+                logger.info(f"   ✓ Collection created successfully")
             else:
-                logger.info(f"Adding to existing collection {collection_name} in shared ChromaDB")
+                current_count = vectorstore._collection.count()
+                logger.info(f"   → Adding to EXISTING collection (current: {current_count} items)...")
                 vectorstore.add_documents(docs)
+                new_count = vectorstore._collection.count()
+                logger.info(f"   ✓ Added documents (new total: {new_count} items)")
+                
+            # Verify ingestion
+            final_count = vectorstore._collection.count()
+            logger.info(f"   ✓ Verification: Collection now has {final_count} total items")
+            
+            # Try a test query to verify
+            try:
+                test_results = vectorstore._collection.get(limit=1, include=["metadatas"])
+                logger.info(f"   ✓ Sample from collection: {test_results['metadatas'][0] if test_results['metadatas'] else 'No metadata'}")
+            except Exception as e:
+                logger.warning(f"   ! Could not verify collection contents: {e}")
 
-            return {
+            result = {
                 "success": True,
                 "client_id": client_id,
                 "filename": filename,
-                "chunks_created": len(docs)
+                "chunks_created": len(docs),
+                "collection_name": collection_name,
+                "total_in_collection": final_count,
+                "message": f"Successfully indexed {len(docs)} chunks"
             }
+            
+            logger.info(f"✅ [INGEST] SUCCESS - Ingestion complete!")
+            logger.info(f"   └─ Result: {result}")
+            logger.info(f"=" * 70)
+            
+            return result
 
         except Exception as e:
-            logger.error(f"Error ingesting document for client {client_id}: {e}")
+            logger.error(f"=" * 70)
+            logger.error(f"❌ [INGEST] FAILED - Error ingesting document")
+            logger.error(f"   ├─ Client: {client_id}")
+            logger.error(f"   ├─ Filename: {filename}")
+            logger.error(f"   ├─ Error type: {type(e).__name__}")
+            logger.error(f"   └─ Error message: {str(e)}")
+            import traceback
+            logger.error(f"   Traceback:\n{traceback.format_exc()}")
+            logger.error(f"=" * 70)
             raise
 
     def query_client_documents(
@@ -252,7 +302,7 @@ Answer (be specific and cite which document the information came from):"""
         for doc in result["source_documents"]:
             sources.append({
                 "filename": doc.metadata.get("source", "Unknown"),
-                "chunk": doc.metadata.get("chunk", 0),
+                "chunk": str(doc.metadata.get("chunk", 0)),
                 "text_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
             })
 
@@ -358,6 +408,47 @@ async def get_client_stats(client_id: str):
     return rag_service.get_client_stats(client_id)
 
 
+@app.delete("/delete/{client_id}/{filename}")
+async def delete_document(client_id: str, filename: str):
+    """Delete a specific document from a client's vector store."""
+    try:
+        collection_name = f"client_{client_id}"
+        
+        # Check if collection exists
+        if collection_name not in [c.name for c in rag_service.chroma_client.list_collections()]:
+            raise HTTPException(status_code=404, detail=f"No documents found for client {client_id}")
+        
+        # Get the collection
+        collection = rag_service.chroma_client.get_collection(collection_name)
+        
+        # Get all documents with this filename
+        results = collection.get(
+            where={"source": filename},
+            include=["metadatas"]
+        )
+        
+        if not results or not results.get("ids"):
+            raise HTTPException(status_code=404, detail=f"Document {filename} not found in vector store")
+        
+        # Delete all chunks for this document
+        collection.delete(ids=results["ids"])
+        
+        logger.info(f"Deleted {len(results['ids'])} chunks for document {filename} from client {client_id}")
+        
+        return {
+            "message": "Document deleted from vector store",
+            "client_id": client_id,
+            "filename": filename,
+            "chunks_deleted": len(results["ids"])
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting document: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/query", response_model=QueryResponse)
 async def query_client_documents(request: QueryRequest):
     """Query a client's documents."""
@@ -383,15 +474,26 @@ async def query_client_documents(request: QueryRequest):
 async def ingest_document(request: IngestRequest):
     """Ingest a document into a client's vector store."""
     try:
+        logger.info(f"🌐 [API] Received ingest request")
+        logger.info(f"   ├─ Client ID: {request.client_id}")
+        logger.info(f"   ├─ Filename: {request.filename}")
+        logger.info(f"   ├─ Text length: {len(request.document_text)} chars")
+        logger.info(f"   └─ Metadata: {request.metadata}")
+        
         result = rag_service.ingest_document(
             client_id=request.client_id,
             document_text=request.document_text,
             filename=request.filename,
             metadata=request.metadata
         )
+        
+        logger.info(f"✅ [API] Returning success response: {result}")
         return result
+        
     except Exception as e:
-        logger.error(f"Error ingesting document: {e}")
+        logger.error(f"❌ [API] Error ingesting document: {type(e).__name__}: {str(e)}")
+        import traceback
+        logger.error(f"   Traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error ingesting document: {str(e)}")
 
 

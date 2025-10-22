@@ -101,6 +101,8 @@ const ClientDetail = () => {
   // Files and letters
   const [files, setFiles] = useState([]);
   const [letters, setLetters] = useState([]);
+  const [deleteFileDialog, setDeleteFileDialog] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
   
   // Dialog states for adding items
   const [addIncomeDialog, setAddIncomeDialog] = useState(false);
@@ -207,6 +209,21 @@ const ClientDetail = () => {
       setLetters(response.data || []);
     } catch (error) {
       console.error('Error fetching letters:', error);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!fileToDelete) return;
+    
+    try {
+      await axios.delete(`/files/${fileToDelete.id}`);
+      setSnackbar({ open: true, message: 'File deleted successfully', severity: 'success' });
+      setDeleteFileDialog(false);
+      setFileToDelete(null);
+      fetchFiles(); // Refresh file list
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      setSnackbar({ open: true, message: 'Error deleting file', severity: 'error' });
     }
   };
 
@@ -848,13 +865,36 @@ const ClientDetail = () => {
                 <Typography variant="h6" gutterBottom>Stored Documents</Typography>
                 <List>
                   {files.map((file) => (
-                    <ListItem key={file.id}>
+                    <ListItem 
+                      key={file.id}
+                      secondaryAction={
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button 
+                            size="small" 
+                            startIcon={<DownloadIcon />}
+                            onClick={() => window.open(`/api/files/download/${file.id}`, '_blank')}
+                          >
+                            Download
+                          </Button>
+                          <Button 
+                            size="small" 
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => {
+                              setFileToDelete(file);
+                              setDeleteFileDialog(true);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </Box>
+                      }
+                    >
                       <ListItemIcon><FolderIcon /></ListItemIcon>
                       <ListItemText
                         primary={file.filename}
                         secondary={`Uploaded: ${new Date(file.uploaded_at).toLocaleDateString()} | Size: ${file.file_size}`}
                       />
-                      <Button size="small" startIcon={<DownloadIcon />}>Download</Button>
                     </ListItem>
                   ))}
                   {files.length === 0 && (
@@ -1415,6 +1455,25 @@ const ClientDetail = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Delete File Confirmation Dialog */}
+      <Dialog open={deleteFileDialog} onClose={() => setDeleteFileDialog(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete "{fileToDelete?.filename}"?
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+            This action cannot be undone. The file will be permanently removed from the system.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteFileDialog(false)}>Cancel</Button>
+          <Button onClick={handleDeleteFile} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

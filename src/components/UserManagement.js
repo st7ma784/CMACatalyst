@@ -19,7 +19,10 @@ import {
   Chip,
   IconButton,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Snackbar,
+  Alert,
+  LinearProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,10 +43,29 @@ const UserManagement = () => {
     username: '',
     email: '',
     password: '',
+    confirmPassword: '',
     first_name: '',
     last_name: '',
     role: 'advisor'
   });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: 'error' };
+    
+    let strength = 0;
+    if (password.length >= 8) strength += 25;
+    if (password.length >= 12) strength += 25;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
+    if (/\d/.test(password)) strength += 15;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 10;
+    
+    if (strength < 40) return { strength, label: 'Weak', color: 'error' };
+    if (strength < 70) return { strength, label: 'Medium', color: 'warning' };
+    return { strength, label: 'Strong', color: 'success' };
+  };
+
+  const passwordStrength = getPasswordStrength(newUser.password);
 
   useEffect(() => {
     if (user?.role === 'manager') {
@@ -63,20 +85,37 @@ const UserManagement = () => {
   };
 
   const handleCreateUser = async () => {
+    // Validate password match
+    if (newUser.password !== newUser.confirmPassword) {
+      setSnackbar({ open: true, message: 'Passwords do not match', severity: 'error' });
+      return;
+    }
+
+    // Validate password strength
+    if (passwordStrength.strength < 40) {
+      setSnackbar({ open: true, message: 'Password is too weak. Use at least 8 characters with mixed case and numbers.', severity: 'error' });
+      return;
+    }
+
     try {
-      const response = await axios.post('/users', newUser);
+      const { confirmPassword, ...userData } = newUser;
+      const response = await axios.post('/users', userData);
       setUsers([response.data.user, ...users]);
       setUserDialog(false);
       setNewUser({
         username: '',
         email: '',
         password: '',
+        confirmPassword: '',
         first_name: '',
         last_name: '',
         role: 'advisor'
       });
+      setSnackbar({ open: true, message: 'User created successfully', severity: 'success' });
     } catch (error) {
       console.error('Error creating user:', error);
+      const errorMsg = error.response?.data?.error || 'Error creating user';
+      setSnackbar({ open: true, message: errorMsg, severity: 'error' });
     }
   };
 
@@ -93,8 +132,11 @@ const UserManagement = () => {
       setUsers(users.map(u => u.id === selectedUser.id ? response.data.user : u));
       setEditDialog(false);
       setSelectedUser(null);
+      setSnackbar({ open: true, message: 'User updated successfully', severity: 'success' });
     } catch (error) {
       console.error('Error updating user:', error);
+      const errorMsg = error.response?.data?.error || 'Error updating user';
+      setSnackbar({ open: true, message: errorMsg, severity: 'error' });
     }
   };
 
@@ -102,8 +144,10 @@ const UserManagement = () => {
     try {
       await axios.put(`/users/${userId}`, { is_active: !isActive });
       fetchUsers();
+      setSnackbar({ open: true, message: 'User status updated', severity: 'success' });
     } catch (error) {
       console.error('Error updating user status:', error);
+      setSnackbar({ open: true, message: 'Error updating user status', severity: 'error' });
     }
   };
 
@@ -207,6 +251,7 @@ const UserManagement = () => {
               required
               value={newUser.username}
               onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+              helperText="Unique username for login"
             />
             <TextField
               fullWidth
@@ -215,6 +260,7 @@ const UserManagement = () => {
               required
               value={newUser.email}
               onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+              helperText="Valid email address"
             />
             <TextField
               fullWidth
@@ -223,6 +269,35 @@ const UserManagement = () => {
               required
               value={newUser.password}
               onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+              helperText="Minimum 8 characters, mix of uppercase, lowercase, numbers recommended"
+            />
+            {newUser.password && (
+              <Box>
+                <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                  <Typography variant="caption" color="textSecondary">
+                    Password Strength:
+                  </Typography>
+                  <Typography variant="caption" color={`${passwordStrength.color}.main`} fontWeight="bold">
+                    {passwordStrength.label}
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={passwordStrength.strength} 
+                  color={passwordStrength.color}
+                  sx={{ height: 6, borderRadius: 1 }}
+                />
+              </Box>
+            )}
+            <TextField
+              fullWidth
+              label="Confirm Password"
+              type="password"
+              required
+              value={newUser.confirmPassword}
+              onChange={(e) => setNewUser({...newUser, confirmPassword: e.target.value})}
+              error={newUser.confirmPassword && newUser.password !== newUser.confirmPassword}
+              helperText={newUser.confirmPassword && newUser.password !== newUser.confirmPassword ? "Passwords don't match" : "Re-enter password"}
             />
             <TextField
               fullWidth
@@ -255,7 +330,16 @@ const UserManagement = () => {
           <Button 
             onClick={handleCreateUser} 
             variant="contained"
-            disabled={!newUser.username || !newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
+            disabled={
+              !newUser.username || 
+              !newUser.email || 
+              !newUser.password || 
+              !newUser.confirmPassword ||
+              !newUser.first_name || 
+              !newUser.last_name ||
+              newUser.password !== newUser.confirmPassword ||
+              passwordStrength.strength < 40
+            }
           >
             Create User
           </Button>
@@ -315,6 +399,21 @@ const UserManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

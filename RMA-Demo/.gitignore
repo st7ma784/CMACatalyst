@@ -32,7 +32,6 @@ logs/
 # Data
 data/
 uploads/
-manuals/*.pdf
 *.db
 
 # Docker

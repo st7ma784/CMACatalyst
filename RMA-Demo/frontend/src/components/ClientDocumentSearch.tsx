@@ -28,25 +28,63 @@ interface ClientStats {
   status: string
 }
 
+interface ClientInfo {
+  client_id: string
+  client_name: string
+  document_count: number
+}
+
 export default function ClientDocumentSearch() {
   const [clientId, setClientId] = useState('')
   const [question, setQuestion] = useState('')
   const [result, setResult] = useState<QueryResult | null>(null)
   const [stats, setStats] = useState<ClientStats | null>(null)
+  const [clients, setClients] = useState<ClientInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [loadingClients, setLoadingClients] = useState(false)
   const [error, setError] = useState('')
 
   const UPLOAD_SERVICE_URL = process.env.NEXT_PUBLIC_UPLOAD_SERVICE_URL || 'http://localhost:8103'
 
+  // Load list of clients on component mount
+  useEffect(() => {
+    loadClients()
+  }, [])
+
   // Load stats when client ID changes
   useEffect(() => {
-    if (clientId.length > 2) {
+    if (clientId) {
       loadClientStats()
     } else {
       setStats(null)
     }
   }, [clientId])
+
+  const loadClients = async () => {
+    setLoadingClients(true)
+    try {
+      const token = localStorage.getItem('advisor_token')
+      if (!token) {
+        return
+      }
+
+      const response = await fetch(`${UPLOAD_SERVICE_URL}/clients`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setClients(data.clients || [])
+      }
+    } catch (err) {
+      console.error('Error loading clients:', err)
+    } finally {
+      setLoadingClients(false)
+    }
+  }
 
   const loadClientStats = async () => {
     setLoadingStats(true)
@@ -150,12 +188,25 @@ export default function ClientDocumentSearch() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="clientId">Client ID</Label>
-            <Input
+            <select
               id="clientId"
-              placeholder="Enter client ID (e.g., SMITH_JOHN_12345)"
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
-            />
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Select a client...</option>
+              {loadingClients ? (
+                <option value="" disabled>Loading clients...</option>
+              ) : clients.length === 0 ? (
+                <option value="" disabled>No clients found</option>
+              ) : (
+                clients.map((client) => (
+                  <option key={client.client_id} value={client.client_id}>
+                    {client.client_name} ({client.client_id}) - {client.document_count} doc(s)
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           {stats && stats.status === 'ready' && (
