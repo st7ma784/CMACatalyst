@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database } from 'lucide-react'
+import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database, Code, Workflow } from 'lucide-react'
 import ManualsViewer from './ManualsViewer'
 
-type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture'
+type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'api-reference' | 'n8n-workflows'
 
 export default function Documentation() {
   const [activeSection, setActiveSection] = useState<DocSection>('usage')
@@ -82,6 +82,28 @@ export default function Documentation() {
             Domain Registration
           </button>
           <button
+            onClick={() => setActiveSection('api-reference')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'api-reference'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Code className="h-5 w-5" />
+            API Reference
+          </button>
+          <button
+            onClick={() => setActiveSection('n8n-workflows')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'n8n-workflows'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Workflow className="h-5 w-5" />
+            N8N Workflows
+          </button>
+          <button
             onClick={() => setActiveSection('troubleshooting')}
             className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
               activeSection === 'troubleshooting'
@@ -103,6 +125,8 @@ export default function Documentation() {
         {activeSection === 'deployment' && <DeploymentGuide />}
         {activeSection === 'aws' && <AWSGuide />}
         {activeSection === 'domain' && <DomainGuide />}
+        {activeSection === 'api-reference' && <APIReferenceGuide />}
+        {activeSection === 'n8n-workflows' && <N8NWorkflowsGuide />}
         {activeSection === 'troubleshooting' && <TroubleshootingGuide />}
       </div>
     </div>
@@ -1819,6 +1843,900 @@ kubectl rollout restart deployment/upload-service -n rma-demo`}
               <li>Caching/CDN</li>
               <li>Analytics</li>
               <li>Faster DNS propagation</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function APIReferenceGuide() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">API Reference</h1>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <Code className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Complete API Documentation</h3>
+            <p className="text-sm text-blue-700">
+              Reference for all backend service endpoints and their usage.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* Notes Service */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Notes Service (Port 8100)</h2>
+          <p className="text-gray-600 mb-4">Converts advisor notes to client-friendly charts of accounts.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service info and welcome message</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /convert</h3>
+              <p className="text-sm text-gray-600">Convert advisor notes to CoA format</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "notes": "Client has £500 overdraft, £2000 credit card debt..."
+}`}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        {/* Document Processor Service */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Document Processor Service (Port 8101)</h2>
+          <p className="text-gray-600 mb-4">Processes PDF documents with local or cloud parsing.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service information</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /capabilities</h3>
+              <p className="text-sm text-gray-600">Returns parsing capabilities (local-only)</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /process</h3>
+              <p className="text-sm text-gray-600">Process a PDF document</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "file_path": "/path/to/document.pdf",
+  "use_local": true
+}`}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        {/* RAG Service */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">RAG Service (Port 8102)</h2>
+          <p className="text-gray-600 mb-4">Agentic RAG service for querying training manuals with LangGraph.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service information</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /stats</h3>
+              <p className="text-sm text-gray-600">Vector store statistics</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /query</h3>
+              <p className="text-sm text-gray-600">Query the manuals (basic RAG)</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "query": "What is the process for bankruptcy?",
+  "top_k": 5
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /agentic-query</h3>
+              <p className="text-sm text-gray-600">Agentic query with reasoning and tool use (LangGraph)</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "query": "Compare DRO vs bankruptcy eligibility",
+  "include_reasoning": true
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /eligibility-check</h3>
+              <p className="text-sm text-gray-600">Check debt solution eligibility</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "debt_amount": 15000,
+  "monthly_income": 1200,
+  "assets": 5000,
+  "circumstances": "unemployed"
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /symbolic-query</h3>
+              <p className="text-sm text-gray-600">Symbolic reasoning query</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /ingest</h3>
+              <p className="text-sm text-gray-600">Ingest text content into vector store</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /ingest-pdf</h3>
+              <p className="text-sm text-gray-600">Ingest PDF into vector store</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /ingest-all-manuals</h3>
+              <p className="text-sm text-gray-600">Ingest all manuals from /manuals directory</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /decision-tree/check</h3>
+              <p className="text-sm text-gray-600">Decision tree eligibility check</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /decision-tree/visualize</h3>
+              <p className="text-sm text-gray-600">Visualize decision tree</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /decision-tree/rules</h3>
+              <p className="text-sm text-gray-600">Get decision tree rules</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /diagrams/mermaid/:topic</h3>
+              <p className="text-sm text-gray-600">Generate Mermaid diagram for topic</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /diagrams/graphviz/:topic</h3>
+              <p className="text-sm text-gray-600">Generate Graphviz diagram for topic</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /diagrams/client-path</h3>
+              <p className="text-sm text-gray-600">Generate client journey diagram</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /diagrams/advisor-package</h3>
+              <p className="text-sm text-gray-600">Generate advisor package diagram</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /diagrams/comparison</h3>
+              <p className="text-sm text-gray-600">Compare debt solutions diagram</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /debug/documents</h3>
+              <p className="text-sm text-gray-600">List all documents in vector store</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /debug/sources</h3>
+              <p className="text-sm text-gray-600">List unique document sources</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /thresholds</h3>
+              <p className="text-sm text-gray-600">Get eligibility thresholds</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /debug/thresholds</h3>
+              <p className="text-sm text-gray-600">Debug threshold information</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Upload Service */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Upload Service (Port 8103)</h2>
+          <p className="text-gray-600 mb-4">Handles client document uploads, authentication, and QR code generation.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service information</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /login</h3>
+              <p className="text-sm text-gray-600">Advisor authentication</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "username": "advisor1",
+  "password": "password123"
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /generate-qr</h3>
+              <p className="text-sm text-gray-600">Generate QR code for client uploads</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "client_name": "John Smith"
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /uploads/:client_id</h3>
+              <p className="text-sm text-gray-600">Upload document for client</p>
+              <p className="text-xs text-gray-500 mt-1">Multipart form data with file field</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /uploads/:client_id</h3>
+              <p className="text-sm text-gray-600">List all uploads for a client</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /uploads/:client_id/:filename</h3>
+              <p className="text-sm text-gray-600">Download specific file</p>
+            </div>
+
+            <div className="border-l-4 border-red-400 pl-4">
+              <h3 className="font-semibold text-lg">DELETE /uploads/:client_id/:filename</h3>
+              <p className="text-sm text-gray-600">Delete a client document</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /query-client-documents</h3>
+              <p className="text-sm text-gray-600">Query client-specific documents</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "query": "What is their monthly income?"
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /clients</h3>
+              <p className="text-sm text-gray-600">List all clients with uploads</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /client-stats/:client_id</h3>
+              <p className="text-sm text-gray-600">Get statistics for client documents</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /triage-document</h3>
+              <p className="text-sm text-gray-600">AI triage of uploaded document</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Client RAG Service */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Client RAG Service (Port 8104)</h2>
+          <p className="text-gray-600 mb-4">Client-specific document RAG with LangGraph agentic capabilities.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service information</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /clients</h3>
+              <p className="text-sm text-gray-600">List all clients in vector store</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /stats/:client_id</h3>
+              <p className="text-sm text-gray-600">Get client document statistics</p>
+            </div>
+
+            <div className="border-l-4 border-red-400 pl-4">
+              <h3 className="font-semibold text-lg">DELETE /delete/:client_id/:filename</h3>
+              <p className="text-sm text-gray-600">Delete client document from vector store</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /query</h3>
+              <p className="text-sm text-gray-600">Query client documents (basic RAG)</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "query": "What is the client's income?",
+  "top_k": 5
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /agentic-query</h3>
+              <p className="text-sm text-gray-600">Agentic query with reasoning (LangGraph)</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "query": "Calculate debt-to-income ratio",
+  "include_reasoning": true
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /should-i-worry</h3>
+              <p className="text-sm text-gray-600">Analyze document for concerns</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "filename": "payslip.pdf"
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /ingest</h3>
+              <p className="text-sm text-gray-600">Ingest client document into vector store</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "client_id": "john-smith",
+  "filename": "statement.pdf",
+  "content": "extracted text..."
+}`}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        {/* MCP Server */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">MCP Server (Port 8105)</h2>
+          <p className="text-gray-600 mb-4">Model Context Protocol server for external integrations and n8n workflows.</p>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /</h3>
+              <p className="text-sm text-gray-600">Service information</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /health</h3>
+              <p className="text-sm text-gray-600">Health check endpoint</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /mcp/tools</h3>
+              <p className="text-sm text-gray-600">List available MCP tools</p>
+            </div>
+
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-lg">POST /mcp/tools/execute</h3>
+              <p className="text-sm text-gray-600">Execute an MCP tool</p>
+              <pre className="bg-gray-50 p-3 rounded mt-2 text-xs overflow-x-auto">
+{`{
+  "tool_name": "query_manuals",
+  "arguments": {
+    "query": "DRO eligibility"
+  }
+}`}
+              </pre>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /mcp/resources</h3>
+              <p className="text-sm text-gray-600">List available MCP resources</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /mcp/resources/:resource_uri</h3>
+              <p className="text-sm text-gray-600">Get specific MCP resource</p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-lg">GET /mcp/prompts</h3>
+              <p className="text-sm text-gray-600">List available MCP prompts</p>
+            </div>
+          </div>
+        </div>
+
+        {/* N8N Workflows */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">N8N Workflow Platform (Port 5678)</h2>
+          <p className="text-gray-600 mb-4">Low-code workflow automation for centre managers.</p>
+
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <p className="text-sm text-yellow-700">
+              <strong>Access:</strong> http://localhost:5678
+              <br />
+              <strong>Default credentials:</strong> admin / changeme123 (change in production!)
+            </p>
+          </div>
+
+          <p className="text-gray-700">
+            N8N provides a visual workflow editor where centre managers can:
+          </p>
+          <ul className="list-disc pl-6 mt-2 space-y-1 text-gray-700">
+            <li>Create automated client communication workflows</li>
+            <li>Schedule regular reports and statistics</li>
+            <li>Integrate with external services (email, SMS, etc.)</li>
+            <li>Access RMA data via MCP server integration</li>
+            <li>Build custom triggers and actions without coding</li>
+          </ul>
+        </div>
+
+        {/* Environment Variables */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Environment Variables</h2>
+          <p className="text-gray-600 mb-4">Required configuration for services.</p>
+
+          <pre className="bg-gray-50 p-4 rounded text-xs overflow-x-auto">
+{`# Authentication
+JWT_SECRET=your-secret-key-change-in-production
+
+# N8N Configuration
+N8N_USER=admin
+N8N_PASSWORD=changeme123
+
+# MCP Server
+MCP_API_KEY=dev-key-change-in-production
+
+# Upload Service
+APP_BASE_URL=http://localhost:3000
+
+# Document Processing (optional for cloud parsing)
+LLAMA_PARSE_API_KEY=your-llamaparse-key
+
+# Local Parsing (set to true for privacy mode)
+USE_LOCAL_PARSING=true`}
+          </pre>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function N8NWorkflowsGuide() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">N8N Workflows & Automation</h1>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <Workflow className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Automated Document Processing</h3>
+            <p className="text-sm text-blue-700">
+              Create powerful workflows to automate client document validation, compliance checks, and reporting using N8N.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* Overview */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">What is N8N?</h2>
+          <p className="text-gray-700 mb-4">
+            N8N is a powerful workflow automation tool that allows you to create complex automations without coding.
+            Think of it as connecting different apps and services together with visual workflows.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="bg-green-50 p-4 rounded">
+              <h3 className="font-semibold text-green-900 mb-2">What You Can Do</h3>
+              <ul className="text-sm text-green-800 space-y-1">
+                <li>• Automate document audits</li>
+                <li>• Send email notifications</li>
+                <li>• Schedule regular checks</li>
+                <li>• Integrate with external systems</li>
+                <li>• Generate compliance reports</li>
+              </ul>
+            </div>
+            <div className="bg-blue-50 p-4 rounded">
+              <h3 className="font-semibold text-blue-900 mb-2">Access N8N</h3>
+              <p className="text-sm text-blue-800 mb-2">
+                <strong>URL:</strong> <code className="bg-white px-2 py-1 rounded">http://localhost:5678</code>
+              </p>
+              <p className="text-sm text-blue-800">
+                <strong>Default Login:</strong><br />
+                Username: <code className="bg-white px-2 py-1 rounded">admin</code><br />
+                Password: <code className="bg-white px-2 py-1 rounded">changeme123</code>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Client Document Audit Agent */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">⭐ Client Document Audit Agent</h2>
+          <p className="text-gray-700 mb-4">
+            The <strong>Audit Agent</strong> automatically validates client documents against a compliance checklist using AI.
+            This is perfect for ensuring all required documents are submitted before processing applications.
+          </p>
+
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">How It Works</h3>
+          <ol className="list-decimal pl-6 space-y-2 text-gray-700 mb-4">
+            <li>You provide a checklist of required documents (e.g., "Proof of Income", "Bank Statements")</li>
+            <li>The AI agent searches through all client documents</li>
+            <li>For each item, it determines: PASS ✅, FAIL ❌, or WARNING ⚠️</li>
+            <li>It generates a detailed report with recommendations</li>
+            <li>Results can trigger emails, Slack messages, or other actions</li>
+          </ol>
+
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Quick Start</h3>
+          <div className="bg-gray-50 p-4 rounded mb-4">
+            <p className="text-sm font-semibold mb-2">Step 1: Import the Workflow</p>
+            <ol className="text-sm text-gray-700 space-y-1 pl-4">
+              <li>1. Open N8N at <code className="bg-white px-1 rounded">http://localhost:5678</code></li>
+              <li>2. Click <strong>Workflows</strong> → <strong>Add Workflow</strong></li>
+              <li>3. Click the <strong>...</strong> menu → <strong>Import from File</strong></li>
+              <li>4. Navigate to <code className="bg-white px-1 rounded">/services/n8n/workflows/client-audit-agent.json</code></li>
+              <li>5. Click <strong>Activate</strong> to enable the workflow</li>
+            </ol>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded mb-4">
+            <p className="text-sm font-semibold mb-2">Step 2: Configure Client ID</p>
+            <ol className="text-sm text-gray-700 space-y-1 pl-4">
+              <li>1. Open the <strong>Set Client ID</strong> node</li>
+              <li>2. Change <code className="bg-white px-1 rounded">client_id</code> to your client (e.g., "jane-doe")</li>
+              <li>3. Save the workflow</li>
+            </ol>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded">
+            <p className="text-sm font-semibold mb-2">Step 3: Run the Audit</p>
+            <ol className="text-sm text-gray-700 space-y-1 pl-4">
+              <li>1. Click <strong>Execute Workflow</strong></li>
+              <li>2. View results in the workflow output</li>
+              <li>3. Check the generated report files</li>
+            </ol>
+          </div>
+        </div>
+
+        {/* Default Checklist */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Default Audit Checklist</h2>
+          <p className="text-gray-700 mb-4">The pre-built workflow includes 10 common document checks:</p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold text-red-900 mb-2">✅ Required Documents (Must Have)</h3>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>1. Proof of Income</li>
+                <li>2. Bank Statements (Last 3 Months)</li>
+                <li>3. Proof of Address</li>
+                <li>4. Photo ID</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Optional Documents (Nice to Have)</h3>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>5. Credit Card Statements</li>
+                <li>6. Loan Agreements</li>
+                <li>7. Mortgage Statement</li>
+                <li>8. Employment Contract</li>
+                <li>9. Budget Planner</li>
+                <li>10. Creditor Letters</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-yellow-50 p-3 rounded">
+            <p className="text-sm text-yellow-800">
+              💡 <strong>Tip:</strong> You can customize this checklist in the <strong>Build Audit Checklist</strong> node
+            </p>
+          </div>
+        </div>
+
+        {/* Customization */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Customizing the Checklist</h2>
+
+          <p className="text-gray-700 mb-4">Edit the <strong>Build Audit Checklist</strong> node to add your own checks:</p>
+
+          <pre className="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto mb-4">
+{`{
+  "item": "DRO Debt Limit Check",
+  "required": true,
+  "query": "Based on client documents, is total debt under £30,000?",
+  "category": "eligibility"
+},
+{
+  "item": "Proof of Residency (2 years)",
+  "required": true,
+  "query": "Has the client lived in England/Wales for 2+ years?",
+  "category": "eligibility"
+}`}
+          </pre>
+
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Checklist Item Properties</h3>
+          <ul className="list-disc pl-6 space-y-2 text-gray-700">
+            <li><strong>item:</strong> Name of the requirement (shown in reports)</li>
+            <li><strong>required:</strong> <code className="bg-gray-100 px-1 rounded">true</code> = must have (FAIL if missing), <code className="bg-gray-100 px-1 rounded">false</code> = optional (WARNING if missing)</li>
+            <li><strong>query:</strong> AI query to check for this item (be specific!)</li>
+            <li><strong>category:</strong> Grouping for organization (financial, identity, debt, eligibility, etc.)</li>
+          </ul>
+        </div>
+
+        {/* Automation Examples */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Automation Ideas</h2>
+
+          <div className="space-y-4">
+            <div className="border-l-4 border-blue-400 pl-4">
+              <h3 className="font-semibold text-gray-900">📅 Schedule Daily Audits</h3>
+              <p className="text-sm text-gray-700">
+                Replace <strong>Manual Trigger</strong> with <strong>Schedule Trigger</strong> to run audits every morning at 9 AM.
+                Add a loop to check all active clients.
+              </p>
+            </div>
+
+            <div className="border-l-4 border-green-400 pl-4">
+              <h3 className="font-semibold text-gray-900">📧 Email Notifications</h3>
+              <p className="text-sm text-gray-700">
+                Add <strong>Send Email</strong> node after <strong>Format Failure</strong> to automatically email advisors
+                about missing documents with a list of required items.
+              </p>
+            </div>
+
+            <div className="border-l-4 border-purple-400 pl-4">
+              <h3 className="font-semibold text-gray-900">💬 Slack Alerts</h3>
+              <p className="text-sm text-gray-700">
+                Add <strong>Slack</strong> node to send messages to #compliance channel when clients are missing required documents.
+              </p>
+            </div>
+
+            <div className="border-l-4 border-orange-400 pl-4">
+              <h3 className="font-semibold text-gray-900">🔔 Webhook Triggers</h3>
+              <p className="text-sm text-gray-700">
+                Replace <strong>Manual Trigger</strong> with <strong>Webhook</strong> to automatically run audits when
+                clients upload new documents.
+              </p>
+            </div>
+
+            <div className="border-l-4 border-red-400 pl-4">
+              <h3 className="font-semibold text-gray-900">📊 CRM Integration</h3>
+              <p className="text-sm text-gray-700">
+                Connect to your CRM to automatically create tasks when documents are missing or update client records
+                with audit results.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* API Endpoints */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">N8N-Compatible Endpoints</h2>
+
+          <p className="text-gray-700 mb-4">
+            The Client RAG Service provides special endpoints designed for N8N workflows:
+          </p>
+
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded">
+              <h3 className="font-semibold text-gray-900 mb-2">POST /n8n/audit-checklist</h3>
+              <p className="text-sm text-gray-700 mb-2">Run a complete audit with structured output</p>
+              <p className="text-xs text-gray-600">
+                <strong>Endpoint:</strong> <code className="bg-white px-1 rounded">http://client-rag-service:8104/n8n/audit-checklist</code>
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded">
+              <h3 className="font-semibold text-gray-900 mb-2">POST /n8n/query</h3>
+              <p className="text-sm text-gray-700 mb-2">Simple document query with clean JSON response</p>
+              <p className="text-xs text-gray-600">
+                <strong>Endpoint:</strong> <code className="bg-white px-1 rounded">http://client-rag-service:8104/n8n/query</code>
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-4 rounded">
+              <h3 className="font-semibold text-gray-900 mb-2">GET /n8n/workflows</h3>
+              <p className="text-sm text-gray-700 mb-2">List all available workflow templates</p>
+              <p className="text-xs text-gray-600">
+                <strong>Endpoint:</strong> <code className="bg-white px-1 rounded">http://client-rag-service:8104/n8n/workflows</code>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Testing */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Testing the API</h2>
+
+          <p className="text-gray-700 mb-4">Test the endpoints directly before building workflows:</p>
+
+          <div className="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto mb-4">
+{`# List available workflows
+curl http://localhost:8104/n8n/workflows
+
+# Run a simple query
+curl -X POST http://localhost:8104/n8n/query \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "client_id": "john-smith",
+    "query": "Does the client have proof of income?",
+    "return_sources": true
+  }'
+
+# Run a full audit
+curl -X POST http://localhost:8104/n8n/audit-checklist \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "client_id": "john-smith",
+    "strict_mode": false,
+    "checklist": [
+      {
+        "item": "Proof of Income",
+        "required": true,
+        "query": "Does the client have proof of income?",
+        "category": "financial"
+      }
+    ]
+  }'`}
+          </div>
+        </div>
+
+        {/* Troubleshooting */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Troubleshooting</h2>
+
+          <div className="space-y-4">
+            <div className="bg-red-50 p-4 rounded">
+              <h3 className="font-semibold text-red-900 mb-2">Problem: All checks fail with "not found"</h3>
+              <p className="text-sm text-red-800">
+                <strong>Solution:</strong> Verify client_id matches uploaded documents. Check available clients at
+                <code className="bg-white px-1 rounded">GET /clients</code>
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 p-4 rounded">
+              <h3 className="font-semibold text-yellow-900 mb-2">Problem: Low confidence scores</h3>
+              <p className="text-sm text-yellow-800">
+                <strong>Solution:</strong> Make queries more specific (e.g., "Does the client have payslips from the last 3 months?"
+                instead of "Income proof?")
+              </p>
+            </div>
+
+            <div className="bg-blue-50 p-4 rounded">
+              <h3 className="font-semibold text-blue-900 mb-2">Problem: Workflow takes too long</h3>
+              <p className="text-sm text-blue-800">
+                <strong>Solution:</strong> Reduce checklist size, set <code className="bg-white px-1 rounded">return_sources: false</code>,
+                or enable <code className="bg-white px-1 rounded">strict_mode: true</code> to fail fast
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Best Practices */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Best Practices</h2>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold text-green-900 mb-2">✅ Do This</h3>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>• Use clear, specific queries</li>
+                <li>• Start with small checklists (2-3 items) for testing</li>
+                <li>• Mark only truly mandatory items as required</li>
+                <li>• Use meaningful categories</li>
+                <li>• Test endpoints before building workflows</li>
+                <li>• Check logs when troubleshooting</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-red-900 mb-2">❌ Don't Do This</h3>
+              <ul className="text-sm text-gray-700 space-y-1">
+                <li>• Vague queries like "Documents?"</li>
+                <li>• Mark everything as required</li>
+                <li>• Ignore confidence scores</li>
+                <li>• Skip testing individual endpoints</li>
+                <li>• Use production data while testing</li>
+                <li>• Forget to activate workflows</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Resources */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Additional Resources</h2>
+
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex items-start">
+              <FileText className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Full Guide:</strong> <code className="bg-gray-100 px-2 py-1 rounded text-xs">/services/n8n/workflows/AUDIT_AGENT_GUIDE.md</code>
+                <p className="text-sm text-gray-600">Comprehensive 300+ line documentation with examples</p>
+              </div>
+            </li>
+            <li className="flex items-start">
+              <FileText className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Quick Reference:</strong> <code className="bg-gray-100 px-2 py-1 rounded text-xs">/N8N_INTEGRATION_SUMMARY.md</code>
+                <p className="text-sm text-gray-600">Quick setup and API testing examples</p>
+              </div>
+            </li>
+            <li className="flex items-start">
+              <FileText className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Workflow File:</strong> <code className="bg-gray-100 px-2 py-1 rounded text-xs">/services/n8n/workflows/client-audit-agent.json</code>
+                <p className="text-sm text-gray-600">Ready-to-import N8N workflow</p>
+              </div>
+            </li>
+            <li className="flex items-start">
+              <Code className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>API Docs:</strong> <code className="bg-gray-100 px-2 py-1 rounded text-xs">http://localhost:8104/docs</code>
+                <p className="text-sm text-gray-600">Interactive API documentation</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        {/* Summary */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Summary</h2>
+          <p className="text-gray-700 mb-4">
+            N8N workflows transform manual document checking into automated, consistent, AI-powered audits.
+            The pre-built Audit Agent workflow is ready to use immediately and can be customized for your specific needs.
+          </p>
+          <div className="bg-white p-4 rounded">
+            <p className="font-semibold text-gray-900 mb-2">Quick Stats:</p>
+            <ul className="text-sm text-gray-700 space-y-1">
+              <li>⏱️ <strong>10-minute manual check → 30-second automated audit</strong></li>
+              <li>🎯 <strong>100% consistent</strong> - Same criteria for all clients</li>
+              <li>🤖 <strong>AI-powered</strong> - Understands document content, not just filenames</li>
+              <li>🔒 <strong>Privacy-first</strong> - All processing happens locally</li>
+              <li>📊 <strong>Audit trail</strong> - Complete records for compliance</li>
             </ul>
           </div>
         </div>

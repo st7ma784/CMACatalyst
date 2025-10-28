@@ -1,0 +1,297 @@
+{
+  "name": "Client Document Audit Agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start-node",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "client_id",
+              "value": "john-smith"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-client-id",
+      "name": "Set Client ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "checklist",
+              "value": "=[\n  {\n    \"item\": \"Proof of Income\",\n    \"required\": true,\n    \"query\": \"Does the client have proof of income documents (payslips, benefit letters, etc.)?\",\n    \"category\": \"financial\"\n  },\n  {\n    \"item\": \"Bank Statements (Last 3 Months)\",\n    \"required\": true,\n    \"query\": \"Are there bank statements covering the last 3 months?\",\n    \"category\": \"financial\"\n  },\n  {\n    \"item\": \"Proof of Address\",\n    \"required\": true,\n    \"query\": \"Is there proof of address (utility bill, council tax, etc.)?\",\n    \"category\": \"identity\"\n  },\n  {\n    \"item\": \"Photo ID\",\n    \"required\": true,\n    \"query\": \"Does the client have valid photo identification?\",\n    \"category\": \"identity\"\n  },\n  {\n    \"item\": \"Credit Card Statements\",\n    \"required\": false,\n    \"query\": \"Are there recent credit card statements?\",\n    \"category\": \"debt\"\n  },\n  {\n    \"item\": \"Loan Agreements\",\n    \"required\": false,\n    \"query\": \"Are there any loan agreements or contracts?\",\n    \"category\": \"debt\"\n  },\n  {\n    \"item\": \"Mortgage Statement\",\n    \"required\": false,\n    \"query\": \"Is there a mortgage statement or agreement?\",\n    \"category\": \"debt\"\n  },\n  {\n    \"item\": \"Employment Contract\",\n    \"required\": false,\n    \"query\": \"Does the client have an employment contract?\",\n    \"category\": \"employment\"\n  },\n  {\n    \"item\": \"Budget Planner\",\n    \"required\": false,\n    \"query\": \"Has the client completed a budget planner showing income and expenses?\",\n    \"category\": \"financial\"\n  },\n  {\n    \"item\": \"Creditor Letters\",\n    \"required\": false,\n    \"query\": \"Are there any letters from creditors?\",\n    \"category\": \"debt\"\n  }\n]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-checklist",
+      "name": "Build Audit Checklist",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://client-rag-service:8104/n8n/audit-checklist",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"client_id\": \"{{ $json.client_id }}\",\n  \"checklist\": {{ $json.checklist }},\n  \"strict_mode\": false\n}"
+      },
+      "id": "run-audit",
+      "name": "Run Audit Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.overall_status }}",
+              "operation": "equals",
+              "value2": "PASS"
+            }
+          ]
+        }
+      },
+      "id": "check-result",
+      "name": "Check Audit Result",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=AUDIT PASSED ✅"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "name": "pass_rate",
+              "value": "={{ $json.pass_rate }}%"
+            },
+            {
+              "name": "details",
+              "value": "=All required documents verified for client {{ $json.client_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-pass",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=AUDIT FAILED ❌"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.summary }}"
+            },
+            {
+              "name": "pass_rate",
+              "value": "={{ $json.pass_rate }}%"
+            },
+            {
+              "name": "failed_checks",
+              "value": "={{ $json.failed_checks }}"
+            },
+            {
+              "name": "recommendations",
+              "value": "={{ $json.recommendations.join('\\n') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-fail",
+      "name": "Format Failure",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "audit_report",
+              "value": "=CLIENT AUDIT REPORT\\n==================\\nClient: {{ $json.client_id }}\\nDate: {{ $now.toFormat('yyyy-MM-dd HH:mm') }}\\nStatus: {{ $json.overall_status }}\\n\\nRESULTS:\\n--------\\nTotal Checks: {{ $json.total_checks }}\\nPassed: {{ $json.passed_checks }}\\nFailed: {{ $json.failed_checks }}\\nWarnings: {{ $json.warnings }}\\nPass Rate: {{ $json.pass_rate }}%\\n\\nSUMMARY:\\n--------\\n{{ $json.summary }}\\n\\nDETAILED RESULTS:\\n----------------\\n{{ $json.results.map(r => `${r.status} - ${r.item} (${r.category})\\n   ${r.answer}\\n   Confidence: ${r.confidence}\\n   ${r.recommendation}`).join('\\n\\n') }}\\n\\nRECOMMENDATIONS:\\n---------------\\n{{ $json.recommendations.join('\\n') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-report",
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "options": {
+          "fileName": "={{ $json.client_id }}_audit_{{ $now.toFormat('yyyyMMdd_HHmmss') }}.json"
+        }
+      },
+      "id": "save-json",
+      "name": "Save Audit JSON",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "options": {
+          "fileName": "={{ $json.client_id }}_audit_report_{{ $now.toFormat('yyyyMMdd_HHmmss') }}.txt"
+        }
+      },
+      "id": "save-report",
+      "name": "Save Audit Report",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Client ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Client ID": {
+      "main": [
+        [
+          {
+            "node": "Build Audit Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Audit Checklist": {
+      "main": [
+        [
+          {
+            "node": "Run Audit Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Audit Agent": {
+      "main": [
+        [
+          {
+            "node": "Check Audit Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Audit Result": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Failure": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Save Audit JSON",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save Audit Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "pinData": {},
+  "versionId": "1"
+}

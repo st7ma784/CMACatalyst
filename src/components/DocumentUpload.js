@@ -37,10 +37,12 @@ import {
   Refresh,
   Check as CheckIcon,
   Warning as WarningIcon,
-  SmartToy as AIIcon
+  SmartToy as AIIcon,
+  Psychology as WorryIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import FileTreeViewer from './FileTreeViewer';
+import ShouldIWorryDialog from './ShouldIWorryDialog';
 
 const DocumentUpload = ({ caseId, onUploadComplete }) => {
   const [files, setFiles] = useState([]);
@@ -49,6 +51,7 @@ const DocumentUpload = ({ caseId, onUploadComplete }) => {
   const [approvalDialog, setApprovalDialog] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [worryDialog, setWorryDialog] = useState({ open: false, filename: null, summary: null });
 
   const onDrop = useCallback((acceptedFiles) => {
     const newFiles = acceptedFiles.map(file => ({
@@ -266,6 +269,17 @@ const DocumentUpload = ({ caseId, onUploadComplete }) => {
                     <ListItemSecondaryAction>
                       {fileObj.status === 'completed' && fileObj.ocrResult && (
                         <>
+                          <IconButton 
+                            onClick={() => setWorryDialog({ 
+                              open: true, 
+                              filename: fileObj.file.name,
+                              summary: fileObj.ocrResult.text?.substring(0, 500)
+                            })}
+                            color="secondary"
+                            title="Should I worry about this?"
+                          >
+                            <WorryIcon />
+                          </IconButton>
                           <IconButton onClick={() => setApprovalDialog(fileObj)}>
                             <Visibility />
                           </IconButton>
@@ -336,6 +350,15 @@ const DocumentUpload = ({ caseId, onUploadComplete }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Should I Worry Dialog */}
+      <ShouldIWorryDialog
+        open={worryDialog.open}
+        onClose={() => setWorryDialog({ open: false, filename: null, summary: null })}
+        clientId={caseId}
+        filename={worryDialog.filename}
+        documentSummary={worryDialog.summary}
+      />
     </Grid>
   );
 };

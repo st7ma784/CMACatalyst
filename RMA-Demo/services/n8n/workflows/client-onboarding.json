@@ -1,0 +1,117 @@
+{
+  "name": "Client Onboarding Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "client_name",
+              "value": "John Smith"
+            },
+            {
+              "name": "client_email",
+              "value": "john.smith@example.com"
+            },
+            {
+              "name": "client_phone",
+              "value": "07700 900123"
+            },
+            {
+              "name": "appointment_date",
+              "value": "2025-10-30"
+            }
+          ]
+        }
+      },
+      "name": "Set Client Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://mcp-server:8105/mcp/tools/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$env.MCP_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool_name",
+              "value": "get_centre_statistics"
+            },
+            {
+              "name": "arguments",
+              "value": "={\"date_range\": \"week\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check Centre Capacity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "advice@riverside.org.uk",
+        "toEmail": "={{$node[\"Set Client Data\"].json[\"client_email\"]}}",
+        "subject": "Welcome to Riverside Money Advice",
+        "text": "=Dear {{$node[\"Set Client Data\"].json[\"client_name\"]}},\\n\\nThank you for contacting Riverside Money Advice. Your appointment is scheduled for {{$node[\"Set Client Data\"].json[\"appointment_date\"]}}.\\n\\nPlease bring:\\n- Recent bank statements\\n- List of all debts\\n- Proof of income\\n- List of assets\\n\\nIf you have any questions, please call us on {{$node[\"Set Client Data\"].json[\"client_phone\"]}}.\\n\\nBest regards,\\nRiverside Money Advice Team"
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "calendar": "primary",
+        "start": "={{$node[\"Set Client Data\"].json[\"appointment_date\"]}}T10:00:00",
+        "end": "={{$node[\"Set Client Data\"].json[\"appointment_date\"]}}T11:00:00",
+        "summary": "=Client Appointment: {{$node[\"Set Client Data\"].json[\"client_name\"]}}",
+        "description": "=Initial consultation with {{$node[\"Set Client Data\"].json[\"client_name\"]}}\\nEmail: {{$node[\"Set Client Data\"].json[\"client_email\"]}}\\nPhone: {{$node[\"Set Client Data\"].json[\"client_phone\"]}}"
+      },
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [[{"node": "Set Client Data", "type": "main", "index": 0}]]
+    },
+    "Set Client Data": {
+      "main": [[{"node": "Check Centre Capacity", "type": "main", "index": 0}]]
+    },
+    "Check Centre Capacity": {
+      "main": [[{"node": "Send Welcome Email", "type": "main", "index": 0}]]
+    },
+    "Send Welcome Email": {
+      "main": [[{"node": "Create Calendar Event", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}

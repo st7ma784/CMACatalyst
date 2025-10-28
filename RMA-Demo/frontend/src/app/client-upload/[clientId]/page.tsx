@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Brain } from 'lucide-react'
+import ShouldIWorryDialog from '@/components/ShouldIWorryDialog'
 
 const UPLOAD_SERVICE_URL = process.env.NEXT_PUBLIC_UPLOAD_SERVICE_URL || 'http://localhost:8103'
 
@@ -21,6 +22,10 @@ export default function ClientUpload() {
   const [uploading, setUploading] = useState(false)
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [dragActive, setDragActive] = useState(false)
+  const [worryDialog, setWorryDialog] = useState<{ open: boolean; filename: string | null }>({
+    open: false,
+    filename: null
+  })
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -174,12 +179,23 @@ export default function ClientUpload() {
                           )}
                         </div>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2">
                         {file.status === 'uploading' && (
                           <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
                         )}
                         {file.status === 'success' && (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setWorryDialog({ open: true, filename: file.filename })}
+                              className="mr-2"
+                            >
+                              <Brain className="h-4 w-4 mr-1" />
+                              Should I worry?
+                            </Button>
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          </>
                         )}
                         {file.status === 'error' && (
                           <AlertCircle className="h-5 w-5 text-red-600" />
@@ -213,6 +229,14 @@ export default function ClientUpload() {
           </div>
         </div>
       </div>
+
+      {/* Should I Worry Dialog */}
+      <ShouldIWorryDialog
+        open={worryDialog.open}
+        onClose={() => setWorryDialog({ open: false, filename: null })}
+        clientId={clientId}
+        filename={worryDialog.filename || ''}
+      />
     </main>
   )
 }

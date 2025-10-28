@@ -23,7 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 services/document-inbox/node_modules/
 services/ocr-processor/node_modules/
-*.pdf
 *.pyc
 OCRDemo/.env
 OCRDemo/.env.local

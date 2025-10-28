@@ -14,8 +14,16 @@ COPY requirements.txt .
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Copy application files
 COPY app.py .
+COPY agent_graph.py .
+COPY agent_state.py .
+COPY agent_nodes.py .
+COPY numerical_tools.py .
+COPY symbolic_reasoning.py .
+COPY decision_tree_builder.py .
+COPY tree_visualizer.py .
+COPY tools/ ./tools/
 
 # Create directories
 RUN mkdir -p /data/vectorstore /manuals

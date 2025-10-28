@@ -1,0 +1,222 @@
+{
+  "name": "Document Processing & Eligibility Check",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "document-upload",
+        "options": {}
+      },
+      "name": "Webhook - Document Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "doc-upload"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "client_id",
+              "value": "={{$json[\"client_id\"]}}"
+            },
+            {
+              "name": "document_type",
+              "value": "={{$json[\"document_type\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Extract Upload Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://mcp-server:8105/mcp/tools/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$env.MCP_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool_name",
+              "value": "extract_client_values"
+            },
+            {
+              "name": "arguments",
+              "value": "={\"client_id\": \"{{$node[\"Extract Upload Data\"].json[\"client_id\"]}}\", \"fields\": [\"debt\", \"income\", \"assets\"]}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Extract Financial Values",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://mcp-server:8105/mcp/tools/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$env.MCP_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool_name",
+              "value": "check_client_eligibility"
+            },
+            {
+              "name": "arguments",
+              "value": "={\"question\": \"Is this client eligible for a DRO?\", \"debt\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"debt\"]}}, \"income\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"income\"]}}, \"assets\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"assets\"]}}, \"topic\": \"dro_eligibility\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check DRO Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "url": "=http://mcp-server:8105/mcp/tools/execute",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$env.MCP_API_KEY}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tool_name",
+              "value": "check_client_eligibility"
+            },
+            {
+              "name": "arguments",
+              "value": "={\"question\": \"Is this client eligible for bankruptcy?\", \"debt\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"debt\"]}}, \"income\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"income\"]}}, \"assets\": {{$node[\"Extract Financial Values\"].json[\"result\"][\"assets\"]}}, \"topic\": \"bankruptcy\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Check Bankruptcy Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$node[\"Check DRO Eligibility\"].json[\"result\"][\"overall_result\"]}}",
+              "value2": "eligible"
+            }
+          ]
+        }
+      },
+      "name": "Is DRO Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "adviser@riverside.org.uk",
+        "subject": "=DRO Eligible: Client {{$node[\"Extract Upload Data\"].json[\"client_id\"]}}",
+        "text": "=Client {{$node[\"Extract Upload Data\"].json[\"client_id\"]}} is ELIGIBLE for a DRO.\\n\\nFinancial Summary:\\n- Debt: £{{$node[\"Extract Financial Values\"].json[\"result\"][\"debt\"]}}\\n- Income: £{{$node[\"Extract Financial Values\"].json[\"result\"][\"income\"]}}/month\\n- Assets: £{{$node[\"Extract Financial Values\"].json[\"result\"][\"assets\"]}}\\n\\nNext Steps:\\n{{$node[\"Check DRO Eligibility\"].json[\"result\"][\"recommendations\"]}}\\n\\nPlease review the client file and proceed with DRO application."
+      },
+      "name": "Notify Adviser - DRO",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1250, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$node[\"Check Bankruptcy Eligibility\"].json[\"result\"][\"overall_result\"]}}",
+              "value2": "eligible"
+            }
+          ]
+        }
+      },
+      "name": "Is Bankruptcy Eligible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "toEmail": "adviser@riverside.org.uk",
+        "subject": "=Review Required: Client {{$node[\"Extract Upload Data\"].json[\"client_id\"]}}",
+        "text": "=Client {{$node[\"Extract Upload Data\"].json[\"client_id\"]}} requires manual review.\\n\\nNo automatic eligibility determined.\\n\\nPlease review documents and financial summary manually."
+      },
+      "name": "Notify Adviser - Review Needed",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1250, 500]
+    }
+  ],
+  "connections": {
+    "Webhook - Document Upload": {
+      "main": [[{"node": "Extract Upload Data", "type": "main", "index": 0}]]
+    },
+    "Extract Upload Data": {
+      "main": [[{"node": "Extract Financial Values", "type": "main", "index": 0}]]
+    },
+    "Extract Financial Values": {
+      "main": [[
+        {"node": "Check DRO Eligibility", "type": "main", "index": 0},
+        {"node": "Check Bankruptcy Eligibility", "type": "main", "index": 0}
+      ]]
+    },
+    "Check DRO Eligibility": {
+      "main": [[{"node": "Is DRO Eligible?", "type": "main", "index": 0}]]
+    },
+    "Check Bankruptcy Eligibility": {
+      "main": [[{"node": "Is Bankruptcy Eligible?", "type": "main", "index": 0}]]
+    },
+    "Is DRO Eligible?": {
+      "main": [[{"node": "Notify Adviser - DRO", "type": "main", "index": 0}]]
+    },
+    "Is Bankruptcy Eligible?": {
+      "main": [[{"node": "Notify Adviser - Review Needed", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1",
+  "tags": []
+}

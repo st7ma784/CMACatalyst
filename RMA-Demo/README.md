@@ -15,18 +15,34 @@ A comprehensive Risk Management Advice dashboard prototype for single-centre dep
 - Each client gets a personalized upload URL: `/uploads/<client-id>`
 - Secure document management with authentication
 
-### 3. Search Client Documents (NEW!)
+### 3. Search Client Documents (with Agentic RAG + Numerical Tools)
 - **AI-powered search across client-specific documents**
+- **Agentic reasoning**: Analyzes questions, plans searches, provides confidence scores
+- **Numerical tools**: Accurate debt calculations, pattern detection, fraud indicators
+  - ⭐ **Dynamic thresholds**: No hardcoded limits - extracts from manuals on startup
+  - ⭐ **Zero-hallucination math**: Python handles all calculations, not LLM
+  - ⭐ **Automatic compliance**: Update manual → restart → current thresholds
+- **Pattern detection**: Spots suspicious patterns like debts totaling exactly £10,000
+- **Adaptive complexity**: Simple questions get fast answers, complex ones get thorough analysis
 - Automatic vector indexing of all uploaded documents
 - Natural language queries: "What debts does this client have?"
-- Answers with source citations showing which documents were used
+- Answers with source citations and reasoning transparency
 - Each client has their own searchable knowledge base
 - Powered by ChromaDB and Ollama embeddings
 
-### 4. Ask the Manuals
-- RAG (Retrieval-Augmented Generation) interface for training manuals
+### 4. Ask the Manuals (with Agentic RAG + Numerical Tools)
+- **Intelligent RAG** (Retrieval-Augmented Generation) interface for training manuals
+- **Agentic workflow**: Analyzes question complexity, plans searches, synthesizes answers
+- **Numerical tools**: LLM can call Python functions for accurate calculations, comparisons, and pattern detection
+  - ⭐ **Critical for debt advice**: Ensures accurate eligibility checking (e.g., £60k debt > £30k DRO limit)
+  - ⭐ **Dynamic threshold system**: Extracts limits from YOUR manuals, not hardcoded values
+  - ⭐ **Three-layer architecture**: Context enrichment → dynamic extraction → tool-based validation
+  - ⭐ **Compliance by design**: System always uses current thresholds from manuals
+- **Pattern detection**: Automatically spots suspicious number patterns (debts totaling convenient sums, duplicates, etc.)
+- **Confidence scoring**: Provides HIGH/MEDIUM/LOW confidence with reasoning
+- **Multi-iteration search**: Complex questions trigger multiple targeted searches
 - ChromaDB vector storage for efficient document retrieval
-- Chat-style interface with source citations
+- Chat-style interface with source citations and reasoning transparency
 - PDF/markdown manual support via LLamaParse
 
 ### 5. Document Processing
@@ -56,6 +72,51 @@ A comprehensive Risk Management Advice dashboard prototype for single-centre dep
 - **ChromaDB**: Shared vector database for all embeddings (manuals + client docs)
 - **Docker Compose**: Local development
 - **Kubernetes**: Production deployment on AWS EKS
+
+## Why the Numerical Tools Architecture Matters
+
+This might look like a "minor architectural detail," but it's **fundamental to providing accurate debt advice**:
+
+### The Problem
+LLMs are terrible at math. They're pattern-matching engines, not calculators. When you ask "Is £60,000 too much debt for a DRO?", a pure LLM might:
+- Get the calculation wrong: "£60k - £30k = £20k" ❌
+- Hallucinate thresholds: "I believe the DRO limit is around £50k" ❌
+- Miss the comparison: "£60k is quite high..." (ignoring the £30k limit) ❌
+
+**The stakes:** Wrong eligibility assessment → wrong advice → client harm → regulatory risk.
+
+### The Solution: Three-Layer Architecture
+
+1. **Context Enrichment**: Automatically annotates retrieved text with "📊 NUMERIC RULE" hints
+2. **Dynamic Threshold Extraction**: On startup, system queries manuals: "What are all the limits?" Extracts and caches actual values (DRO: £30k, bankruptcy: £680, etc.)
+3. **Tool-Based Validation**: When LLM needs to check eligibility, it calls `check_threshold()`. Python performs exact comparison. No guessing.
+
+**Result:** LLM handles language and reasoning. Python handles math. Best of both worlds.
+
+### Why Dynamic Thresholds?
+
+**Hardcoded (BAD):**
+```python
+THRESHOLDS = {"dro_max": 30000}  # What if this changes to £35k?
+```
+- Requires code changes to update limits
+- Goes stale as regulations change
+- Creates compliance risk
+
+**Dynamic (GOOD):**
+```python
+# Extracts from manuals on startup
+extract_thresholds_from_manuals()  
+# Update manual PDF → restart → current thresholds
+```
+- Single source of truth: YOUR manuals
+- No hardcoded values anywhere
+- Automatic compliance with current limits
+- Regional variations supported (different deployments, different manuals)
+
+**Real Impact:** System using outdated £30k limit when regulation increases to £35k = wrongly rejecting eligible clients. Dynamic extraction prevents this.
+
+📖 **See [docs/features/agentic-rag.md](docs/features/agentic-rag.md) for detailed explanation**
 
 ## Quick Start - Local Development
 
@@ -171,6 +232,49 @@ Internal services communicate via Kubernetes DNS.
 
 ## API Documentation
 
+### Agentic RAG Features
+
+Both the RAG Service (training manuals) and Client RAG Service (client documents) support **Agentic RAG**, an intelligent query processing approach that:
+
+1. **Analyzes Question Complexity**: Classifies questions as simple, moderate, or complex
+2. **Plans Search Strategy**: Generates targeted search queries instead of using the raw question
+3. **Iteratively Searches**: Performs multiple vector searches to gather comprehensive context
+4. **Synthesizes Answers**: Combines information from multiple sources with clear citations
+5. **Provides Confidence**: Explicitly rates answer confidence (HIGH/MEDIUM/LOW) with reasoning
+6. **Uses Numerical Tools**: LLM can call Python functions for accurate math, comparisons, and pattern detection
+
+**Numerical Tools Available:**
+- `calculate`: Accurate arithmetic (addition, subtraction, multiplication, division)
+- `compare_numbers`: Precise number comparisons (greater, less, equal)
+- `sum_numbers`: Sum lists of numbers with statistics (total, average, min, max)
+- `find_convenient_sums`: **Pattern Detection** - Find groups summing to round amounts (£1000, £5000, etc.)
+- `detect_patterns`: Find duplicates, similar values, and multiples
+- `extract_numbers_from_text`: Extract all numbers from narrative text
+
+**Example Use Cases:**
+- ✅ "What is the total debt?" → Uses `sum_numbers` for accuracy
+- ✅ "Are there any suspicious patterns?" → Uses `find_convenient_sums` to spot red flags
+- ✅ "Which creditor should be prioritized?" → Uses `compare_numbers` for ranking
+- ✅ "Do any debts seem related?" → Uses `detect_patterns` to find connections
+
+**When to Use Agentic RAG:**
+- ✅ Complex questions requiring synthesis across multiple sources
+- ✅ Questions involving calculations or number comparisons
+- ✅ When you need confidence metrics for decision support
+- ✅ When transparency and reasoning are important
+- ✅ Pattern detection and fraud indicators
+
+**Agentic vs Standard RAG:**
+- **Standard `/query`**: Fast, single-pass retrieval (1-2 seconds)
+- **Agentic `/agentic-query`**: Intelligent multi-stage processing with tool calling (3-8 seconds)
+
+**Performance:**
+- Simple questions: ~2-3 seconds, 1 iteration, HIGH confidence
+- Moderate questions: ~4-6 seconds, 2 iterations
+- Complex questions with tools: ~8-12 seconds, 3 iterations, accurate calculations
+
+For detailed information, see [Agentic RAG Architecture](./docs/features/agentic-rag.md).
+
 ### Notes Service
 ```bash
 # Convert notes to client letter
@@ -189,13 +293,63 @@ Content-Type: multipart/form-data
 file: <document.pdf>
 ```
 
-### RAG Service
+### RAG Service (Training Manuals)
 ```bash
-# Query manuals
+# Query manuals (standard RAG)
 POST /query
 {
   "question": "How do I handle debt advice?",
   "top_k": 4
+}
+
+# Query manuals (agentic RAG - recommended)
+POST /agentic-query
+{
+  "question": "What are the pros and cons of bankruptcy vs DRO?",
+  "show_reasoning": true,
+  "model": "llama3.2",
+  "max_iterations": 3,
+  "top_k": 4
+}
+
+Response:
+{
+  "answer": "Detailed answer with source citations...",
+  "sources": ["CPAG 5.pdf", "CPAG 3.pdf"],
+  "confidence": "HIGH - Answer based on comprehensive manual coverage",
+  "iterations_used": 2,
+  "reasoning_steps": [
+    {
+      "step": "analysis",
+      "description": "Question complexity analysis",
+      "result": {
+        "complexity": "complex",
+        "reasoning": "Requires comparing multiple debt solutions",
+        "suggested_searches": [
+          "bankruptcy advantages disadvantages",
+          "DRO eligibility consequences",
+          "debt relief comparison"
+        ]
+      }
+    },
+    {
+      "step": "planning",
+      "description": "Search strategy",
+      "result": {
+        "complexity": "complex",
+        "iterations": 3,
+        "searches": ["bankruptcy advantages...", "DRO eligibility..."]
+      }
+    },
+    {
+      "step": "retrieval",
+      "description": "Context gathering",
+      "result": {
+        "chunks_found": 12,
+        "sources": ["CPAG 5.pdf", "CPAG 3.pdf"]
+      }
+    }
+  ]
 }
 ```
 
@@ -231,12 +385,32 @@ Authorization: Bearer <token>
 
 ### Client RAG Service
 ```bash
-# Query client-specific documents
+# Query client-specific documents (standard RAG)
 POST /query
 {
   "client_id": "CLIENT001",
   "question": "What is the total debt amount?",
   "top_k": 4
+}
+
+# Query client documents (agentic RAG - recommended)
+POST /agentic-query
+{
+  "client_id": "CLIENT001",
+  "question": "What are all the client's debts and which should be prioritized?",
+  "show_reasoning": true,
+  "model": "llama3.2",
+  "max_iterations": 2,
+  "top_k": 4
+}
+
+Response:
+{
+  "answer": "Based on the client's documents, they have...",
+  "sources": ["bank-statement.pdf", "creditor-letter.pdf"],
+  "confidence": "HIGH - All debt information clearly stated in documents",
+  "iterations_used": 2,
+  "reasoning_steps": [...]
 }
 
 # Ingest document for client (called automatically by upload-service)

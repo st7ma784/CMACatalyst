@@ -8,8 +8,13 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Copy application files
 COPY app.py .
+COPY numerical_tools.py .
+COPY client_agent_state.py .
+COPY client_agent_graph.py .
+COPY client_agent_nodes.py .
+COPY tools/ ./tools/
 
 # Expose port
 EXPOSE 8104
