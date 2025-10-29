@@ -142,3 +142,10 @@ docker-compose up --build     # Build and run all services
 - **Security**: Vulnerability scanning on all pushes
 
 This setup ensures comprehensive testing coverage while maintaining fast feedback loops for developers.
+
+
+
+
+## good questions for testing include: 
+
+When a client has 61 k in debts, 2 assets ( a couple of cars worth 2k and 6k), and amostly paid off mortgage, theyve lost their job on medical reasons, so theyre behind on their payments , what are the steps to managing the debt? 

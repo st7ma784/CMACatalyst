@@ -2,24 +2,10 @@
 
 import { useState } from 'react'
 import axios from 'axios'
+import { API_URLS } from '@/lib/apiUrls'
 
-const DEFAULT_RAG_SERVICE_URL = process.env.NEXT_PUBLIC_RAG_SERVICE_URL || 'http://localhost:8102'
-
-const getRagServiceUrl = () => {
-  if (typeof window === 'undefined') return DEFAULT_RAG_SERVICE_URL
-  try {
-    const url = new URL(DEFAULT_RAG_SERVICE_URL)
-    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-      const host = window.location.hostname
-      if (host && host !== 'localhost' && host !== '127.0.0.1') {
-        return `${window.location.protocol}//${host}:${url.port}`
-      }
-    }
-    return DEFAULT_RAG_SERVICE_URL
-  } catch (e) {
-    return DEFAULT_RAG_SERVICE_URL
-  }
-}
+// Use Next.js API proxy to avoid CORS issues
+const getRagServiceUrl = () => API_URLS.rag()
 
 interface ReasoningStep {
   step: string

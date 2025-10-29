@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { LogOut, FileText, Download, RefreshCw, User, Calendar, HardDrive } from 'lucide-react'
 import Link from 'next/link'
+import { API_URLS } from '@/lib/apiUrls'
 
-const UPLOAD_SERVICE_URL = process.env.NEXT_PUBLIC_UPLOAD_SERVICE_URL || 'http://localhost:8103'
+// Use Next.js API proxy to avoid CORS issues with Docker rootless networking
+const UPLOAD_SERVICE_URL = API_URLS.upload()
 
 interface ClientDocument {
   filename: string

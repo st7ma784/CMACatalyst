@@ -21,6 +21,8 @@ from pydantic import BaseModel
 import httpx
 import uvicorn
 
+from repayment_calculator import RepaymentCalculator, get_repayment_tool_definitions
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -133,6 +135,19 @@ async def list_tools(api_key: str = Depends(verify_api_key)):
     This endpoint is called by n8n and other MCP clients to discover
     what tools are available.
     """
+    # Get repayment calculator tools
+    repayment_tools = []
+    for tool_def in get_repayment_tool_definitions():
+        repayment_tools.append({
+            "name": tool_def["name"],
+            "description": tool_def["description"],
+            "input_schema": {
+                "type": "object",
+                "properties": tool_def["parameters"],
+                "required": [k for k, v in tool_def["parameters"].items() if v.get("default") is None]
+            }
+        })
+
     return {
         "tools": [
             {
@@ -233,7 +248,7 @@ async def list_tools(api_key: str = Depends(verify_api_key)):
                     "required": ["client_id"]
                 }
             }
-        ]
+        ] + repayment_tools
     }
 
 
@@ -265,6 +280,30 @@ async def execute_tool(
             result = await _get_statistics(request.arguments)
         elif request.tool_name == "extract_client_values":
             result = await _extract_values(request.arguments)
+        elif request.tool_name == "calculate_time_to_repay":
+            result = RepaymentCalculator.calculate_time_to_repay(
+                request.arguments["debt_amount"],
+                request.arguments["monthly_payment"],
+                request.arguments.get("annual_interest_rate", 0.0)
+            )
+        elif request.tool_name == "calculate_monthly_payment":
+            result = RepaymentCalculator.calculate_monthly_payment(
+                request.arguments["debt_amount"],
+                request.arguments["target_months"],
+                request.arguments.get("annual_interest_rate", 0.0)
+            )
+        elif request.tool_name == "calculate_surplus_scenarios":
+            result = RepaymentCalculator.calculate_surplus_scenarios(
+                request.arguments["total_debt"],
+                request.arguments["monthly_surplus"],
+                request.arguments.get("annual_interest_rate", 0.0)
+            )
+        elif request.tool_name == "compare_debt_solutions":
+            result = RepaymentCalculator.compare_debt_solutions(
+                request.arguments["total_debt"],
+                request.arguments["monthly_surplus"],
+                request.arguments.get("assets_value", "0")
+            )
         else:
             return ToolResponse(
                 success=False,
