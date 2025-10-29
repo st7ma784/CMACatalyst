@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY server.py .
+COPY repayment_calculator.py .
 
 # Expose port
 EXPOSE 8105
