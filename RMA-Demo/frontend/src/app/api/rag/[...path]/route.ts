@@ -40,6 +40,10 @@ export async function POST(
   const body = await request.json()
 
   try {
+    // Create an AbortController with a 5 minute timeout for long-running queries
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 minutes
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -49,8 +53,10 @@ export async function POST(
         })
       },
       body: JSON.stringify(body),
+      signal: controller.signal,
     })
 
+    clearTimeout(timeoutId)
     const data = await response.json()
     return NextResponse.json(data, { status: response.status })
   } catch (error) {

@@ -96,7 +96,8 @@ def analyze_node(state: AgentState) -> AgentState:
         llm = Ollama(
             model=state["model_name"],
             base_url=state["ollama_url"],
-            temperature=0.3  # Low temperature for consistent analysis
+            temperature=0.3,  # Low temperature for consistent analysis
+            num_ctx=32768  # Increase context window to 32k tokens
         )
 
         parser = PydanticOutputParser(pydantic_object=ComplexityAnalysis)
@@ -293,7 +294,8 @@ def symbolic_reasoning_node(state: AgentState) -> AgentState:
         llm = Ollama(
             model=state["model_name"],
             base_url=state["ollama_url"],
-            temperature=0.7
+            temperature=0.7,
+            num_ctx=32768  # Increase context window to 32k tokens
         )
 
         symbolic_context = "\n\n".join(symbolic_chunks)
@@ -390,7 +392,8 @@ def synthesis_node(state: AgentState) -> AgentState:
         llm = Ollama(
             model=state["model_name"],
             base_url=state["ollama_url"],
-            temperature=0.7
+            temperature=0.7,
+            num_ctx=32768  # Increase context window to 32k tokens
         )
 
         # Build context from chunks

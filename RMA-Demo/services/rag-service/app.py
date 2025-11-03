@@ -3196,4 +3196,10 @@ def _group_thresholds_by_option(threshold_list: List[Dict]) -> Dict:
 
 if __name__ == "__main__":
     logger.info("Starting RAG Service...")
-    uvicorn.run(app, host="0.0.0.0", port=8102)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8102,
+        timeout_keep_alive=300,  # 5 minutes for keep-alive
+        timeout_graceful_shutdown=30
+    )
