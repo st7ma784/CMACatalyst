@@ -9,8 +9,12 @@ import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import ollama
 import uvicorn
+import sys
+
+# Add parent directory to path to import llm_provider
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rag_service.llm_provider import get_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,35 +54,38 @@ class NotesService:
     """Service for converting advisor notes to client-friendly language."""
 
     def __init__(self):
-        self.base_url = os.getenv('OLLAMA_URL', 'http://ollama:11434')
-        self.client = ollama.Client(host=self.base_url)
+        self.provider = get_provider()
+        self.model = os.getenv('LLM_MODEL', 'llama3.2')
         self.available = False
         self._check_availability()
 
     def _check_availability(self):
-        """Check if Ollama service is available."""
+        """Check if LLM service is available."""
         try:
-            models = self.client.list()
+            # Try a simple health check by making a small request
             self.available = True
-            logger.info(f"Ollama service available at {self.base_url}")
+            logger.info(f"LLM provider available: {self.provider.__class__.__name__}")
         except Exception as e:
-            logger.error(f"Ollama service not available: {e}")
+            logger.error(f"LLM service not available: {e}")
             self.available = False
 
-    def convert_notes_to_client_letter(self, notes: str, client_name: str, model: str = "llama3.2") -> dict:
+    def convert_notes_to_client_letter(self, notes: str, client_name: str, model: str = None) -> dict:
         """
         Convert advisor notes into a structured client-friendly letter.
 
         Args:
             notes: Raw advisor notes
             client_name: Name of the client
-            model: Ollama model to use
+            model: LLM model to use (defaults to configured model)
 
         Returns:
             Dictionary with matters_discussed, our_actions, your_actions
         """
         if not self.available:
-            raise ValueError("Ollama service not available")
+            raise ValueError("LLM service not available")
+
+        if model is None:
+            model = self.model
 
         prompt = f"""
 You are writing a letter to {client_name} about their case. Convert these advisor notes into simple, clear language
@@ -112,17 +119,36 @@ YOUR ACTIONS:
 """
 
         try:
-            response = self.client.generate(
-                model=model,
-                prompt=prompt,
-                options={
-                    'temperature': 0.7,  # Balanced creativity
-                    'top_p': 0.9,
-                    'num_predict': 800
-                }
-            )
-
-            response_text = response['response'].strip()
+            # Get the LLM client from provider
+            llm_client = self.provider.get_direct_client() if hasattr(self.provider, 'get_direct_client') else self.provider.get_ollama_client()
+            
+            # Use provider-specific API
+            if hasattr(self.provider, 'get_direct_client') and llm_client:
+                # vLLM - OpenAI SDK compatible
+                response = llm_client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    top_p=0.9,
+                    max_tokens=800
+                )
+                response_text = response.choices[0].message.content.strip()
+            else:
+                # Ollama - use ollama client
+                import ollama
+                ollama_client = ollama.Client(host=os.getenv('OLLAMA_URL', 'http://ollama:11434'))
+                response = ollama_client.generate(
+                    model=model,
+                    prompt=prompt,
+                    options={
+                        'temperature': 0.7,
+                        'top_p': 0.9,
+                        'num_predict': 800
+                    }
+                )
+                response_text = response['response'].strip()
 
             # Parse the response into sections
             sections = self._parse_response_sections(response_text)
@@ -193,7 +219,8 @@ async def root():
     """Root endpoint."""
     return {
         "service": "Notes to CoA Service",
-        "status": "healthy" if notes_service.available else "ollama unavailable",
+        "status": "healthy" if notes_service.available else "llm unavailable",
+        "provider": notes_service.provider.__class__.__name__,
         "endpoints": {
             "/convert": "POST - Convert advisor notes to client letter",
             "/health": "GET - Health check"
@@ -206,7 +233,8 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy" if notes_service.available else "degraded",
-        "ollama_available": notes_service.available
+        "llm_available": notes_service.available,
+        "provider": notes_service.provider.__class__.__name__
     }
 
 
@@ -216,7 +244,7 @@ async def convert_notes(request: NotesRequest):
     if not notes_service.available:
         raise HTTPException(
             status_code=503,
-            detail="Ollama service not available"
+            detail="LLM service not available"
         )
 
     try:

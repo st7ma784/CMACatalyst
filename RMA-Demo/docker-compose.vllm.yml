@@ -1,0 +1,307 @@
+# docker-compose.vllm.yml
+# vLLM Migration - Docker Compose configuration
+# Multi-GPU setup: Ollama on GPU 0 (vision), vLLM on GPU 1 (text generation)
+# For single GPU, remove CUDA_VISIBLE_DEVICES constraints
+
+version: '3.8'
+
+services:
+  # Ollama - Vision only (GPU 0)
+  # Keep for document OCR with llava:7b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rma-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - CUDA_VISIBLE_DEVICES=0          # Use GPU 0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']          # Allocate GPU 0
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # vLLM - Text generation (GPU 1)
+  # High throughput, low latency for RAG queries
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: rma-vllm
+    ports:
+      - "8000:8000"
+    environment:
+      # API Configuration
+      - VLLM_API_KEY=sk-vllm
+      - VLLM_HOST=0.0.0.0
+      - VLLM_PORT=8000
+      # GPU Configuration
+      - CUDA_VISIBLE_DEVICES=1          # Use GPU 1
+      # Performance Tuning
+      - VLLM_GPU_MEMORY_UTILIZATION=0.9 # Use 90% of GPU memory
+      - VLLM_ENABLE_PREFIX_CACHING=true # Enable KV cache optimization
+    volumes:
+      - vllm_data:/root/.cache/huggingface
+    command: >
+      --model meta-llama/Llama-2-7b-hf
+      --served-model-name llama3.2
+      --port 8000
+      --tensor-parallel-size 1
+      --max-model-len 2048
+      --gpu-memory-utilization 0.9
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['1']          # Allocate GPU 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s                  # vLLM takes longer to load model
+
+  # ChromaDB - Vector storage
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: rma-chromadb
+    ports:
+      - "8005:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+
+  # RAG Service - Updated to use vLLM
+  rag-service:
+    build:
+      context: ./services/rag-service
+      dockerfile: Dockerfile
+    container_name: rma-rag-service
+    ports:
+      - "8102:8102"
+    volumes:
+      - ./manuals:/manuals
+    environment:
+      # vLLM Configuration
+      - LLM_PROVIDER=vllm
+      - VLLM_URL=http://vllm:8000
+      - VLLM_API_KEY=sk-vllm
+      # Fallback (optional)
+      - OLLAMA_URL=http://ollama:11434
+      # Database
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - MANUALS_PATH=/manuals
+    depends_on:
+      vllm:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+
+  # Notes Service - Updated to use vLLM
+  notes-service:
+    build:
+      context: ./services/notes-service
+      dockerfile: Dockerfile
+    container_name: rma-notes-service
+    ports:
+      - "8100:8100"
+    environment:
+      # vLLM Configuration
+      - LLM_PROVIDER=vllm
+      - VLLM_URL=http://vllm:8000
+      - VLLM_API_KEY=sk-vllm
+      # Fallback (optional)
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      vllm:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Doc Processor - Hybrid (Ollama for vision, vLLM for text)
+  doc-processor:
+    build:
+      context: ./services/doc-processor
+      dockerfile: Dockerfile
+    container_name: rma-doc-processor
+    ports:
+      - "8101:8101"
+    environment:
+      # Vision: Use Ollama
+      - OLLAMA_URL=http://ollama:11434
+      - VISION_MODEL=llava:7b
+      # Text: Use vLLM
+      - LLM_PROVIDER=vllm
+      - VLLM_URL=http://vllm:8000
+      - VLLM_API_KEY=sk-vllm
+      - TEXT_MODEL=llama3.2
+      # Parser
+      - USE_LOCAL_PARSING=true
+    depends_on:
+      ollama:
+        condition: service_healthy
+      vllm:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Client RAG Service
+  client-rag-service:
+    build:
+      context: ./services/client-rag-service
+      dockerfile: Dockerfile
+    container_name: rma-client-rag-service
+    ports:
+      - "8104:8104"
+    environment:
+      # vLLM Configuration
+      - LLM_PROVIDER=vllm
+      - VLLM_URL=http://vllm:8000
+      - VLLM_API_KEY=sk-vllm
+      # Database
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      vllm:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+
+  # Upload Service
+  upload-service:
+    build:
+      context: ./services/upload-service
+      dockerfile: Dockerfile
+    container_name: rma-upload-service
+    ports:
+      - "8103:8103"
+    volumes:
+      - upload_data:/data/uploads
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - UPLOAD_DIR=/data/uploads
+      - DOC_PROCESSOR_URL=http://doc-processor:8101
+      - CLIENT_RAG_URL=http://client-rag-service:8104
+      - RAG_SERVICE_URL=http://rag-service:8102
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3000}
+    depends_on:
+      - doc-processor
+      - client-rag-service
+      - rag-service
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rma-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_NOTES_SERVICE_URL=http://localhost:8100
+      - NEXT_PUBLIC_DOC_PROCESSOR_URL=http://localhost:8101
+      - NEXT_PUBLIC_RAG_SERVICE_URL=http://localhost:8102
+      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://localhost:8103
+    depends_on:
+      - notes-service
+      - doc-processor
+      - rag-service
+      - upload-service
+    restart: unless-stopped
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: ./services/mcp-server
+      dockerfile: Dockerfile
+    container_name: rma-mcp-server
+    ports:
+      - "8105:8105"
+    environment:
+      - RAG_SERVICE_URL=http://rag-service:8102
+      - CLIENT_RAG_URL=http://client-rag-service:8104
+      - MCP_API_KEY=${MCP_API_KEY:-dev-key-change-in-production}
+      - PORT=8105
+    depends_on:
+      - rag-service
+      - client-rag-service
+    restart: unless-stopped
+
+  # n8n
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: rma-n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./services/n8n/workflows:/workflows:ro
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme123}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Europe/London
+    depends_on:
+      - mcp-server
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  vllm_data:
+  chroma_data:
+  upload_data:
+  n8n_data:
+
+networks:
+  default:
+    name: rma-network
+
+# NOTES:
+#
+# Multi-GPU Setup (Recommended):
+#   GPU 0: Ollama (vision-only, ~2-4GB VRAM)
+#   GPU 1: vLLM (text generation, ~6-8GB VRAM)
+#   Total: ~15-20GB VRAM for both
+#
+# Single-GPU Setup:
+#   Remove CUDA_VISIBLE_DEVICES lines and let containers share GPU
+#   Note: May cause memory contention, less ideal
+#
+# Dual-Model vLLM Setup (for higher throughput):
+#   Use multiple vLLM instances with tensor parallelism
+#   Requires significant VRAM (24GB+ for good performance)
+#
+# Performance Tuning:
+#   - VLLM_GPU_MEMORY_UTILIZATION: Increase from 0.9 to 0.95 for more throughput
+#   - Decrease from 0.9 to 0.7 if OOM errors occur
+#   - max-model-len: Reduce from 2048 to 1024 to save memory
+#   - tensor-parallel-size: Increase for model parallelism (requires multiple GPUs)
+#
+# Monitoring:
+#   nvidia-smi dmon -s p      # GPU utilization
+#   docker stats               # Container resource usage
+#   curl http://localhost:8000/health  # vLLM health
+#   curl http://localhost:11434/api/tags # Ollama health

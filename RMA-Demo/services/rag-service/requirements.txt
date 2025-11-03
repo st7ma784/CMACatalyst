@@ -6,7 +6,7 @@ langchain-community==0.3.0
 langchain-core==0.3.0
 langgraph==0.2.35
 chromadb==0.4.24
-ollama==0.4.4
+openai>=1.0.0
 python-multipart==0.0.6
 PyPDF2==3.0.1
 pdf2image==1.16.3
