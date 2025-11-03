@@ -27,9 +27,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_community.llms import Ollama
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -54,6 +52,9 @@ from tree_visualizer import TreeVisualizer, VisualizationConfig
 # NEW: LangGraph agent components
 from agent_graph import create_agent_graph
 from agent_state import create_initial_state, state_to_response
+
+# NEW: vLLM Provider abstraction layer (supports both Ollama and vLLM)
+from llm_provider import get_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -178,11 +179,13 @@ class RAGService:
         logger.info("Initializing RAG system...")
 
         try:
-            # Initialize embeddings
-            self.embeddings = OllamaEmbeddings(
-                model="nomic-embed-text",
-                base_url=self.ollama_url
-            )
+            # Initialize provider (vLLM or Ollama based on LLM_PROVIDER env var)
+            self.provider = get_provider()
+            logger.info(f"Using provider: {type(self.provider).__name__}")
+            
+            # Initialize embeddings using the provider
+            self.embeddings = self.provider.initialize_embeddings()
+            logger.info("✅ Embeddings initialized")
 
             # Connect to shared ChromaDB instance
             # Using chromadb 0.4.24 for compatibility with server
@@ -547,27 +550,42 @@ CRITICAL RULES:
 
 OUTPUT (exact sentences only):"""
 
-                # Call LLM
-                logger.info(f"Calling Ollama with extraction prompt (length: {len(extraction_prompt)} chars)")
-                response = requests.post(
-                    f"{self.ollama_url}/api/generate",
-                    json={
-                        "model": "llama3.2:latest",
-                        "prompt": extraction_prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.1,  # Low temperature for precise extraction
-                            "num_predict": 1000
-                        }
-                    },
-                    timeout=60
-                )
+                # Call LLM using provider abstraction
+                logger.info(f"Calling LLM with extraction prompt (length: {len(extraction_prompt)} chars)")
                 
-                if response.status_code != 200:
-                    logger.error(f"Ollama request failed: {response.status_code} - {response.text}")
-                    return
+                # Get direct client from provider (works for both Ollama and vLLM)
+                if hasattr(self.provider, 'get_direct_client'):
+                    # vLLM provider - use direct OpenAI client
+                    client = self.provider.get_direct_client()
+                    response_obj = client.chat.completions.create(
+                        model="llama3.2",
+                        messages=[{"role": "user", "content": extraction_prompt}],
+                        temperature=0.1,
+                        max_tokens=1000
+                    )
+                    llm_response = response_obj.choices[0].message.content.strip()
+                else:
+                    # Fallback for Ollama provider - use requests
+                    response = requests.post(
+                        f"{self.ollama_url}/api/generate",
+                        json={
+                            "model": "llama3.2:latest",
+                            "prompt": extraction_prompt,
+                            "stream": False,
+                            "options": {
+                                "temperature": 0.1,
+                                "num_predict": 1000
+                            }
+                        },
+                        timeout=60
+                    )
+                    
+                    if response.status_code != 200:
+                        logger.error(f"LLM request failed: {response.status_code} - {response.text}")
+                        return
+                    
+                    llm_response = response.json().get('response', '').strip()
                 
-                llm_response = response.json().get('response', '').strip()
                 logger.info(f"LLM threshold extraction response:\n{llm_response[:500]}...")  # Log first 500 chars
                 
                 # Parse the response - now we have simple source_num|text format
@@ -1224,12 +1242,8 @@ OUTPUT (exact sentences only):"""
         if self.vectorstore is None:
             raise ValueError("Vector store not initialized. Please ingest documents first.")
 
-        # Initialize LLM
-        llm = Ollama(
-            model=model_name,
-            base_url=self.ollama_url,
-            temperature=0.7
-        )
+        # Initialize LLM using provider abstraction
+        llm = self.provider.initialize_llm(temperature=0.7)
 
         # Create custom prompt template
         prompt_template = """You are an expert financial advisor, with Riverside Money advice, with access to training manuals. You are answering questions about training manuals and procedures.
@@ -1259,6 +1273,7 @@ Answer (be clear, helpful, and cite specific procedures from the manuals when re
         )
 
         return self.qa_chain
+
 
     def query(self, question: str, model_name="llama3.2", top_k=4, include_chunks=False) -> Dict:
         """Query the RAG system."""

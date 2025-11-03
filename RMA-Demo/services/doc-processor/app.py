@@ -18,6 +18,11 @@ import pytesseract
 from PIL import Image
 import pdf2image
 import io
+import sys
+
+# Add parent directory to path to import llm_provider
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rag_service.llm_provider import get_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,6 +57,19 @@ class DocumentProcessor:
     def __init__(self):
         self.llama_parse_api_key = os.getenv('LLAMA_PARSE_API_KEY', '')
         self.use_llamaparse = bool(self.llama_parse_api_key)
+        
+        # Initialize vision provider (Ollama with llava:7b for visual analysis)
+        self.use_vision_analysis = os.getenv('USE_VISION_ANALYSIS', 'true').lower() == 'true'
+        self.vision_provider = None
+        self.vision_model = 'llava:7b'
+        
+        if self.use_vision_analysis:
+            try:
+                self.vision_provider = get_provider()
+                logger.info(f"Vision provider initialized: {self.vision_provider.__class__.__name__}")
+            except Exception as e:
+                logger.warning(f"Vision provider initialization failed: {e}. Will use document text extraction only.")
+                self.use_vision_analysis = False
 
         if self.use_llamaparse:
             try:
@@ -110,10 +128,77 @@ class DocumentProcessor:
             logger.error(f"Tesseract processing failed: {e}")
             raise
 
+    def enhance_with_vision_analysis(self, file_path: str, extracted_text: str, mime_type: str) -> str:
+        """
+        Enhance extracted text with vision analysis using Ollama's llava:7b model.
+        This is optional and improves accuracy for complex documents with diagrams/tables.
+        """
+        if not self.use_vision_analysis or not self.vision_provider:
+            return extracted_text
+        
+        try:
+            # For vision analysis, we convert documents to images
+            images = []
+            if mime_type == 'application/pdf':
+                images = pdf2image.convert_from_path(file_path)
+            elif mime_type.startswith('image/'):
+                images = [Image.open(file_path)]
+            else:
+                return extracted_text
+            
+            if not images:
+                return extracted_text
+            
+            # Use vision provider to analyze images
+            # This provides additional context that might be missed by OCR
+            enhanced_analysis = []
+            
+            # Only analyze first 3 pages to avoid excessive processing
+            for i, image in enumerate(images[:3]):
+                try:
+                    # Convert image to bytes for vision model
+                    import base64
+                    from io import BytesIO
+                    
+                    buffered = BytesIO()
+                    image.save(buffered, format="PNG")
+                    img_b64 = base64.b64encode(buffered.getvalue()).decode()
+                    
+                    # Get vision provider client
+                    import ollama
+                    ollama_client = ollama.Client(host=os.getenv('OLLAMA_URL', 'http://ollama:11434'))
+                    
+                    # Request visual analysis
+                    response = ollama_client.generate(
+                        model=self.vision_model,
+                        prompt="Describe the structure, layout, and any diagrams or tables you see in this document image. Focus on elements that text extraction might miss.",
+                        images=[img_b64],
+                        stream=False
+                    )
+                    
+                    if response and 'response' in response:
+                        vision_insight = response['response'].strip()
+                        if vision_insight:
+                            enhanced_analysis.append(f"### Visual Analysis (Page {i+1}):\n{vision_insight}")
+                
+                except Exception as e:
+                    logger.debug(f"Vision analysis for page {i+1} failed: {e}")
+                    continue
+            
+            # Combine OCR text with vision analysis
+            if enhanced_analysis:
+                return extracted_text + "\n\n" + "\n\n".join(enhanced_analysis)
+            
+            return extracted_text
+            
+        except Exception as e:
+            logger.warning(f"Vision analysis enhancement failed: {e}. Returning extracted text only.")
+            return extracted_text
+
     def process_document(self, file_path: str, mime_type: str) -> ProcessResponse:
         """
         Process document to markdown.
-        Tries LlamaParse first, falls back to Tesseract if needed.
+        Tries LlamaParse first, falls back to Tesseract, optionally enhances with vision analysis.
         """
         markdown = ""
         method = "none"
@@ -126,6 +211,9 @@ class DocumentProcessor:
                 markdown = self.process_with_llamaparse(file_path)
                 method = "llamaparse"
                 success = True
+                # Optionally enhance with vision analysis
+                if self.use_vision_analysis:
+                    markdown = self.enhance_with_vision_analysis(file_path, markdown, mime_type)
                 return ProcessResponse(markdown=markdown, method=method, success=success)
             except Exception as e:
                 logger.warning(f"LlamaParse failed, trying Tesseract: {e}")
@@ -135,6 +223,9 @@ class DocumentProcessor:
         try:
             markdown = self.process_with_tesseract(file_path, mime_type)
             method = "tesseract"
+            # Optionally enhance with vision analysis
+            if self.use_vision_analysis:
+                markdown = self.enhance_with_vision_analysis(file_path, markdown, mime_type)
             success = True
             return ProcessResponse(markdown=markdown, method=method, success=success)
         except Exception as e:
@@ -159,6 +250,8 @@ async def root():
         "service": "Document Processor Service",
         "status": "healthy",
         "llamaparse_available": doc_processor.use_llamaparse,
+        "vision_analysis_available": doc_processor.use_vision_analysis,
+        "vision_provider": doc_processor.vision_provider.__class__.__name__ if doc_processor.vision_provider else None,
         "endpoints": {
             "/process": "POST - Process document to markdown",
             "/health": "GET - Health check"
@@ -172,7 +265,8 @@ async def health_check():
     return {
         "status": "healthy",
         "llamaparse_available": doc_processor.use_llamaparse,
-        "tesseract_available": True
+        "tesseract_available": True,
+        "vision_analysis_available": doc_processor.use_vision_analysis
     }
 
 
