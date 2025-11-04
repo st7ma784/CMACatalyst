@@ -56,6 +56,9 @@ from agent_state import create_initial_state, state_to_response
 # NEW: vLLM Provider abstraction layer (supports both Ollama and vLLM)
 from llm_provider import get_provider
 
+# NEW: Phase 2 - Graph Integration for semantic knowledge extraction
+from graph_integrator import create_graph_integrator, NERServiceClient, DualGraphSearcher, GraphAwareReasoner
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -172,6 +175,14 @@ class RAGService:
         # NEW: LangGraph agent (initialized after vectorstore)
         self.agent_app = None
 
+        # NEW: Phase 2 - Graph Integration Components
+        self.graph_components = None  # Will be initialized in initialize()
+        self.ner_client = None
+        self.dual_graph_searcher = None
+        self.graph_reasoner = None
+        self.manual_graph_id = None  # ID of the built knowledge graph from manuals
+        self.use_graph_reasoning = os.getenv("USE_GRAPH_REASONING", "true").lower() == "true"
+
         self.initialize()
 
     def initialize(self):
@@ -239,6 +250,26 @@ class RAGService:
                     logger.error(f"❌ LangGraph agent initialization failed: {agent_error}")
                     logger.warning("Falling back to legacy implementation")
                     self.agent_app = None
+
+            # NEW: Phase 2 - Initialize Graph Integration Components
+            if self.use_graph_reasoning:
+                logger.info("📊 Initializing Graph Integration components...")
+                try:
+                    ner_service_url = os.getenv('NER_SERVICE_URL', 'http://ner-graph-service:8108')
+                    self.graph_components = create_graph_integrator(ner_service_url)
+                    self.ner_client = self.graph_components['ner_client']
+                    self.dual_graph_searcher = self.graph_components['dual_searcher']
+                    self.graph_reasoner = self.graph_components['graph_reasoner']
+                    
+                    if self.ner_client.health_check():
+                        logger.info("✅ NER Graph Service available - graph reasoning enabled")
+                    else:
+                        logger.warning("⚠️  NER Graph Service unavailable - graph reasoning disabled")
+                        self.use_graph_reasoning = False
+                except Exception as graph_error:
+                    logger.error(f"❌ Graph Integration initialization failed: {graph_error}")
+                    logger.warning("Graph reasoning features will be unavailable")
+                    self.use_graph_reasoning = False
 
         except Exception as e:
             logger.error(f"Error initializing RAG system: {e}")
@@ -1209,6 +1240,40 @@ OUTPUT (exact sentences only):"""
                 logger.info("Adding to existing 'manuals' collection in shared ChromaDB")
                 self.vectorstore.add_documents(all_docs)
 
+            # NEW: Phase 2 - Extract knowledge graphs from ingested documents
+            graph_results = {}
+            if self.use_graph_reasoning and self.ner_client is not None:
+                logger.info("📊 Extracting knowledge graphs from ingested documents...")
+                try:
+                    for doc_text, filename in zip(documents, filenames):
+                        doc_id = f"manual-{hashlib.md5(filename.encode()).hexdigest()[:8]}"
+                        logger.info(f"Extracting graph from {filename}...")
+                        
+                        graph = self.ner_client.extract_and_store_graph(
+                            document_text=doc_text,
+                            document_id=doc_id,
+                            filename=filename,
+                            graph_label="manual"
+                        )
+                        
+                        if graph.error_details is None:
+                            graph_results[filename] = {
+                                "graph_id": graph.graph_id,
+                                "entities": len(graph.entities),
+                                "relationships": len(graph.relationships)
+                            }
+                            
+                            # Store the first (typically most comprehensive) manual graph
+                            if self.manual_graph_id is None:
+                                self.manual_graph_id = graph.graph_id
+                                logger.info(f"📍 Manual knowledge graph stored: {graph.graph_id}")
+                        else:
+                            logger.warning(f"Graph extraction failed for {filename}: {graph.error_details}")
+                            
+                except Exception as graph_error:
+                    logger.error(f"Error extracting knowledge graphs: {graph_error}")
+                    logger.warning("Continuing without graph extraction")
+            
             # Build decision trees from ingested documents
             logger.info("Building decision trees from ingested documents...")
             chunks_for_tree = [
@@ -1230,7 +1295,10 @@ OUTPUT (exact sentences only):"""
                 "documents_ingested": len(documents),
                 "chunks_created": len(all_docs),
                 "decision_tree_rules": len(self.decision_tree_builder.trees.get("dro_eligibility", {}) and "tree_available" or "no_tree"),
-                "near_miss_rules": len(self.decision_tree_builder.near_miss_rules)
+                "near_miss_rules": len(self.decision_tree_builder.near_miss_rules),
+                "graphs_extracted": len(graph_results),
+                "graph_details": graph_results,
+                "manual_graph_id": self.manual_graph_id
             }
 
         except Exception as e:

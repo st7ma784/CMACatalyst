@@ -1,36 +1,33 @@
 #!/usr/bin/env python3
 """
-Document Processor Service
-Processes uploaded documents (PDF, images) into markdown using LLamaParse (primary) and Tesseract (fallback)
+Document Processor Service - Updated to use standalone OCR Service
+Processes uploaded documents (PDF, images) into markdown
+Uses LLamaParse (primary), OCR Service (secondary), and Tesseract (fallback)
 """
 
 import os
 import logging
 import tempfile
 import mimetypes
+import requests
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from typing import Optional
-import pytesseract
-from PIL import Image
-import pdf2image
-import io
 import sys
 
 # Add parent directory to path to import llm_provider
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from rag_service.llm_provider import get_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Document Processor Service",
-    description="Convert documents to markdown using LLamaParse (primary) and Tesseract (fallback)",
-    version="1.0.0"
+    description="Convert documents to markdown using LLamaParse (primary), OCR Service (secondary), and Tesseract (fallback)",
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -46,31 +43,33 @@ app.add_middleware(
 class ProcessResponse(BaseModel):
     """Response model for document processing."""
     markdown: str
-    method: str  # 'llamaparse' or 'tesseract'
+    method: str  # 'llamaparse', 'ocr_service', 'tesseract'
+    pages: int = 0
     success: bool
     error: Optional[str] = None
+    processing_time: float = 0.0
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str
+    llamaparse_available: bool
+    ocr_service_available: bool
+    processing_methods: list
 
 
 class DocumentProcessor:
     """Service for processing documents to markdown."""
 
     def __init__(self):
+        import time
+        self.start_time = time.time()
+        
+        # LLamaParse configuration
         self.llama_parse_api_key = os.getenv('LLAMA_PARSE_API_KEY', '')
         self.use_llamaparse = bool(self.llama_parse_api_key)
+        self.llama_parser = None
         
-        # Initialize vision provider (Ollama with llava:7b for visual analysis)
-        self.use_vision_analysis = os.getenv('USE_VISION_ANALYSIS', 'true').lower() == 'true'
-        self.vision_provider = None
-        self.vision_model = 'llava:7b'
-        
-        if self.use_vision_analysis:
-            try:
-                self.vision_provider = get_provider()
-                logger.info(f"Vision provider initialized: {self.vision_provider.__class__.__name__}")
-            except Exception as e:
-                logger.warning(f"Vision provider initialization failed: {e}. Will use document text extraction only.")
-                self.use_vision_analysis = False
-
         if self.use_llamaparse:
             try:
                 from llama_parse import LlamaParse
@@ -79,27 +78,97 @@ class DocumentProcessor:
                     result_type="markdown",
                     verbose=True
                 )
-                logger.info("LlamaParse initialized successfully")
+                logger.info("✓ LlamaParse initialized successfully")
             except Exception as e:
-                logger.warning(f"LlamaParse initialization failed: {e}. Will use Tesseract fallback.")
+                logger.warning(f"✗ LlamaParse initialization failed: {e}")
                 self.use_llamaparse = False
         else:
-            logger.info("LlamaParse API key not provided. Using Tesseract only.")
+            logger.info("⚠ LlamaParse API key not configured. Using OCR Service / Tesseract fallback.")
+        
+        # OCR Service configuration
+        self.ocr_service_url = os.getenv('OCR_SERVICE_URL', 'http://ocr-service:8104')
+        self.ocr_service_available = self._check_ocr_service()
+        
+        logger.info(f"Document Processor initialized:")
+        logger.info(f"  - LlamaParse: {'✓ Available' if self.use_llamaparse else '✗ Not available'}")
+        logger.info(f"  - OCR Service: {'✓ Available' if self.ocr_service_available else '✗ Not available'}")
+        logger.info(f"  - Startup time: {time.time() - self.start_time:.2f}s")
+
+    def _check_ocr_service(self) -> bool:
+        """Check if OCR service is available."""
+        try:
+            response = requests.get(
+                f"{self.ocr_service_url}/health",
+                timeout=5
+            )
+            is_available = response.status_code == 200
+            if is_available:
+                logger.info(f"✓ OCR Service available at {self.ocr_service_url}")
+            return is_available
+        except Exception as e:
+            logger.warning(f"✗ OCR Service check failed: {e}")
+            return False
 
     def process_with_llamaparse(self, file_path: str) -> str:
         """Process document with LlamaParse."""
+        if not self.llama_parser:
+            raise RuntimeError("LlamaParse not initialized")
+        
         try:
+            logger.info(f"Processing with LlamaParse: {file_path}")
             documents = self.llama_parser.load_data(file_path)
             markdown_text = "\n\n".join([doc.text for doc in documents])
-            logger.info(f"Successfully processed {file_path} with LlamaParse")
+            logger.info(f"✓ LlamaParse processing successful")
             return markdown_text
         except Exception as e:
-            logger.error(f"LlamaParse processing failed: {e}")
+            logger.error(f"✗ LlamaParse processing failed: {e}")
             raise
 
-    def process_with_tesseract(self, file_path: str, mime_type: str) -> str:
-        """Process document with Tesseract OCR (fallback)."""
+    def process_with_ocr_service(self, file_path: str) -> tuple[str, str, int]:
+        """
+        Process document with standalone OCR Service.
+        Returns (markdown, method_used, num_pages)
+        """
+        if not self.ocr_service_available:
+            raise RuntimeError("OCR Service not available")
+        
         try:
+            logger.info(f"Processing with OCR Service: {file_path}")
+            
+            # Upload file to OCR service
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(
+                    f"{self.ocr_service_url}/process",
+                    files=files,
+                    params={'method': 'hybrid'},
+                    timeout=300  # OCR can take time
+                )
+            
+            if response.status_code != 200:
+                raise RuntimeError(f"OCR Service error: {response.text}")
+            
+            result = response.json()
+            
+            if not result.get('success'):
+                raise RuntimeError(f"OCR Service failed: {result.get('error')}")
+            
+            logger.info(f"✓ OCR Service processing successful ({result.get('method')}, {result.get('pages')} pages)")
+            return result['markdown'], result['method'], result.get('pages', 1)
+        
+        except Exception as e:
+            logger.error(f"✗ OCR Service processing failed: {e}")
+            raise
+
+    def process_with_tesseract(self, file_path: str, mime_type: str) -> tuple[str, int]:
+        """Process document with Tesseract OCR (local fallback)."""
+        try:
+            logger.info(f"Processing with Tesseract: {file_path}")
+            
+            import pytesseract
+            from PIL import Image
+            import pdf2image
+            
             images = []
 
             if mime_type == 'application/pdf':
@@ -111,6 +180,9 @@ class DocumentProcessor:
             else:
                 raise ValueError(f"Unsupported file type: {mime_type}")
 
+            if not images:
+                raise ValueError("Could not extract images from document")
+
             # OCR each image
             text_blocks = []
             for i, image in enumerate(images):
@@ -121,121 +193,104 @@ class DocumentProcessor:
                     text_blocks.append(text)
 
             markdown = "\n\n---\n\n".join(text_blocks)
-            logger.info(f"Successfully processed {file_path} with Tesseract")
-            return markdown
+            logger.info(f"✓ Tesseract processing successful ({len(images)} pages)")
+            return markdown, len(images)
 
         except Exception as e:
-            logger.error(f"Tesseract processing failed: {e}")
-            raise
 
-    def enhance_with_vision_analysis(self, file_path: str, extracted_text: str, mime_type: str) -> str:
-        """
-        Enhance extracted text with vision analysis using Ollama's llava:7b model.
-        This is optional and improves accuracy for complex documents with diagrams/tables.
-        """
-        if not self.use_vision_analysis or not self.vision_provider:
-            return extracted_text
-        
-        try:
-            # For vision analysis, we convert documents to images
-            images = []
-            if mime_type == 'application/pdf':
-                images = pdf2image.convert_from_path(file_path)
-            elif mime_type.startswith('image/'):
-                images = [Image.open(file_path)]
-            else:
-                return extracted_text
-            
-            if not images:
-                return extracted_text
-            
-            # Use vision provider to analyze images
-            # This provides additional context that might be missed by OCR
-            enhanced_analysis = []
-            
-            # Only analyze first 3 pages to avoid excessive processing
-            for i, image in enumerate(images[:3]):
-                try:
-                    # Convert image to bytes for vision model
-                    import base64
-                    from io import BytesIO
-                    
-                    buffered = BytesIO()
-                    image.save(buffered, format="PNG")
-                    img_b64 = base64.b64encode(buffered.getvalue()).decode()
-                    
-                    # Get vision provider client
-                    import ollama
-                    ollama_client = ollama.Client(host=os.getenv('OLLAMA_URL', 'http://ollama:11434'))
-                    
-                    # Request visual analysis
-                    response = ollama_client.generate(
-                        model=self.vision_model,
-                        prompt="Describe the structure, layout, and any diagrams or tables you see in this document image. Focus on elements that text extraction might miss.",
-                        images=[img_b64],
-                        stream=False
-                    )
-                    
-                    if response and 'response' in response:
-                        vision_insight = response['response'].strip()
-                        if vision_insight:
-                            enhanced_analysis.append(f"### Visual Analysis (Page {i+1}):\n{vision_insight}")
-                
-                except Exception as e:
-                    logger.debug(f"Vision analysis for page {i+1} failed: {e}")
-                    continue
-            
-            # Combine OCR text with vision analysis
-            if enhanced_analysis:
-                return extracted_text + "\n\n" + "\n\n".join(enhanced_analysis)
-            
-            return extracted_text
-            
-        except Exception as e:
-            logger.warning(f"Vision analysis enhancement failed: {e}. Returning extracted text only.")
-            return extracted_text
-
-    def process_document(self, file_path: str, mime_type: str) -> ProcessResponse:
+    def process_document(self, file_path: str, mime_type: Optional[str] = None) -> ProcessResponse:
         """
         Process document to markdown.
-        Tries LlamaParse first, falls back to Tesseract, optionally enhances with vision analysis.
+        Tries LlamaParse first, then OCR Service, then Tesseract.
         """
-        markdown = ""
-        method = "none"
-        success = False
-        error = None
-
-        # Try LlamaParse first
-        if self.use_llamaparse:
-            try:
-                markdown = self.process_with_llamaparse(file_path)
-                method = "llamaparse"
-                success = True
-                # Optionally enhance with vision analysis
-                if self.use_vision_analysis:
-                    markdown = self.enhance_with_vision_analysis(file_path, markdown, mime_type)
-                return ProcessResponse(markdown=markdown, method=method, success=success)
-            except Exception as e:
-                logger.warning(f"LlamaParse failed, trying Tesseract: {e}")
-                error = str(e)
-
-        # Fallback to Tesseract
+        import time
+        start_time = time.time()
+        
+        mime_type = mime_type or mimetypes.guess_type(file_path)[0] or 'application/octet-stream'
+        
         try:
-            markdown = self.process_with_tesseract(file_path, mime_type)
-            method = "tesseract"
-            # Optionally enhance with vision analysis
-            if self.use_vision_analysis:
-                markdown = self.enhance_with_vision_analysis(file_path, markdown, mime_type)
-            success = True
-            return ProcessResponse(markdown=markdown, method=method, success=success)
+            # Try LlamaParse first
+            if self.use_llamaparse:
+                try:
+                    markdown = self.process_with_llamaparse(file_path)
+                    processing_time = time.time() - start_time
+                    
+                    # Get page count if possible
+                    try:
+                        import pdf2image
+                        if mime_type == 'application/pdf':
+                            images = pdf2image.convert_from_path(file_path)
+                            pages = len(images)
+                        else:
+                            pages = 1
+                    except:
+                        pages = 0
+                    
+                    return ProcessResponse(
+                        markdown=markdown,
+                        method="llamaparse",
+                        pages=pages,
+                        success=True,
+                        processing_time=processing_time
+                    )
+                except Exception as e:
+                    logger.warning(f"LlamaParse failed: {e}. Trying OCR Service...")
+
+            # Try OCR Service second
+            if self.ocr_service_available:
+                try:
+                    markdown, method, pages = self.process_with_ocr_service(file_path)
+                    processing_time = time.time() - start_time
+                    
+                    return ProcessResponse(
+                        markdown=markdown,
+                        method=method,
+                        pages=pages,
+                        success=True,
+                        processing_time=processing_time
+                    )
+                except Exception as e:
+                    logger.warning(f"OCR Service failed: {e}. Trying Tesseract...")
+
+            # Fallback to Tesseract
+            try:
+                logger.info("Falling back to Tesseract")
+                markdown, pages = self.process_with_tesseract(file_path, mime_type)
+                processing_time = time.time() - start_time
+                
+                return ProcessResponse(
+                    markdown=markdown,
+                    method="tesseract",
+                    pages=pages,
+                    success=True,
+                    processing_time=processing_time
+                )
+            except Exception as e:
+                error_msg = f"Tesseract failed: {str(e)}"
+                logger.error(error_msg)
+                processing_time = time.time() - start_time
+                
+                return ProcessResponse(
+                    markdown="",
+                    method="none",
+                    pages=0,
+                    success=False,
+                    error=error_msg,
+                    processing_time=processing_time
+                )
+
         except Exception as e:
-            error_msg = f"All processing methods failed. Last error: {str(e)}"
+            processing_time = time.time() - start_time
+            error_msg = f"Unexpected error: {str(e)}"
             logger.error(error_msg)
+            
             return ProcessResponse(
                 markdown="",
                 method="none",
+                pages=0,
                 success=False,
-                error=error_msg
+                error=error_msg,
+                processing_time=processing_time
             )
 
 
@@ -243,79 +298,78 @@ class DocumentProcessor:
 doc_processor = DocumentProcessor()
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "service": "Document Processor Service",
-        "status": "healthy",
-        "llamaparse_available": doc_processor.use_llamaparse,
-        "vision_analysis_available": doc_processor.use_vision_analysis,
-        "vision_provider": doc_processor.vision_provider.__class__.__name__ if doc_processor.vision_provider else None,
-        "endpoints": {
-            "/process": "POST - Process document to markdown",
-            "/health": "GET - Health check"
-        }
-    }
+# ============ API Endpoints ============
 
-
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
-    return {
-        "status": "healthy",
-        "llamaparse_available": doc_processor.use_llamaparse,
-        "tesseract_available": True,
-        "vision_analysis_available": doc_processor.use_vision_analysis
-    }
+    methods = []
+    if doc_processor.use_llamaparse:
+        methods.append("llamaparse")
+    if doc_processor.ocr_service_available:
+        methods.append("ocr_service")
+    methods.append("tesseract")  # Always available
+    
+    return HealthResponse(
+        status="healthy",
+        llamaparse_available=doc_processor.use_llamaparse,
+        ocr_service_available=doc_processor.ocr_service_available,
+        processing_methods=methods
+    )
 
 
 @app.post("/process", response_model=ProcessResponse)
 async def process_document(file: UploadFile = File(...)):
-    """Process uploaded document to markdown."""
-    temp_file = None
-
+    """
+    Process a document and return markdown.
+    
+    Tries methods in order:
+    1. LlamaParse (premium, most accurate)
+    2. Standalone OCR Service (free, Ollama-based)
+    3. Tesseract (local OCR, always available)
+    """
     try:
-        # Determine mime type
-        mime_type = file.content_type or mimetypes.guess_type(file.filename)[0]
-
-        if not mime_type:
-            raise HTTPException(status_code=400, detail="Could not determine file type")
-
-        # Supported types
-        supported_types = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/tiff']
-        if mime_type not in supported_types:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type: {mime_type}. Supported: {supported_types}"
-            )
-
-        # Save uploaded file to temp location
-        suffix = Path(file.filename).suffix
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
             content = await file.read()
-            temp_file.write(content)
-            temp_file_path = temp_file.name
-
-        # Process document
-        result = doc_processor.process_document(temp_file_path, mime_type)
-
-        # Cleanup
-        if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
-
-        if not result.success:
-            raise HTTPException(status_code=500, detail=result.error)
-
-        return result
-
-    except HTTPException:
-        raise
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        try:
+            mime_type = file.content_type
+            response = doc_processor.process_document(tmp_path, mime_type=mime_type)
+            return response
+        
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    
     except Exception as e:
         logger.error(f"Error processing document: {e}")
-        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+        return ProcessResponse(
+            markdown="",
+            method="none",
+            pages=0,
+            success=False,
+            error=str(e)
+        )
+
+
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {
+        "service": "Document Processor Service v2.0",
+        "description": "Convert documents to markdown (LlamaParse → OCR Service → Tesseract)",
+        "status": "operational",
+        "endpoints": {
+            "health": "/health",
+            "process": "/process"
+        }
+    }
 
 
 if __name__ == "__main__":
-    logger.info("Starting Document Processor Service...")
-    uvicorn.run(app, host="0.0.0.0", port=8101)
+    port = int(os.getenv("DOC_PROCESSOR_PORT", "8101"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
