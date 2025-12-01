@@ -197,6 +197,8 @@ class DocumentProcessor:
             return markdown, len(images)
 
         except Exception as e:
+            logger.error(f"Tesseract processing failed: {e}")
+            raise
 
     def process_document(self, file_path: str, mime_type: Optional[str] = None) -> ProcessResponse:
         """

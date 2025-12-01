@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMA Distributed Compute Pool - Join the Network</title>
+    <meta name="description" content="Democratized AI infrastructure. Donate your idle GPU/CPU power to the RMA distributed compute pool.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Hero Section -->
+    <header class="hero">
+        <nav class="nav">
+            <div class="container nav-container">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <span class="logo-text">RMA Distributed</span>
+                </div>
+                <div class="nav-links">
+                    <a href="FRONTEND_URL" class="nav-link">Dashboard</a>
+                    <a href="ADMIN_URL" class="nav-link">System Status</a>
+                    <a href="#docs" class="nav-link">Docs</a>
+                    <a href="#join" class="btn btn-primary">Join Network</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container hero-content">
+            <h1 class="hero-title">
+                Democratized AI Infrastructure
+            </h1>
+            <p class="hero-subtitle">
+                Join the distributed compute pool. Donate idle GPU/CPU time. Get free AI inference.
+            </p>
+
+            <div class="hero-stats" id="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="worker-count">0</div>
+                    <div class="stat-label">Active Workers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="gpu-count">0</div>
+                    <div class="stat-label">GPU Workers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="task-count">0</div>
+                    <div class="stat-label">Tasks Completed</div>
+                </div>
+            </div>
+
+            <div class="hero-cta">
+                <a href="FRONTEND_URL" class="btn btn-large btn-primary">
+                    <span>View Live Dashboard</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M4 10h12m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <a href="#join" class="btn btn-large btn-secondary">
+                    Become a Worker
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- How It Works -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Three simple steps to join the distributed network</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">1</div>
+                    <h3 class="feature-title">Download Worker</h3>
+                    <p class="feature-text">
+                        Install the lightweight worker agent on any machine with Docker.
+                        Supports Linux, macOS, and Windows.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">2</div>
+                    <h3 class="feature-title">Connect & Donate</h3>
+                    <p class="feature-text">
+                        Worker auto-detects your hardware (GPU, CPU, RAM) and registers with
+                        the coordinator. Donate compute when idle.
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">3</div>
+                    <h3 class="feature-title">Earn Credits</h3>
+                    <p class="feature-text">
+                        Get priority access to AI services based on your contribution.
+                        Track your impact on the dashboard.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Worker Tiers -->
+    <section class="section section-dark">
+        <div class="container">
+            <h2 class="section-title">Worker Tiers</h2>
+            <p class="section-subtitle">Automatically assigned based on your hardware</p>
+
+            <div class="tiers-grid">
+                <div class="tier-card tier-1">
+                    <div class="tier-badge">Tier 1</div>
+                    <h3 class="tier-title">GPU Workers</h3>
+                    <p class="tier-requirements">Requirements: 8GB+ VRAM</p>
+                    <ul class="tier-features">
+                        <li>vLLM inference (2-3x faster)</li>
+                        <li>Vision models (OCR, image analysis)</li>
+                        <li>Highest priority access</li>
+                        <li>Maximum credits earned</li>
+                    </ul>
+                </div>
+
+                <div class="tier-card tier-2">
+                    <div class="tier-badge">Tier 2</div>
+                    <h3 class="tier-title">Service Workers</h3>
+                    <p class="tier-requirements">Requirements: 4GB+ RAM, 2+ cores</p>
+                    <ul class="tier-features">
+                        <li>RAG services</li>
+                        <li>Document processing</li>
+                        <li>Entity extraction (NER)</li>
+                        <li>Medium priority access</li>
+                    </ul>
+                </div>
+
+                <div class="tier-card tier-3">
+                    <div class="tier-badge">Tier 3</div>
+                    <h3 class="tier-title">Data Workers</h3>
+                    <p class="tier-requirements">Requirements: 2GB+ RAM</p>
+                    <ul class="tier-features">
+                        <li>Database hosting</li>
+                        <li>Cache services (Redis)</li>
+                        <li>Vector storage</li>
+                        <li>Standard priority access</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section class="section" id="join">
+        <div class="container">
+            <h2 class="section-title">Quick Start</h2>
+            <p class="section-subtitle">Start contributing compute in 2 minutes</p>
+
+            <div class="quickstart">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Terminal</span>
+                        <button class="copy-btn" onclick="copyCode()">Copy</button>
+                    </div>
+                    <pre><code id="install-code"># Install worker agent
+pip install rma-worker
+
+# Start worker (connects automatically)
+rma-worker start
+
+# Or specify coordinator
+rma-worker start --coordinator COORDINATOR_URL</code></pre>
+                </div>
+
+                <div class="quickstart-alternative">
+                    <h3>Alternative: Docker</h3>
+                    <div class="code-block">
+                        <pre><code>docker run -d \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e COORDINATOR_URL=COORDINATOR_URL \
+  ghcr.io/rma/worker-agent:latest</code></pre>
+                    </div>
+                </div>
+
+                <div class="quickstart-note">
+                    <strong>Note:</strong> Worker agent requires Docker installed.
+                    <a href="https://docs.docker.com/get-docker/" target="_blank">Get Docker →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- System Architecture -->
+    <section class="section section-dark">
+        <div class="container">
+            <h2 class="section-title">System Architecture</h2>
+            <p class="section-subtitle">Built for decentralization and scalability</p>
+
+            <div class="architecture">
+                <div class="arch-diagram">
+                    <div class="arch-box coordinator">
+                        <h4>Coordinator</h4>
+                        <p>Free Tier Hosting</p>
+                        <p>Worker Registry</p>
+                        <p>Load Balancing</p>
+                    </div>
+
+                    <div class="arch-arrows">↓</div>
+
+                    <div class="arch-workers">
+                        <div class="arch-box worker">
+                            <h4>GPU Worker</h4>
+                            <p>vLLM Inference</p>
+                        </div>
+                        <div class="arch-box worker">
+                            <h4>Service Worker</h4>
+                            <p>RAG + NER</p>
+                        </div>
+                        <div class="arch-box worker">
+                            <h4>Data Worker</h4>
+                            <p>PostgreSQL</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="arch-features">
+                    <div class="arch-feature">
+                        <h4>✅ Auto-Scaling</h4>
+                        <p>Add workers anytime, anywhere. System auto-balances workloads.</p>
+                    </div>
+                    <div class="arch-feature">
+                        <h4>✅ Fault Tolerant</h4>
+                        <p>Workers can join/leave freely. Coordinator handles failures gracefully.</p>
+                    </div>
+                    <div class="arch-feature">
+                        <h4>✅ Zero Cost</h4>
+                        <p>Coordinator runs on free tier. Workers donated by community.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">Live System Stats</h2>
+
+            <div class="live-stats" id="live-stats">
+                <div class="stat-box">
+                    <h3>System Health</h3>
+                    <div class="status-indicator" id="health-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Checking...</span>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <h3>Worker Distribution</h3>
+                    <div id="worker-distribution">
+                        <div class="dist-row">
+                            <span>Tier 1 (GPU):</span>
+                            <span id="tier1-count">-</span>
+                        </div>
+                        <div class="dist-row">
+                            <span>Tier 2 (Service):</span>
+                            <span id="tier2-count">-</span>
+                        </div>
+                        <div class="dist-row">
+                            <span>Tier 3 (Data):</span>
+                            <span id="tier3-count">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-box">
+                    <h3>Average Load</h3>
+                    <div class="load-bars">
+                        <div class="load-bar">
+                            <span>GPU:</span>
+                            <div class="bar"><div class="fill" id="gpu-load"></div></div>
+                            <span id="gpu-load-text">0%</span>
+                        </div>
+                        <div class="load-bar">
+                            <span>Service:</span>
+                            <div class="bar"><div class="fill" id="service-load"></div></div>
+                            <span id="service-load-text">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cta-center">
+                <a href="ADMIN_URL" class="btn btn-primary">View Full Dashboard →</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>RMA Distributed</h4>
+                    <p>Democratized AI infrastructure for everyone.</p>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <a href="FRONTEND_URL">Dashboard</a>
+                    <a href="ADMIN_URL">System Status</a>
+                    <a href="#docs">Documentation</a>
+                    <a href="https://github.com/your-org/rma-demo">GitHub</a>
+                </div>
+
+                <div class="footer-section">
+                    <h4>Community</h4>
+                    <a href="#">Discord</a>
+                    <a href="#">Twitter</a>
+                    <a href="#">Blog</a>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; 2024 RMA Distributed. Open source project.</p>
+                <p>Coordinator: <code>COORDINATOR_URL</code></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

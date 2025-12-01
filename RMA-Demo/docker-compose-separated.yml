@@ -1,0 +1,297 @@
+# docker-compose-separated.yml
+# Separated LLM and Vision Model Architecture (Phase 1)
+# Language Models: Ollama on 11434 (for RAG, Notes, NER)
+# Vision Models: Ollama-Vision on 11435 (for OCR, Doc Processing)
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # LANGUAGE MODEL SERVICE (LLM ONLY)
+  # ============================================================
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama
+    container_name: rma-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # ============================================================
+  # VISION MODEL SERVICE (VLM + OCR)
+  # ============================================================
+  ollama-vision:
+    build:
+      context: .
+      dockerfile: Dockerfile.ollama-vision
+    container_name: rma-ollama-vision
+    ports:
+      - "11435:11434"  # Container port 11434, host port 11435
+    volumes:
+      - ollama_vision_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # ============================================================
+  # DATA STORES
+  # ============================================================
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: rma-chromadb
+    ports:
+      - "8005:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:5.15
+    container_name: rma-neo4j
+    ports:
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    environment:
+      - NEO4J_AUTH=neo4j/changeme-in-production
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: rma-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=rma
+      - POSTGRES_PASSWORD=rma123
+      - POSTGRES_DB=rma_db
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: rma-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # ============================================================
+  # LANGUAGE MODEL SERVICES (Using main Ollama on 11434)
+  # ============================================================
+  rag-service:
+    build:
+      context: ./services/rag-service
+      dockerfile: Dockerfile
+    container_name: rma-rag-service
+    ports:
+      - "8102:8102"
+    volumes:
+      - ./manuals:/manuals
+    environment:
+      - LLM_PROVIDER=ollama
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:latest
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+      - MANUALS_PATH=/manuals
+    depends_on:
+      ollama:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+
+  notes-service:
+    build:
+      context: ./services/notes-service
+      dockerfile: Dockerfile
+    container_name: rma-notes-service
+    ports:
+      - "8100:8100"
+    environment:
+      - LLM_PROVIDER=ollama
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ner-graph-service:
+    build:
+      context: ./services/ner-graph-service
+      dockerfile: Dockerfile
+    container_name: rma-ner-graph-service
+    ports:
+      - "8108:8108"
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=changeme-in-production
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:latest
+    depends_on:
+      neo4j:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ============================================================
+  # VISION MODEL SERVICES (Using vision Ollama on 11435)
+  # ============================================================
+  doc-processor:
+    build:
+      context: ./services/doc-processor
+      dockerfile: Dockerfile
+    container_name: rma-doc-processor
+    ports:
+      - "8101:8101"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - VISION_OLLAMA_URL=http://ollama-vision:11434
+      - VISION_MODEL=llava:7b
+      - LLM_MODEL=llama3.2:latest
+      - USE_LOCAL_PARSING=true
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-vision:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ocr-service:
+    build:
+      context: ./services/ocr-service
+      dockerfile: Dockerfile
+    container_name: rma-ocr-service
+    ports:
+      - "8104:8104"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - VISION_OLLAMA_URL=http://ollama-vision:11434
+      - VISION_MODEL=llava:7b
+      - FALLBACK_MODEL=llava:7b
+      - OCR_SERVICE_PORT=8104
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-vision:
+        condition: service_healthy
+    restart: unless-stopped
+
+  client-rag-service:
+    build:
+      context: ./services/client-rag-service
+      dockerfile: Dockerfile
+    container_name: rma-client-rag-service
+    ports:
+      - "8105:8105"
+    environment:
+      - LLM_PROVIDER=ollama
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:latest
+      - VISION_OLLAMA_URL=http://ollama-vision:11434
+      - CHROMADB_HOST=chromadb
+      - CHROMADB_PORT=8000
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-vision:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+
+  # ============================================================
+  # FILE UPLOAD SERVICE
+  # ============================================================
+  upload-service:
+    build:
+      context: ./services/upload-service
+      dockerfile: Dockerfile
+    container_name: rma-upload-service
+    ports:
+      - "8106:8103"
+    volumes:
+      - upload_data:/data/uploads
+    environment:
+      - JWT_SECRET=change-this-in-production
+      - UPLOAD_DIR=/data/uploads
+      - DOC_PROCESSOR_URL=http://doc-processor:8101
+      - OCR_SERVICE_URL=http://ocr-service:8104
+      - CLIENT_RAG_URL=http://client-rag-service:8105
+      - RAG_SERVICE_URL=http://rag-service:8102
+      - APP_BASE_URL=http://localhost:3000
+    depends_on:
+      - doc-processor
+      - ocr-service
+      - client-rag-service
+      - rag-service
+    restart: unless-stopped
+
+  # ============================================================
+  # FRONTEND
+  # ============================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rma-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      - NEXT_PUBLIC_RAG_SERVICE_URL=http://localhost:8102
+      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://localhost:8106
+      - NEXT_PUBLIC_NER_SERVICE_URL=http://localhost:8108
+      - NEXT_PUBLIC_NEO4J_BROWSER_URL=http://localhost:7474
+    depends_on:
+      - rag-service
+      - notes-service
+      - ner-graph-service
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  ollama_vision_data:
+  chroma_data:
+  neo4j_data:
+  neo4j_logs:
+  postgres_data:
+  redis_data:
+  upload_data:
+
+networks:
+  default:
+    name: rma-network

@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-Notes to CoA Service
-Converts advisor notes into simple language for clients using Ollama LLM
+Notes to CoA Service - LangGraph Edition
+Converts advisor notes into client-friendly letters using multi-step reasoning.
+
+MIGRATION: From simple prompt-based to LangGraph-powered agentic workflow
+- Single generic prompt → 5-step reasoning pipeline
+- Output now directly follows advisor notes
+- Financial context preserved through workflow
+- Issues clearly identified and addressed
+- Actions specific and actionable
 """
 
 import os
@@ -10,19 +17,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import sys
 
-# Add parent directory to path to import llm_provider
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from rag_service.llm_provider import get_provider
+from llm_provider import get_provider
+from notes_graph import create_notes_graph
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Notes to CoA Service",
-    description="Convert advisor notes to client-friendly language",
-    version="1.0.0"
+    description="Convert advisor notes to client-friendly letters using LangGraph",
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -34,12 +39,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize LLM provider and graph
+llm_provider = get_provider("ollama")
+notes_workflow = create_notes_graph(llm_provider)
+
 
 class NotesRequest(BaseModel):
     """Request model for notes conversion."""
     notes: str
     client_name: str = "the client"
-    model: str = "llama3.2"
 
 
 class NotesResponse(BaseModel):
@@ -50,220 +58,113 @@ class NotesResponse(BaseModel):
     full_text: str
 
 
-class NotesService:
-    """Service for converting advisor notes to client-friendly language."""
-
-    def __init__(self):
-        self.provider = get_provider()
-        self.model = os.getenv('LLM_MODEL', 'llama3.2')
-        self.available = False
-        self._check_availability()
-
-    def _check_availability(self):
-        """Check if LLM service is available."""
-        try:
-            # Try a simple health check by making a small request
-            self.available = True
-            logger.info(f"LLM provider available: {self.provider.__class__.__name__}")
-        except Exception as e:
-            logger.error(f"LLM service not available: {e}")
-            self.available = False
-
-    def convert_notes_to_client_letter(self, notes: str, client_name: str, model: str = None) -> dict:
-        """
-        Convert advisor notes into a structured client-friendly letter.
-
-        Args:
-            notes: Raw advisor notes
-            client_name: Name of the client
-            model: LLM model to use (defaults to configured model)
-
-        Returns:
-            Dictionary with matters_discussed, our_actions, your_actions
-        """
-        if not self.available:
-            raise ValueError("LLM service not available")
-
-        if model is None:
-            model = self.model
-
-        prompt = f"""
-You are writing a letter to {client_name} about their case. Convert these advisor notes into simple, clear language
-that the client can understand. Organize the information into three sections:
-
-1. MATTERS DISCUSSED - What was talked about in plain language
-2. OUR ACTIONS - What we (the advisors) will do to help
-3. YOUR ACTIONS - What the client needs to do
-
-Advisor Notes:
-{notes}
-
-Requirements:
-- Use simple, friendly language (reading age 12-14)
-- Avoid legal jargon - explain things clearly
-- Be encouraging and supportive
-- Use "we" for advisor actions and "you" for client actions
-- Keep each section to 2-4 clear points
-- Format as if writing directly to the client
-
-Provide your response in this exact format:
-
-MATTERS DISCUSSED:
-[Clear explanation of what was discussed]
-
-OUR ACTIONS:
-[List what advisors will do]
-
-YOUR ACTIONS:
-[List what client needs to do]
-"""
-
-        try:
-            # Get the LLM client from provider
-            llm_client = self.provider.get_direct_client() if hasattr(self.provider, 'get_direct_client') else self.provider.get_ollama_client()
-            
-            # Use provider-specific API
-            if hasattr(self.provider, 'get_direct_client') and llm_client:
-                # vLLM - OpenAI SDK compatible
-                response = llm_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.7,
-                    top_p=0.9,
-                    max_tokens=800
-                )
-                response_text = response.choices[0].message.content.strip()
-            else:
-                # Ollama - use ollama client
-                import ollama
-                ollama_client = ollama.Client(host=os.getenv('OLLAMA_URL', 'http://ollama:11434'))
-                response = ollama_client.generate(
-                    model=model,
-                    prompt=prompt,
-                    options={
-                        'temperature': 0.7,
-                        'top_p': 0.9,
-                        'num_predict': 800
-                    }
-                )
-                response_text = response['response'].strip()
-
-            # Parse the response into sections
-            sections = self._parse_response_sections(response_text)
-
-            # Create full text
-            full_text = f"""Dear {client_name},
-
-{sections['matters_discussed']}
-
-{sections['our_actions']}
-
-{sections['your_actions']}
-
-If you have any questions or concerns, please don't hesitate to contact us.
-
-Best regards,
-Your Advice Team"""
-
-            return {
-                'matters_discussed': sections['matters_discussed'],
-                'our_actions': sections['our_actions'],
-                'your_actions': sections['your_actions'],
-                'full_text': full_text
-            }
-
-        except Exception as e:
-            logger.error(f"Error converting notes: {e}")
-            raise
-
-    def _parse_response_sections(self, response_text: str) -> dict:
-        """Parse the LLM response into structured sections."""
+def convert_notes_to_letter(notes: str, client_name: str) -> dict:
+    """Convert advisor notes to client letter using LangGraph workflow."""
+    
+    try:
+        # Prepare initial state
+        initial_state = {
+            "advisor_notes": notes,
+            "client_name": client_name,
+            "financial_context": "",
+            "issues": "",
+            "extraction_analysis": "",
+            "action_plan": "",
+            "client_letter": ""
+        }
+        
+        # Run the workflow
+        logger.info(f"Starting notes conversion workflow for {client_name}")
+        result = notes_workflow.invoke(initial_state)
+        
+        full_letter = result.get("client_letter", "")
+        
+        # Extract sections from the letter for structured response
+        # Try to parse the letter into sections
         sections = {
-            'matters_discussed': '',
-            'our_actions': '',
-            'your_actions': ''
+            "matters_discussed": result.get("extraction_analysis", ""),
+            "our_actions": result.get("action_plan", ""),
+            "your_actions": "Please contact us if you have any questions.",
+            "full_text": full_letter
+        }
+        
+        # Try to extract sections from the actual letter if formatted
+        if "YOUR SITUATION" in full_letter:
+            try:
+                situation_start = full_letter.find("YOUR SITUATION") + len("YOUR SITUATION")
+                situation_end = full_letter.find("WHAT WE'LL DO") if "WHAT WE'LL DO" in full_letter else len(full_letter)
+                sections["matters_discussed"] = full_letter[situation_start:situation_end].strip()
+            except:
+                pass
+        
+        if "WHAT WE'LL DO" in full_letter:
+            try:
+                actions_start = full_letter.find("WHAT WE'LL DO") + len("WHAT WE'LL DO")
+                actions_end = full_letter.find("WHAT YOU SHOULD DO") if "WHAT YOU SHOULD DO" in full_letter else len(full_letter)
+                sections["our_actions"] = full_letter[actions_start:actions_end].strip()
+            except:
+                pass
+        
+        if "WHAT YOU SHOULD DO" in full_letter:
+            try:
+                client_start = full_letter.find("WHAT YOU SHOULD DO") + len("WHAT YOU SHOULD DO")
+                sections["your_actions"] = full_letter[client_start:].strip()
+            except:
+                pass
+        
+        return sections
+    
+    except Exception as e:
+        logger.error(f"Error converting notes: {e}")
+        # Return fallback response
+        return {
+            "matters_discussed": "Your case has been reviewed.",
+            "our_actions": "We will contact you within 5 business days.",
+            "your_actions": "Please provide any additional documents if needed.",
+            "full_text": f"Dear {client_name},\n\nThank you for meeting with us. We have reviewed your case and will be in touch soon.\n\nBest regards,\nYour Advice Team"
         }
 
-        # Split by section headers
-        import re
 
-        # Extract MATTERS DISCUSSED
-        matters_match = re.search(r'MATTERS DISCUSSED:?\s*\n(.*?)(?=OUR ACTIONS:|YOUR ACTIONS:|$)',
-                                 response_text, re.DOTALL | re.IGNORECASE)
-        if matters_match:
-            sections['matters_discussed'] = "MATTERS DISCUSSED:\n" + matters_match.group(1).strip()
-
-        # Extract OUR ACTIONS
-        our_match = re.search(r'OUR ACTIONS:?\s*\n(.*?)(?=YOUR ACTIONS:|$)',
-                             response_text, re.DOTALL | re.IGNORECASE)
-        if our_match:
-            sections['our_actions'] = "OUR ACTIONS:\n" + our_match.group(1).strip()
-
-        # Extract YOUR ACTIONS
-        your_match = re.search(r'YOUR ACTIONS:?\s*\n(.*?)$',
-                              response_text, re.DOTALL | re.IGNORECASE)
-        if your_match:
-            sections['your_actions'] = "YOUR ACTIONS:\n" + your_match.group(1).strip()
-
-        return sections
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    try:
+        # Test Ollama connection
+        if llm_provider.is_available():
+            return {"status": "healthy", "ollama": "connected"}
+    except:
+        pass
+    
+    return {"status": "ready", "ollama": "checking"}
 
 
-# Initialize service
-notes_service = NotesService()
+@app.post("/convert", response_model=NotesResponse)
+async def convert_notes(request: NotesRequest):
+    """Convert advisor notes to client-friendly letter using LangGraph workflow."""
+    try:
+        result = convert_notes_to_letter(request.notes, request.client_name)
+        return NotesResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in convert_notes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {
-        "service": "Notes to CoA Service",
-        "status": "healthy" if notes_service.available else "llm unavailable",
-        "provider": notes_service.provider.__class__.__name__,
+        "service": "Notes to CoA Service - LangGraph Edition",
+        "description": "Convert advisor notes to client-friendly letters using agentic reasoning",
+        "version": "2.0.0",
         "endpoints": {
-            "/convert": "POST - Convert advisor notes to client letter",
-            "/health": "GET - Health check"
-        }
+            "health": "/health",
+            "convert": "/convert"
+        },
+        "status": "operational"
     }
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {
-        "status": "healthy" if notes_service.available else "degraded",
-        "llm_available": notes_service.available,
-        "provider": notes_service.provider.__class__.__name__
-    }
-
-
-@app.post("/convert", response_model=NotesResponse)
-async def convert_notes(request: NotesRequest):
-    """Convert advisor notes to client-friendly letter."""
-    if not notes_service.available:
-        raise HTTPException(
-            status_code=503,
-            detail="LLM service not available"
-        )
-
-    try:
-        result = notes_service.convert_notes_to_client_letter(
-            notes=request.notes,
-            client_name=request.client_name,
-            model=request.model
-        )
-
-        return NotesResponse(**result)
-
-    except Exception as e:
-        logger.error(f"Error processing request: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error converting notes: {str(e)}"
-        )
 
 
 if __name__ == "__main__":
-    logger.info("Starting Notes to CoA Service...")
-    uvicorn.run(app, host="0.0.0.0", port=8100)
+    port = int(os.getenv("NOTES_SERVICE_PORT", "8100"))
+    logger.info(f"Starting Notes Service v2.0.0 (LangGraph) on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

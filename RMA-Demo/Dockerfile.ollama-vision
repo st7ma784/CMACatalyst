@@ -1,0 +1,8 @@
+FROM ollama/ollama:latest
+
+# Copy the vision entrypoint script
+COPY ollama-entrypoint-vision.sh /usr/local/bin/ollama-entrypoint-vision.sh
+RUN chmod +x /usr/local/bin/ollama-entrypoint-vision.sh
+
+# Use the custom entrypoint
+ENTRYPOINT ["/usr/local/bin/ollama-entrypoint-vision.sh"]

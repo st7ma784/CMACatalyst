@@ -12,7 +12,8 @@ import AskTheManuals from '@/components/AskTheManuals'
 import ClientDocumentSearch from '@/components/ClientDocumentSearch'
 import Documentation from '@/components/Documentation'
 import DebugVectorStore from '@/components/DebugVectorStore'
-import { FileText, QrCode, BookOpen, Search, HelpCircle, LogIn, LogOut, RefreshCw, Bug } from 'lucide-react'
+import SystemOrchestrator from '@/components/SystemOrchestrator'
+import { FileText, QrCode, BookOpen, Search, HelpCircle, LogIn, LogOut, RefreshCw, Bug, Activity } from 'lucide-react'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('notes')
@@ -73,7 +74,7 @@ export default function Home() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8">
+          <TabsList className="grid w-full grid-cols-7 mb-8">
             <TabsTrigger value="notes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Notes to CoA
@@ -89,6 +90,10 @@ export default function Home() {
             <TabsTrigger value="manuals" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Ask the Manuals
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              System
             </TabsTrigger>
             <TabsTrigger value="debug" className="flex items-center gap-2">
               <Bug className="h-4 w-4" />
@@ -114,6 +119,10 @@ export default function Home() {
 
           <TabsContent value="manuals">
             <AskTheManuals />
+          </TabsContent>
+
+          <TabsContent value="system">
+            <SystemOrchestrator />
           </TabsContent>
 
           <TabsContent value="debug">

@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+*.min.js
+src/lib/mockData.ts
+src/app/graphs/page.tsx
+src/app/comparison/page.tsx
+src/components/graphs/

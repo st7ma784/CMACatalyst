@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  gpu-worker:
+    build: .
+    image: rma-gpu-worker:latest
+    container_name: rma-gpu-worker
+    environment:
+      - COORDINATOR_URL=https://rma-coordinator.fly.dev
+      - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

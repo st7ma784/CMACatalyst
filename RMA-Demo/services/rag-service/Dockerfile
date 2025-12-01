@@ -23,6 +23,8 @@ COPY numerical_tools.py .
 COPY symbolic_reasoning.py .
 COPY decision_tree_builder.py .
 COPY tree_visualizer.py .
+COPY llm_provider.py .
+COPY graph_integrator.py .
 COPY tools/ ./tools/
 
 # Create directories

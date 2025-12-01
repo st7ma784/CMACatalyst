@@ -1,0 +1,25 @@
+# CPU Worker Container
+# Runs worker agent in a container to donate CPU compute
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install Python dependencies only (no docker-in-docker)
+RUN pip install --no-cache-dir \
+    requests==2.31.0 \
+    psutil==5.9.6
+
+# Copy worker agent
+COPY worker_agent.py .
+
+# Environment variables
+ENV COORDINATOR_URL=https://rma-coordinator.fly.dev
+ENV PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run worker agent
+CMD ["python", "worker_agent.py", "--coordinator", "${COORDINATOR_URL}"]
