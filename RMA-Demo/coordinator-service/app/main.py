@@ -49,7 +49,6 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(worker_routes.router, prefix="/api/worker", tags=["Worker"])
 app.include_router(inference_routes.router, prefix="/api/inference", tags=["Inference"])
 app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin"])
@@ -85,7 +84,7 @@ worker_routes.worker_registry = worker_registry
 inference_routes.worker_registry = worker_registry
 admin_routes.worker_registry = worker_registry
 service_routes.worker_registry = worker_registry
-
+ 
 
 if __name__ == "__main__":
     uvicorn.run(

@@ -381,7 +381,9 @@ class WorkerRegistry:
         """Save worker registry to disk"""
         try:
             # Ensure directory exists
-            os.makedirs(os.path.dirname(self.persistence_file), exist_ok=True)
+            persist_dir = os.path.dirname(self.persistence_file)
+            if persist_dir:  # Only create if there's a directory component
+                os.makedirs(persist_dir, exist_ok=True)
             
             # Convert workers to dict format
             workers_data = {
@@ -407,6 +409,8 @@ class WorkerRegistry:
                 json.dump(workers_data, f, indent=2)
             os.replace(temp_file, self.persistence_file)
             
+        except PermissionError as e:
+            print(f"⚠️ No write permission for worker persistence ({self.persistence_file}), running in-memory only")
         except Exception as e:
             print(f"⚠️ Failed to save workers: {e}")
 
