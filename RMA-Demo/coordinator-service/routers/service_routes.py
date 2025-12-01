@@ -63,7 +63,8 @@ async def proxy_to_service(
             "notes": ("notes-service", 8100),
             "ner": ("ner-service", 8108),
             "client-rag": ("client-rag-service", 8101),
-            "doc-processor": ("doc-processor-service", 8104)
+            "doc-processor": ("doc-processor-service", 8104),
+            "frontend": ("rma-frontend-distributed", 3000)  # Add frontend service
         }
         
         if service_name in service_map:
@@ -163,3 +164,15 @@ async def client_rag_service(path: str, request: Request):
 async def doc_processor_service(path: str, request: Request):
     """Proxy requests to document processor service"""
     return await proxy_to_service("doc-processor", path, request, tier=2)
+
+
+@router.api_route("/frontend/{path:path}", methods=["GET"])
+async def frontend_service(path: str, request: Request):
+    """Proxy requests to frontend service (Next.js)"""
+    return await proxy_to_service("frontend", path, request, tier=2)
+
+
+@router.get("/frontend")
+async def frontend_root(request: Request):
+    """Proxy root frontend requests"""
+    return await proxy_to_service("frontend", "", request, tier=2)

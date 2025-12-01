@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  frontend-worker:
+    build: ../cpu-worker
+    image: rma-cpu-worker:latest
+    environment:
+      - COORDINATOR_URL=https://cmacatalyst.onrender.com
+      - USE_TUNNEL=true
+      - SERVICE_PORT=3000
+      - SERVICE_NAME=rma-frontend-distributed
+    restart: unless-stopped
+    networks:
+      - rma-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+networks:
+  rma-network:
+    external: true
+    name: rma-network
