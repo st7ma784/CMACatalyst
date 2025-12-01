@@ -42,6 +42,7 @@ class Worker(BaseModel):
     registered_at: datetime = Field(default_factory=datetime.utcnow)
     current_load: float = 0.0  # 0.0 to 1.0
     ip_address: Optional[str] = None
+    tunnel_url: Optional[str] = None  # Cloudflare tunnel URL for reverse proxy
     port: Optional[int] = None
     tasks_completed: int = 0
 
@@ -62,7 +63,7 @@ class WorkerRegistry:
         self.persistence_file = persistence_file
         self._load_workers()
 
-    def register_worker(self, capabilities: WorkerCapabilities, ip_address: str = None) -> Worker:
+    def register_worker(self, capabilities: WorkerCapabilities, ip_address: str = None, tunnel_url: str = None) -> Worker:
         """Register a new worker and assign tier + containers"""
 
         # Determine tier based on capabilities
@@ -72,7 +73,8 @@ class WorkerRegistry:
         worker = Worker(
             capabilities=capabilities,
             tier=tier,
-            ip_address=ip_address
+            ip_address=ip_address,
+            tunnel_url=tunnel_url
         )
 
         # Assign containers
@@ -396,6 +398,7 @@ class WorkerRegistry:
                     "registered_at": worker.registered_at.isoformat(),
                     "current_load": worker.current_load,
                     "ip_address": worker.ip_address,
+                    "tunnel_url": worker.tunnel_url,
                     "port": worker.port,
                     "tasks_completed": worker.tasks_completed,
                     "assigned_containers": [c.dict() for c in worker.assigned_containers]
@@ -435,6 +438,7 @@ class WorkerRegistry:
                     registered_at=datetime.fromisoformat(data["registered_at"]),
                     current_load=data["current_load"],
                     ip_address=data.get("ip_address"),
+                    tunnel_url=data.get("tunnel_url"),
                     port=data.get("port"),
                     tasks_completed=data["tasks_completed"],
                     assigned_containers=[ContainerAssignment(**c) for c in data["assigned_containers"]]

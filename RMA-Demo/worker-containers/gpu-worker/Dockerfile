@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y \
     python3.11 \
     python3-pip \
     curl \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Install cloudflared
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+    && dpkg -i cloudflared-linux-amd64.deb \
+    && rm cloudflared-linux-amd64.deb
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir \
@@ -23,7 +29,7 @@ RUN pip3 install --no-cache-dir \
 COPY worker_agent.py .
 
 # Environment variables
-ENV COORDINATOR_URL=https://rma-coordinator.fly.dev
+ENV COORDINATOR_URL=https://cmacatalyst.onrender.com
 ENV PYTHONUNBUFFERED=1
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility

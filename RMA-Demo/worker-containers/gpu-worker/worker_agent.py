@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Containerized GPU Worker Agent
-For running GPU workloads in containers
+For running GPU workloads in containers with Cloudflare Tunnel support
 """
 
 import os
@@ -9,6 +9,7 @@ import sys
 import time
 import json
 import signal
+import subprocess
 from typing import Dict, Any, Optional
 
 try:
@@ -24,11 +25,15 @@ except ImportError:
 class GPUWorkerAgent:
     """Containerized worker agent for GPU workloads"""
 
-    def __init__(self, coordinator_url: str):
+    def __init__(self, coordinator_url: str, use_tunnel: bool = True, service_port: int = 8000):
         self.coordinator_url = coordinator_url.rstrip('/')
         self.worker_id: Optional[str] = None
         self.running = True
         self.tier = None
+        self.use_tunnel = use_tunnel
+        self.tunnel_process = None
+        self.tunnel_url = None
+        self.service_port = service_port
 
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -37,6 +42,57 @@ class GPUWorkerAgent:
         """Handle shutdown signals"""
         print(f"\n🛑 Received signal {signum}. Shutting down...")
         self.running = False
+        if self.tunnel_process:
+            print("🔌 Closing tunnel...")
+            self.tunnel_process.terminate()
+            self.tunnel_process.wait()
+
+    def start_tunnel(self) -> Optional[str]:
+        """Start cloudflared tunnel and return public URL"""
+        if not self.use_tunnel:
+            return None
+            
+        service_name = os.getenv("SERVICE_NAME", "vllm-service")
+        print(f"🔧 Starting Cloudflare Tunnel for {service_name}:{self.service_port}...")
+        
+        try:
+            self.tunnel_process = subprocess.Popen(
+                ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            
+            timeout = 30
+            start_time = time.time()
+            
+            while time.time() - start_time < timeout:
+                if self.tunnel_process.poll() is not None:
+                    stderr = self.tunnel_process.stderr.read()
+                    print(f"❌ Tunnel process exited unexpectedly: {stderr}")
+                    return None
+                    
+                line = self.tunnel_process.stderr.readline()
+                if 'trycloudflare.com' in line:
+                    parts = line.split('https://')
+                    if len(parts) > 1:
+                        url = 'https://' + parts[1].split()[0].strip()
+                        self.tunnel_url = url
+                        print(f"✅ Tunnel active: {url}")
+                        return url
+                        
+                time.sleep(0.1)
+            
+            print("⚠️  Tunnel URL not found in output, using IP instead")
+            return None
+            
+        except FileNotFoundError:
+            print("⚠️  cloudflared not found, skipping tunnel")
+            return None
+        except Exception as e:
+            print(f"⚠️  Tunnel setup failed: {e}")
+            return None
 
     def detect_gpu_capabilities(self) -> Optional[Dict[str, Any]]:
         """Detect GPU capabilities"""
@@ -88,17 +144,37 @@ class GPUWorkerAgent:
         print(f"\n📡 Registering with coordinator: {self.coordinator_url}")
 
         capabilities = self.detect_capabilities()
+        endpoint_url = self.tunnel_url or capabilities.get("ip_address")
 
         try:
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/register",
-                json={"capabilities": capabilities},
+                json={
+                    "capabilities": capabilities,
+                    "ip_address": endpoint_url,
+                    "tunnel_url": self.tunnel_url
+                },
                 timeout=30
             )
             response.raise_for_status()
             assignment = response.json()
 
             self.worker_id = assignment["worker_id"]
+            self.tier = assignment["tier"]
+
+            print(f"\n✅ Registered successfully!")
+            print(f"   Worker ID: {self.worker_id}")
+            print(f"   Tier: {self.tier}")
+            if self.tunnel_url:
+                print(f"   Tunnel URL: {self.tunnel_url}")
+            elif endpoint_url:
+                print(f"   IP Address: {endpoint_url}")
+
+            return assignment
+
+        except requests.RequestException as e:
+            print(f"❌ Registration failed: {e}")
+            return None
             self.tier = assignment["tier"]
 
             print(f"\n✅ Registered successfully!")
@@ -180,6 +256,11 @@ class GPUWorkerAgent:
         print("RMA GPU Worker (Containerized)")
         print("=" * 60)
 
+        # Start tunnel if enabled
+        if self.use_tunnel:
+            self.start_tunnel()
+            time.sleep(2)
+
         # Register with coordinator
         assignment = None
         retry_count = 0
@@ -198,6 +279,8 @@ class GPUWorkerAgent:
 
         print("\n✅ GPU Worker is now active!")
         print("   Ready to process LLM/Vision workloads")
+        if self.tunnel_url:
+            print(f"   Accessible via: {self.tunnel_url}")
         print("   Press Ctrl+C to stop\n")
 
         # Main loop: Send heartbeats
@@ -222,10 +305,26 @@ class GPUWorkerAgent:
 def main():
     """Main entry point"""
     coordinator_url = os.getenv("COORDINATOR_URL", "http://localhost:8080")
+    use_tunnel = os.getenv("USE_TUNNEL", "false").lower() == "true"
+    service_port = int(os.getenv("SERVICE_PORT", "8000"))
     
     print(f"Starting GPU worker for coordinator: {coordinator_url}")
+    if use_tunnel:
+        print(f"🔒 Tunnel mode enabled for service on port {service_port}")
     
-    agent = GPUWorkerAgent(coordinator_url)
+    agent = GPUWorkerAgent(
+        coordinator_url,
+        use_tunnel=use_tunnel,
+        service_port=service_port
+    )
+    agent.run()
+    
+    print(f"Starting GPU worker for coordinator: {coordinator_url}")
+    agent = GPUWorkerAgent(
+        coordinator_url,
+        use_tunnel=use_tunnel,
+        service_port=service_port
+    )
     agent.run()
 
 

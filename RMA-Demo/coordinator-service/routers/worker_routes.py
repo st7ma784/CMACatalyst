@@ -15,6 +15,7 @@ class WorkerRegistrationRequest(BaseModel):
     """Worker registration request"""
     capabilities: WorkerCapabilities
     ip_address: Optional[str] = None  # Worker can provide its own public IP
+    tunnel_url: Optional[str] = None  # Cloudflare tunnel URL for reverse proxy
 
 
 class HeartbeatRequest(BaseModel):
@@ -35,13 +36,15 @@ async def register_worker(request: WorkerRegistrationRequest, req: Request):
 
     # Extract IP address - prefer worker-provided IP, fallback to request client IP
     ip_address = request.ip_address or (req.client.host if req.client else None)
+    tunnel_url = request.tunnel_url
     
-    print(f"🔍 Worker registration: ip_address from body={request.ip_address}, from client={req.client.host if req.client else None}, final={ip_address}")
+    print(f"🔍 Worker registration: ip={ip_address}, tunnel={tunnel_url}")
 
     # Register worker
     worker = worker_registry.register_worker(
         capabilities=request.capabilities,
-        ip_address=ip_address
+        ip_address=ip_address,
+        tunnel_url=tunnel_url
     )
 
     return {
@@ -50,7 +53,9 @@ async def register_worker(request: WorkerRegistrationRequest, req: Request):
         "assigned_containers": [c.dict() for c in worker.assigned_containers],
         "heartbeat_url": "/api/worker/heartbeat",
         "heartbeat_interval": 30,  # seconds
-        "coordinator_url": str(req.base_url).rstrip('/')
+        "coordinator_url": str(req.base_url).rstrip('/'),
+        "tunnel_url": worker.tunnel_url,
+        "endpoint": worker.tunnel_url or worker.ip_address
     }
 
 

@@ -4,13 +4,14 @@ services:
   cpu-worker:
     build: .
     image: rma-cpu-worker:latest
-    env_file:
-      - ../.env.coordinator
     environment:
-      - USE_TUNNEL=false  # Disabled - using ngrok instead
-      - NGROK_URL=https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload
+      - COORDINATOR_URL=https://cmacatalyst.onrender.com
+      - USE_TUNNEL=true
       - SERVICE_PORT=8103
       - SERVICE_NAME=upload-service
+      # Alternative: Use ngrok if cloudflared fails
+      # - USE_TUNNEL=false
+      # - NGROK_URL=https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload
     restart: unless-stopped
     networks:
       - rma-network

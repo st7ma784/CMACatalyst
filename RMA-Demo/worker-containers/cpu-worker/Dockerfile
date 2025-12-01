@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir \
 COPY worker_agent.py .
 
 # Environment variables
-ENV COORDINATOR_URL=https://rma-coordinator.fly.dev
+ENV COORDINATOR_URL=https://cmacatalyst.onrender.com
 ENV PYTHONUNBUFFERED=1
 
 # Health check
