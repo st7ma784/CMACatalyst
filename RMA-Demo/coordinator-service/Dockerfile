@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY coordinator-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy and build frontend
@@ -26,10 +26,10 @@ RUN mkdir -p /app/static && \
 
 # Copy application code
 WORKDIR /app
-COPY app/ ./app/
-COPY models/ ./models/
-COPY routers/ ./routers/
-COPY utils/ ./utils/
+COPY coordinator-service/app/ ./app/
+COPY coordinator-service/models/ ./models/
+COPY coordinator-service/routers/ ./routers/
+COPY coordinator-service/utils/ ./utils/
 
 # Create __init__.py files
 RUN touch app/__init__.py models/__init__.py routers/__init__.py utils/__init__.py
