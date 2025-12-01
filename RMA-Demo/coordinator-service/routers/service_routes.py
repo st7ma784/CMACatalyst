@@ -43,7 +43,7 @@ async def proxy_to_service(
         workers_with_ip = [w for w in service_workers if w.ip_address]
         
         if workers_with_ip:
-            # Route to worker IP
+            # Route to worker IP/tunnel URL
             selected_worker = min(workers_with_ip, key=lambda w: w.current_load)
             container = next(
                 (c for c in selected_worker.assigned_containers 
@@ -51,7 +51,13 @@ async def proxy_to_service(
                 None
             )
             if container:
-                worker_url = f"http://{selected_worker.ip_address}:{container.port}/{path}"
+                # Use tunnel URL if available, otherwise use IP
+                if hasattr(selected_worker, 'tunnel_url') and selected_worker.tunnel_url:
+                    worker_url = f"{selected_worker.tunnel_url}/{path}"
+                else:
+                    # For local testing: if worker IP looks like a LAN/public IP,
+                    # prefer Docker network name since IP won't route to container ports
+                    worker_url = None  # Force fallback to Docker network name
     
     # Fallback to Docker network service name
     if not worker_url:
