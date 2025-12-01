@@ -4,12 +4,13 @@ services:
   gpu-worker:
     build: .
     image: rma-gpu-worker:latest
-    container_name: rma-gpu-worker
     environment:
       - COORDINATOR_URL=https://rma-coordinator.fly.dev
       - NVIDIA_VISIBLE_DEVICES=all
     runtime: nvidia
     restart: unless-stopped
+    networks:
+      - rma-network
     deploy:
       resources:
         reservations:
@@ -23,3 +24,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+networks:
+  rma-network:
+    external: true
+    name: rma-network

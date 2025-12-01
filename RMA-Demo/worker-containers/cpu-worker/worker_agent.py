@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Containerized CPU Worker Agent
-Lightweight version for running in containers
+Lightweight version for running in containers with Cloudflare Tunnel support
 """
 
 import os
@@ -9,7 +9,8 @@ import sys
 import time
 import json
 import signal
-from typing import Dict, Any, Optional
+import subprocess
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 try:
@@ -21,13 +22,17 @@ except ImportError:
 
 
 class ContainerWorkerAgent:
-    """Containerized worker agent for CPU workloads"""
+    """Containerized worker agent for CPU workloads with tunnel support"""
 
-    def __init__(self, coordinator_url: str):
+    def __init__(self, coordinator_url: str, use_tunnel: bool = True, service_port: int = 8103):
         self.coordinator_url = coordinator_url.rstrip('/')
         self.worker_id: Optional[str] = None
         self.running = True
         self.tier = None
+        self.use_tunnel = use_tunnel
+        self.tunnel_process = None
+        self.tunnel_url = None
+        self.service_port = service_port
 
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -36,6 +41,61 @@ class ContainerWorkerAgent:
         """Handle shutdown signals"""
         print(f"\n🛑 Received signal {signum}. Shutting down...")
         self.running = False
+        if self.tunnel_process:
+            print("🔌 Closing tunnel...")
+            self.tunnel_process.terminate()
+            self.tunnel_process.wait()
+
+    def start_tunnel(self) -> Optional[str]:
+        """Start cloudflared tunnel and return public URL"""
+        if not self.use_tunnel:
+            return None
+            
+        # Get service name from environment
+        service_name = os.getenv("SERVICE_NAME", "upload-service")
+        print(f"🔧 Starting Cloudflare Tunnel for {service_name}:{self.service_port}...")
+        
+        try:
+            # Start cloudflared quick tunnel pointing to the service container
+            self.tunnel_process = subprocess.Popen(
+                ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            
+            # Wait for tunnel URL (appears in stderr)
+            timeout = 30
+            start_time = time.time()
+            
+            while time.time() - start_time < timeout:
+                if self.tunnel_process.poll() is not None:
+                    stderr = self.tunnel_process.stderr.read()
+                    print(f"❌ Tunnel process exited unexpectedly: {stderr}")
+                    return None
+                    
+                line = self.tunnel_process.stderr.readline()
+                if 'trycloudflare.com' in line:
+                    # Extract URL from line like: "Your quick Tunnel has been created! Visit it at (it may take some time to be reachable): https://xxx.trycloudflare.com"
+                    parts = line.split('https://')
+                    if len(parts) > 1:
+                        url = 'https://' + parts[1].split()[0].strip()
+                        self.tunnel_url = url
+                        print(f"✅ Tunnel active: {url}")
+                        return url
+                        
+                time.sleep(0.1)
+            
+            print("⚠️  Tunnel URL not found in output, using IP instead")
+            return None
+            
+        except FileNotFoundError:
+            print("⚠️  cloudflared not found, skipping tunnel (worker will use IP)")
+            return None
+        except Exception as e:
+            print(f"⚠️  Tunnel setup failed: {e}")
+            return None
 
     def detect_capabilities(self) -> Dict[str, Any]:
         """Detect container capabilities"""
@@ -45,29 +105,76 @@ class ContainerWorkerAgent:
         ram_gb = psutil.virtual_memory().total / (1024 ** 3)
         disk_gb = psutil.disk_usage('/').total / (1024 ** 3)
 
+        # Detect public IP
+        public_ip = self.detect_public_ip()
+
         capabilities = {
             "cpu_cores": cpu_cores,
             "ram": f"{ram_gb:.1f}GB",
             "storage": f"{disk_gb:.1f}GB",
             "containerized": True,
-            "worker_type": "cpu"
+            "worker_type": "cpu",
+            "ip_address": public_ip
         }
 
         print(f"✅ CPU Cores: {cpu_cores}")
         print(f"✅ RAM: {ram_gb:.1f}GB")
+        if public_ip:
+            print(f"✅ Public IP: {public_ip}")
 
         return capabilities
+
+    def detect_public_ip(self) -> Optional[str]:
+        """Detect worker's public IP address"""
+        # Try multiple IP detection services
+        services = [
+            "https://api.ipify.org",
+            "https://ifconfig.me/ip",
+            "https://icanhazip.com",
+        ]
+        
+        for service in services:
+            try:
+                response = requests.get(service, timeout=5)
+                if response.status_code == 200:
+                    ip = response.text.strip()
+                    # Basic validation
+                    if ip and len(ip.split('.')) == 4:
+                        return ip
+            except Exception:
+                continue
+        
+        # Fallback: try to get host's IP from environment or docker host
+        try:
+            import socket
+            # This gets the container's IP in the docker network
+            ip = socket.gethostbyname(socket.gethostname())
+            # Check if it's a private IP
+            if not ip.startswith(('127.', '172.', '10.')):
+                return ip
+        except Exception:
+            pass
+        
+        return None
 
     def register_with_coordinator(self) -> Dict[str, Any]:
         """Register this worker with the coordinator"""
         print(f"\n📡 Registering with coordinator: {self.coordinator_url}")
 
         capabilities = self.detect_capabilities()
+        ip_address = capabilities.get("ip_address")
+        
+        # Use tunnel URL if available, otherwise use IP
+        endpoint_url = self.tunnel_url or ip_address
 
         try:
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/register",
-                json={"capabilities": capabilities},
+                json={
+                    "capabilities": capabilities,
+                    "ip_address": endpoint_url,  # Send tunnel URL as "IP"
+                    "tunnel_url": self.tunnel_url  # Also send separately for clarity
+                },
                 timeout=30
             )
             response.raise_for_status()
@@ -79,6 +186,10 @@ class ContainerWorkerAgent:
             print(f"\n✅ Registered successfully!")
             print(f"   Worker ID: {self.worker_id}")
             print(f"   Tier: {self.tier}")
+            if self.tunnel_url:
+                print(f"   Tunnel URL: {self.tunnel_url}")
+            elif ip_address:
+                print(f"   IP Address: {ip_address}")
 
             return assignment
 
@@ -138,6 +249,12 @@ class ContainerWorkerAgent:
         print("RMA CPU Worker (Containerized)")
         print("=" * 60)
 
+        # Start tunnel if enabled
+        if self.use_tunnel:
+            self.start_tunnel()
+            # Give tunnel a moment to stabilize
+            time.sleep(2)
+
         # Register with coordinator
         assignment = None
         retry_count = 0
@@ -156,6 +273,8 @@ class ContainerWorkerAgent:
 
         print("\n✅ CPU Worker is now active!")
         print("   Ready to process service workloads")
+        if self.tunnel_url:
+            print(f"   Accessible via: {self.tunnel_url}")
         print("   Press Ctrl+C to stop\n")
 
         # Main loop: Send heartbeats
@@ -180,10 +299,18 @@ class ContainerWorkerAgent:
 def main():
     """Main entry point"""
     coordinator_url = os.getenv("COORDINATOR_URL", "http://localhost:8080")
+    use_tunnel = os.getenv("USE_TUNNEL", "false").lower() == "true"
+    service_port = int(os.getenv("SERVICE_PORT", "8103"))
     
     print(f"Starting CPU worker for coordinator: {coordinator_url}")
+    if use_tunnel:
+        print(f"🔒 Tunnel mode enabled for service on port {service_port}")
     
-    agent = ContainerWorkerAgent(coordinator_url)
+    agent = ContainerWorkerAgent(
+        coordinator_url,
+        use_tunnel=use_tunnel,
+        service_port=service_port
+    )
     agent.run()
 
 

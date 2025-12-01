@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL || 'http://rag-service:8102'
+const COORDINATOR_URL = process.env.COORDINATOR_URL || 'https://rma-coordinator.fly.dev'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const url = `${RAG_SERVICE_URL}/${path}${request.nextUrl.search}`
+  const url = `${COORDINATOR_URL}/api/service/rag/${path}${request.nextUrl.search}`
 
   try {
     const response = await fetch(url, {
@@ -36,7 +36,7 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const url = `${RAG_SERVICE_URL}/${path}${request.nextUrl.search}`
+  const url = `${COORDINATOR_URL}/api/service/rag/${path}${request.nextUrl.search}`
   const body = await request.json()
 
   try {

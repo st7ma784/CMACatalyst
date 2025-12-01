@@ -1,0 +1,73 @@
+version: '3.8'
+
+# Complete local development stack
+# Coordinator + Services + Workers all on same network
+
+services:
+  # Local Coordinator
+  coordinator:
+    build: ./coordinator-service
+    container_name: rma-coordinator-local
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - rma-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Upload/Login Service
+  upload-service:
+    build: ./services/upload-service
+    container_name: upload-service
+    ports:
+      - "8103:8103"
+    environment:
+      - JWT_SECRET=local-dev-secret
+      - PORT=8103
+      - UPLOAD_DIR=/data/uploads
+    volumes:
+      - upload-data:/data/uploads
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+  # RAG Service  
+  rag-service:
+    build: ./services/rag-service
+    container_name: rag-service
+    ports:
+      - "8102:8102"
+    environment:
+      - PORT=8102
+    volumes:
+      - rag-data:/data/vectorstore
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+  # Notes Service
+  notes-service:
+    build: ./services/notes-service
+    container_name: notes-service
+    ports:
+      - "8100:8100"
+    environment:
+      - NOTES_SERVICE_PORT=8100
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+volumes:
+  upload-data:
+  rag-data:
+
+networks:
+  rma-network:
+    name: rma-network
+    external: true

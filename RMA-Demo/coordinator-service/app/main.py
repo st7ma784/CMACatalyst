@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from models.worker import WorkerRegistry
-from routers import worker_routes, inference_routes, admin_routes
+from routers import worker_routes, inference_routes, admin_routes, service_routes
 from utils.database import init_db
 
 # Global worker registry
@@ -52,6 +52,7 @@ app.add_middleware(
 app.include_router(worker_routes.router, prefix="/api/worker", tags=["Worker"])
 app.include_router(inference_routes.router, prefix="/api/inference", tags=["Inference"])
 app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(service_routes.router, prefix="/api/service", tags=["Services"])
 
 
 @app.get("/")
@@ -82,6 +83,7 @@ async def health():
 worker_routes.worker_registry = worker_registry
 inference_routes.worker_registry = worker_registry
 admin_routes.worker_registry = worker_registry
+service_routes.worker_registry = worker_registry
 
 
 if __name__ == "__main__":

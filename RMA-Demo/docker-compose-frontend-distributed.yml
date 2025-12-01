@@ -1,0 +1,30 @@
+# docker-compose-frontend-distributed.yml
+# Lightweight frontend for distributed RMA system
+# Services run on distributed workers, accessed through coordinator
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+    container_name: rma-frontend-distributed
+    ports:
+      - "3002:3000"
+    environment:
+      # Public coordinator
+      - NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+      
+      # API routing
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+      
+      # Service URLs (accessed through workers via coordinator)
+      - NEXT_PUBLIC_RAG_SERVICE_URL=http://localhost:3000/api/rag
+      - NEXT_PUBLIC_UPLOAD_SERVICE_URL=http://localhost:3000/api/upload
+      - NEXT_PUBLIC_NER_SERVICE_URL=http://localhost:3000/api/ner
+      - NEXT_PUBLIC_NEO4J_BROWSER_URL=http://localhost:7474
+    restart: unless-stopped
+

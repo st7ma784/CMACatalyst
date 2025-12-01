@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const UPLOAD_SERVICE_URL = process.env.UPLOAD_SERVICE_URL || 'http://upload-service:8103'
+const COORDINATOR_URL = process.env.COORDINATOR_URL || 'https://rma-coordinator.fly.dev'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const url = `${UPLOAD_SERVICE_URL}/${path}${request.nextUrl.search}`
+  const url = `${COORDINATOR_URL}/api/service/upload/${path}${request.nextUrl.search}`
 
   try {
     const response = await fetch(url, {
@@ -36,7 +36,7 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const url = `${UPLOAD_SERVICE_URL}/${path}${request.nextUrl.search}`
+  const url = `${COORDINATOR_URL}/api/service/upload/${path}${request.nextUrl.search}`
   const body = await request.json()
 
   try {
@@ -67,7 +67,7 @@ export async function DELETE(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/')
-  const url = `${UPLOAD_SERVICE_URL}/${path}${request.nextUrl.search}`
+  const url = `${COORDINATOR_URL}/api/service/upload/${path}${request.nextUrl.search}`
 
   try {
     const response = await fetch(url, {

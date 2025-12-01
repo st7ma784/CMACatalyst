@@ -14,6 +14,7 @@ worker_registry = None  # Injected from main.py
 class WorkerRegistrationRequest(BaseModel):
     """Worker registration request"""
     capabilities: WorkerCapabilities
+    ip_address: Optional[str] = None  # Worker can provide its own public IP
 
 
 class HeartbeatRequest(BaseModel):
@@ -32,8 +33,10 @@ async def register_worker(request: WorkerRegistrationRequest, req: Request):
     Returns assignment including worker_id, tier, and containers to run
     """
 
-    # Extract IP address
-    ip_address = req.client.host if req.client else None
+    # Extract IP address - prefer worker-provided IP, fallback to request client IP
+    ip_address = request.ip_address or (req.client.host if req.client else None)
+    
+    print(f"🔍 Worker registration: ip_address from body={request.ip_address}, from client={req.client.host if req.client else None}, final={ip_address}")
 
     # Register worker
     worker = worker_registry.register_worker(

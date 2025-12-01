@@ -6,6 +6,9 @@ services:
     image: rma-cpu-worker:latest
     environment:
       - COORDINATOR_URL=http://rma-coordinator-local:8080
+      - USE_TUNNEL=false
+      - SERVICE_PORT=8103
+      - SERVICE_NAME=upload-service
     restart: unless-stopped
     networks:
       - rma-network

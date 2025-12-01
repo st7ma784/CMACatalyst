@@ -5,7 +5,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Python dependencies only (no docker-in-docker)
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install cloudflared
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+    && dpkg -i cloudflared-linux-amd64.deb \
+    && rm cloudflared-linux-amd64.deb
+
+# Install Python dependencies
 RUN pip install --no-cache-dir \
     requests==2.31.0 \
     psutil==5.9.6

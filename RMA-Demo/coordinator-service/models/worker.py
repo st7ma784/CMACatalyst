@@ -140,6 +140,16 @@ class WorkerRegistry:
             min_service = min(service_distribution, key=service_distribution.get)
 
             service_configs = {
+                "upload": ContainerAssignment(
+                    name="rma-upload-worker",
+                    image="ghcr.io/rma/upload-worker:latest",
+                    port=8103,
+                    env={
+                        "COORDINATOR_URL": "http://coordinator:8080",
+                        "WORKER_ID": worker.worker_id,
+                        "JWT_SECRET": "production-secret-change-this"
+                    }
+                ),
                 "rag": ContainerAssignment(
                     name="rma-rag-worker",
                     image="ghcr.io/rma/rag-worker:latest",
@@ -162,6 +172,24 @@ class WorkerRegistry:
                     name="rma-ner-worker",
                     image="ghcr.io/rma/ner-worker:latest",
                     port=8108,
+                    env={
+                        "COORDINATOR_URL": "http://coordinator:8080",
+                        "WORKER_ID": worker.worker_id
+                    }
+                ),
+                "client-rag": ContainerAssignment(
+                    name="rma-client-rag-worker",
+                    image="ghcr.io/rma/client-rag-worker:latest",
+                    port=8101,
+                    env={
+                        "COORDINATOR_URL": "http://coordinator:8080",
+                        "WORKER_ID": worker.worker_id
+                    }
+                ),
+                "doc-processor": ContainerAssignment(
+                    name="rma-doc-processor-worker",
+                    image="ghcr.io/rma/doc-processor-worker:latest",
+                    port=8104,
                     env={
                         "COORDINATOR_URL": "http://coordinator:8080",
                         "WORKER_ID": worker.worker_id
@@ -217,16 +245,29 @@ class WorkerRegistry:
 
     def _get_service_distribution(self) -> Dict[str, int]:
         """Get distribution of service workers"""
-        distribution = {"rag": 0, "notes": 0, "ner": 0}
+        distribution = {
+            "upload": 0,
+            "rag": 0,
+            "notes": 0,
+            "ner": 0,
+            "client-rag": 0,
+            "doc-processor": 0
+        }
         for worker in self.workers.values():
             if worker.tier == 2:
                 for container in worker.assigned_containers:
-                    if "rag" in container.name:
+                    if "upload" in container.name:
+                        distribution["upload"] += 1
+                    elif "rag" in container.name and "client" not in container.name:
                         distribution["rag"] += 1
                     elif "notes" in container.name:
                         distribution["notes"] += 1
                     elif "ner" in container.name:
                         distribution["ner"] += 1
+                    elif "client-rag" in container.name:
+                        distribution["client-rag"] += 1
+                    elif "doc-processor" in container.name:
+                        distribution["doc-processor"] += 1
         return distribution
 
     def _get_data_distribution(self) -> Dict[str, int]:

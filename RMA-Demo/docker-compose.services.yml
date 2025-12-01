@@ -1,0 +1,124 @@
+version: '3.8'
+
+# All RMA services on shared network
+# Workers report to coordinator, services handle actual work
+# Coordinator routes: Frontend -> Coordinator (Fly.io) -> Service (Docker network)
+
+services:
+  # Upload/Login Service
+  upload-service:
+    build: ./services/upload-service
+    image: ghcr.io/rma/upload-worker:latest
+    container_name: upload-service
+    ports:
+      - "8103:8103"
+    environment:
+      - JWT_SECRET=production-secret-change-this
+      - PORT=8103
+      - UPLOAD_DIR=/data/uploads
+    volumes:
+      - upload-data:/data/uploads
+    networks:
+      - rma-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8103/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # RAG Service
+  rag-service:
+    build: ./services/rag-service
+    image: ghcr.io/rma/rag-worker:latest
+    container_name: rag-service
+    ports:
+      - "8102:8102"
+    environment:
+      - PORT=8102
+      - VECTORSTORE_PATH=/data/vectorstore
+      - MANUALS_PATH=/manuals
+    volumes:
+      - rag-data:/data/vectorstore
+      - ./manuals:/manuals:ro
+    networks:
+      - rma-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8102/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notes Service
+  notes-service:
+    build: ./services/notes-service
+    image: ghcr.io/rma/notes-worker:latest
+    container_name: notes-service
+    ports:
+      - "8100:8100"
+    environment:
+      - NOTES_SERVICE_PORT=8100
+    networks:
+      - rma-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Client RAG Service
+  client-rag-service:
+    build: ./services/client-rag-service
+    image: ghcr.io/rma/client-rag-worker:latest
+    container_name: client-rag-service
+    ports:
+      - "8101:8101"
+    environment:
+      - PORT=8101
+      - VECTORSTORE_PATH=/data/client-vectors
+    volumes:
+      - client-rag-data:/data/client-vectors
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+  # NER/Graph Service
+  ner-service:
+    build: ./services/ner-graph-service
+    image: ghcr.io/rma/ner-worker:latest
+    container_name: ner-service
+    ports:
+      - "8108:8108"
+    environment:
+      - PORT=8108
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+  # Document Processor
+  doc-processor-service:
+    build: ./services/doc-processor
+    image: ghcr.io/rma/doc-processor-worker:latest
+    container_name: doc-processor-service
+    ports:
+      - "8104:8104"
+    environment:
+      - PORT=8104
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+volumes:
+  upload-data:
+    name: rma-upload-data
+  rag-data:
+    name: rma-rag-data
+  client-rag-data:
+    name: rma-client-rag-data
+
+networks:
+  rma-network:
+    name: rma-network
+    external: true

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/tabs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -17,7 +17,7 @@ import {
   Users
 } from 'lucide-react'
 
-const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL || 'http://localhost:8080'
+const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL || 'https://rma-coordinator.fly.dev'
 
 interface Worker {
   worker_id: string

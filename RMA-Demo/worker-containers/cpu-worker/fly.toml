@@ -1,0 +1,27 @@
+# fly.toml app configuration file generated for rma-cpu-worker-1 on 2025-12-01T15:15:32Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'rma-cpu-worker-1'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  COORDINATOR_URL = 'https://rma-coordinator.fly.dev'
+  PYTHONUNBUFFERED = '1'
+
+[checks]
+  [checks.worker_health]
+    port = 8080
+    type = 'tcp'
+    interval = '30s'
+    timeout = '10s'
+    grace_period = '30s'
+    method = 'get'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

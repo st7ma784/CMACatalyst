@@ -26,6 +26,7 @@ async def list_workers():
             "assigned_containers": [c.name for c in worker.assigned_containers],
             "last_heartbeat": worker.last_heartbeat.isoformat(),
             "registered_at": worker.registered_at.isoformat(),
+            "ip_address": worker.ip_address,
             "capabilities": worker.capabilities.dict()
         })
 

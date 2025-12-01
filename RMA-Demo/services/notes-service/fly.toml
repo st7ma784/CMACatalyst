@@ -1,0 +1,29 @@
+# fly.toml for rma-notes-service
+
+app = 'rma-notes-service'
+primary_region = 'lhr'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  NOTES_SERVICE_PORT = '8100'
+  COORDINATOR_URL = 'https://rma-coordinator.fly.dev'
+
+[http_service]
+  internal_port = 8100
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
