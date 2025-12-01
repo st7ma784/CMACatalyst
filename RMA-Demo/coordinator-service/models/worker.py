@@ -49,11 +49,16 @@ class Worker(BaseModel):
 class WorkerRegistry:
     """Registry for managing workers"""
 
-    def __init__(self, persistence_file: str = "/data/workers.json"):
+    def __init__(self, persistence_file: str = None):
         self.workers: Dict[str, Worker] = {}
         self._lock = threading.Lock()
         self._health_monitor_running = False
         self._health_monitor_thread = None
+        
+        # Use /tmp for writable storage on Render, or disable persistence
+        if persistence_file is None:
+            persistence_file = os.getenv("WORKER_PERSISTENCE_FILE", "/tmp/workers.json")
+        
         self.persistence_file = persistence_file
         self._load_workers()
 
