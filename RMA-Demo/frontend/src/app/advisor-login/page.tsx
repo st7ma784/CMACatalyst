@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { LogIn } from 'lucide-react'
 
-const UPLOAD_SERVICE_URL = process.env.NEXT_PUBLIC_UPLOAD_SERVICE_URL || 'http://localhost:8103'
+const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL || 'http://localhost:8080'
 
 export default function AdvisorLogin() {
   const router = useRouter()
@@ -26,7 +26,7 @@ export default function AdvisorLogin() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${UPLOAD_SERVICE_URL}/login`, {
+      const response = await fetch(`${COORDINATOR_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

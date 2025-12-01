@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 
 from models.worker import WorkerRegistry
-from routers import worker_routes, inference_routes, admin_routes, service_routes
+from routers import worker_routes, inference_routes, admin_routes, service_routes, auth_routes
 from utils.database import init_db
 
 # Global worker registry
@@ -49,6 +49,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_routes.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(worker_routes.router, prefix="/api/worker", tags=["Worker"])
 app.include_router(inference_routes.router, prefix="/api/inference", tags=["Inference"])
 app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin"])

@@ -4,9 +4,10 @@ services:
   cpu-worker:
     build: .
     image: rma-cpu-worker:latest
+    env_file:
+      - ../.env.coordinator
     environment:
-      - COORDINATOR_URL=http://rma-coordinator-local:8080
-      - USE_TUNNEL=false
+      - USE_TUNNEL=true
       - SERVICE_PORT=8103
       - SERVICE_NAME=upload-service
     restart: unless-stopped
