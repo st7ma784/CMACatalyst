@@ -1,4 +1,59 @@
-# RMA-Demo Dashboard
+# RMA-Demo: Distributed AI System
+
+A comprehensive distributed computing platform for AI workloads, featuring a democratized worker pool where anyone can contribute compute capacity.
+
+## 🏗️ System Architecture
+
+The RMA system uses a **distributed architecture** that separates coordination (free-tier cloud) from computation (volunteer workers):
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Fly.io Free Tier (Coordinator + Dashboard)  $0/month  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌─────────────────┐      ┌──────────────────┐       │
+│  │  Coordinator    │◄────►│  Admin Dashboard │       │
+│  │  (FastAPI)      │      │  (React + Vite)  │       │
+│  └────────┬────────┘      └──────────────────┘       │
+│           │                                            │
+└───────────┼────────────────────────────────────────────┘
+            │ HTTPS (Public Internet)
+            │
+┌───────────┴──────────────────────────────────────────────┐
+│                 Distributed Workers                       │
+├───────────────────────────────────────────────────────────┤
+│                                                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐│
+│  │ GPU      │  │ GPU      │  │ CPU      │  │ CPU     ││
+│  │ Worker   │  │ Worker   │  │ Worker   │  │ Worker  ││
+│  │ Tier 1   │  │ Tier 1   │  │ Tier 2   │  │ Tier 2  ││
+│  │          │  │          │  │          │  │         ││
+│  │ vLLM     │  │ Vision   │  │ RAG      │  │ NER     ││
+│  │ Inference│  │ OCR      │  │ Service  │  │ Service ││
+│  └──────────┘  └──────────┘  └──────────┘  └─────────┘│
+│                                                           │
+│  Anyone can run a worker container to donate compute!    │
+└───────────────────────────────────────────────────────────┘
+```
+
+**📖 For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md)**
+
+## Why Distributed?
+
+### Before (Centralized)
+- GPU server: **$730/month**
+- Limited by single machine capacity
+- Expensive to scale
+
+### After (Distributed)  
+- Coordinator: **$0/month** (Fly.io free tier)
+- Workers: **$0** (community donated)
+- **Total: $1/month** (99.9% cost reduction!)
+- Infinite scalability (add more workers anytime)
+
+---
+
+# Original RMA-Demo Dashboard Features
 
 A comprehensive Risk Management Advice dashboard prototype for single-centre deployment, featuring AI-powered document processing, client communication tools, and knowledge management.
 

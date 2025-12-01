@@ -2,7 +2,32 @@
 
 A comprehensive case management system for Community Money Advice centres, built with Node.js, Express, PostgreSQL, and React.
 
-## Features
+## 🎯 Projects in This Repository
+
+### 1. CMA Case Management (Main Project)
+Traditional centralized case management system for advice centres.
+
+### 2. RMA Distributed System ([RMA-Demo/](./RMA-Demo/))
+**NEW:** Distributed AI compute pool with 99.9% cost reduction!
+
+```
+Traditional Setup:  $730/month GPU server
+Distributed Setup:  $1/month (Fly.io free tier + volunteers)
+────────────────────────────────────────────────────
+Savings:            $729/month (99.9% reduction)
+```
+
+**Architecture:**
+- Free-tier coordinator (Fly.io)
+- Volunteer worker pool (community donated)
+- Real-time monitoring dashboard
+- Auto-scaling and load balancing
+
+**📖 See [RMA-Demo/VISUAL_SUMMARY.md](./RMA-Demo/VISUAL_SUMMARY.md) for diagrams**
+
+---
+
+## CMA System Features
 
 ### Core System
 - **Multi-centre Management**: Complete data isolation and role-based access control
