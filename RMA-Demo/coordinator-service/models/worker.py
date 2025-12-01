@@ -303,13 +303,13 @@ class WorkerRegistry:
                 for worker_id, worker in list(self.workers.items()):
                     time_since_heartbeat = current_time - worker.last_heartbeat
 
-                    # Mark as offline if no heartbeat for 2 minutes
-                    if time_since_heartbeat > timedelta(minutes=2):
+                    # Mark as offline if no heartbeat for 5 minutes
+                    if time_since_heartbeat > timedelta(minutes=5):
                         print(f"⚠️ Worker {worker_id} offline (no heartbeat for {time_since_heartbeat})")
                         worker.status = "offline"
 
-                    # Remove if offline for 10 minutes
-                    elif time_since_heartbeat > timedelta(minutes=10):
+                    # Remove if offline for 30 minutes
+                    elif time_since_heartbeat > timedelta(minutes=30):
                         print(f"🗑️ Removing offline worker {worker_id}")
                         del self.workers[worker_id]
 

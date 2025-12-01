@@ -4,10 +4,11 @@ services:
   cpu-worker:
     build: .
     image: rma-cpu-worker:latest
-    container_name: rma-cpu-worker
     environment:
-      - COORDINATOR_URL=https://rma-coordinator.fly.dev
+      - COORDINATOR_URL=http://rma-coordinator-local:8080
     restart: unless-stopped
+    networks:
+      - rma-network
     deploy:
       resources:
         limits:
@@ -22,3 +23,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+networks:
+  rma-network:
+    external: true
+    name: rma-network

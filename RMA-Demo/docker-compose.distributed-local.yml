@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # Local Coordinator
+  coordinator:
+    build:
+      context: ./coordinator-service
+      dockerfile: Dockerfile
+    container_name: rma-coordinator-local
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    restart: unless-stopped
+    networks:
+      - rma-network
+
+  # Frontend with coordinator integration
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rma-frontend-distributed
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_COORDINATOR_URL=http://localhost:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
+    depends_on:
+      - coordinator
+    restart: unless-stopped
+    networks:
+      - rma-network
+
+networks:
+  rma-network:
+    name: rma-network
+
