@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 import uuid
 import threading
 import time
+import json
+import os
+from pathlib import Path
 
 
 class WorkerCapabilities(BaseModel):
@@ -46,11 +49,13 @@ class Worker(BaseModel):
 class WorkerRegistry:
     """Registry for managing workers"""
 
-    def __init__(self):
+    def __init__(self, persistence_file: str = "/data/workers.json"):
         self.workers: Dict[str, Worker] = {}
         self._lock = threading.Lock()
         self._health_monitor_running = False
         self._health_monitor_thread = None
+        self.persistence_file = persistence_file
+        self._load_workers()
 
     def register_worker(self, capabilities: WorkerCapabilities, ip_address: str = None) -> Worker:
         """Register a new worker and assign tier + containers"""
@@ -72,6 +77,7 @@ class WorkerRegistry:
             self.workers[worker.worker_id] = worker
 
         print(f"✅ Registered worker {worker.worker_id} (Tier {tier})")
+        self._save_workers()
         return worker
 
     def _determine_tier(self, capabilities: WorkerCapabilities) -> int:
@@ -244,6 +250,8 @@ class WorkerRegistry:
                 self.workers[worker_id].last_heartbeat = datetime.utcnow()
                 self.workers[worker_id].status = status
                 self.workers[worker_id].current_load = current_load
+                # Save periodically (every heartbeat might be too frequent in production)
+                self._save_workers()
 
     def unregister_worker(self, worker_id: str):
         """Remove worker from registry"""
@@ -251,6 +259,7 @@ class WorkerRegistry:
             if worker_id in self.workers:
                 del self.workers[worker_id]
                 print(f"❌ Unregistered worker {worker_id}")
+                self._save_workers()
 
     def get_worker(self, worker_id: str) -> Optional[Worker]:
         """Get worker by ID"""
@@ -298,19 +307,91 @@ class WorkerRegistry:
         """Background loop to monitor worker health"""
         while self._health_monitor_running:
             current_time = datetime.utcnow()
+            modified = False
 
             with self._lock:
                 for worker_id, worker in list(self.workers.items()):
                     time_since_heartbeat = current_time - worker.last_heartbeat
 
-                    # Mark as offline if no heartbeat for 2 minutes
-                    if time_since_heartbeat > timedelta(minutes=2):
-                        print(f"⚠️ Worker {worker_id} offline (no heartbeat for {time_since_heartbeat})")
-                        worker.status = "offline"
+                    # Mark as offline if no heartbeat for 5 minutes (more lenient)
+                    if time_since_heartbeat > timedelta(minutes=5):
+                        if worker.status != "offline":
+                            print(f"⚠️ Worker {worker_id} offline (no heartbeat for {time_since_heartbeat})")
+                            worker.status = "offline"
+                            modified = True
 
-                    # Remove if offline for 10 minutes
-                    elif time_since_heartbeat > timedelta(minutes=10):
+                    # Remove if offline for 30 minutes (increased tolerance)
+                    elif time_since_heartbeat > timedelta(minutes=30):
                         print(f"🗑️ Removing offline worker {worker_id}")
                         del self.workers[worker_id]
+                        modified = True
+
+            if modified:
+                self._save_workers()
 
             time.sleep(30)  # Check every 30 seconds
+
+    def _save_workers(self):
+        """Save worker registry to disk"""
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.persistence_file), exist_ok=True)
+            
+            # Convert workers to dict format
+            workers_data = {
+                worker_id: {
+                    "worker_id": worker.worker_id,
+                    "capabilities": worker.capabilities.dict(),
+                    "tier": worker.tier,
+                    "status": worker.status,
+                    "last_heartbeat": worker.last_heartbeat.isoformat(),
+                    "registered_at": worker.registered_at.isoformat(),
+                    "current_load": worker.current_load,
+                    "ip_address": worker.ip_address,
+                    "port": worker.port,
+                    "tasks_completed": worker.tasks_completed,
+                    "assigned_containers": [c.dict() for c in worker.assigned_containers]
+                }
+                for worker_id, worker in self.workers.items()
+            }
+            
+            # Write to file atomically
+            temp_file = self.persistence_file + ".tmp"
+            with open(temp_file, 'w') as f:
+                json.dump(workers_data, f, indent=2)
+            os.replace(temp_file, self.persistence_file)
+            
+        except Exception as e:
+            print(f"⚠️ Failed to save workers: {e}")
+
+    def _load_workers(self):
+        """Load worker registry from disk"""
+        try:
+            if not os.path.exists(self.persistence_file):
+                print("ℹ️ No existing worker registry found, starting fresh")
+                return
+            
+            with open(self.persistence_file, 'r') as f:
+                workers_data = json.load(f)
+            
+            for worker_id, data in workers_data.items():
+                # Reconstruct worker object
+                worker = Worker(
+                    worker_id=data["worker_id"],
+                    capabilities=WorkerCapabilities(**data["capabilities"]),
+                    tier=data["tier"],
+                    status=data["status"],
+                    last_heartbeat=datetime.fromisoformat(data["last_heartbeat"]),
+                    registered_at=datetime.fromisoformat(data["registered_at"]),
+                    current_load=data["current_load"],
+                    ip_address=data.get("ip_address"),
+                    port=data.get("port"),
+                    tasks_completed=data["tasks_completed"],
+                    assigned_containers=[ContainerAssignment(**c) for c in data["assigned_containers"]]
+                )
+                self.workers[worker_id] = worker
+            
+            print(f"✅ Loaded {len(self.workers)} workers from disk")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to load workers: {e}, starting fresh")
