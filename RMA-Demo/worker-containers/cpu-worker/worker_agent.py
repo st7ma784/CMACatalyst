@@ -65,9 +65,24 @@ class ContainerWorkerAgent:
                     print(f"🔄 Retry {attempt}/{max_retries} after {retry_delay}s...")
                     time.sleep(retry_delay)
                 
+                # Try connecting to the service first to make sure it's ready
+                try:
+                    response = requests.get(f'http://{service_name}:{self.service_port}/health', timeout=5)
+                    if response.status_code != 200:
+                        print(f"⚠️  Service {service_name}:{self.service_port} not ready yet")
+                        if attempt < max_retries - 1:
+                            continue
+                        return None
+                except Exception as e:
+                    print(f"⚠️  Cannot reach service {service_name}:{self.service_port}: {e}")
+                    if attempt < max_retries - 1:
+                        continue
+                    return None
+                
                 # Start cloudflared quick tunnel pointing to the service container
                 self.tunnel_process = subprocess.Popen(
-                    ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}'],
+                    ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}', 
+                     '--no-tls-verify'],  # Skip TLS verification for local services
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -81,9 +96,9 @@ class ContainerWorkerAgent:
                 while time.time() - start_time < timeout:
                     if self.tunnel_process.poll() is not None:
                         stderr = self.tunnel_process.stderr.read()
-                        if "EOF" in stderr or "TLS" in stderr:
+                        if "EOF" in stderr or "TLS" in stderr or "SSL" in stderr:
                             # API connection issue, try again
-                            print(f"⚠️  Cloudflare API connection failed (attempt {attempt + 1}/{max_retries})")
+                            print(f"⚠️  Cloudflare API connection failed (attempt {attempt + 1}/{max_retries}): TLS/SSL error")
                             break
                         else:
                             print(f"❌ Tunnel process exited: {stderr}")
@@ -108,7 +123,8 @@ class ContainerWorkerAgent:
                         self.tunnel_process.wait()
                     continue
                 else:
-                    print("⚠️  Tunnel creation timed out after retries, using IP instead")
+                    print("⚠️  Tunnel creation timed out after retries")
+                    print("💡 Cloudflare Tunnel may be blocked by firewall/proxy")
                     return None
                 
             except FileNotFoundError:
@@ -120,6 +136,7 @@ class ContainerWorkerAgent:
                     continue
                 else:
                     print(f"⚠️  Tunnel setup failed after {max_retries} attempts: {e}")
+                    print("💡 Consider using a VPN or different network if issues persist")
                     return None
         
         return None

@@ -21,12 +21,12 @@ async def proxy_to_service(
 ):
     """
     Generic service proxy
-    Finds a worker running the specified service and forwards the request
+    Routes requests to services via worker's ngrok tunnel URL
     
-    Strategy:
-    1. Try to find a worker with the service and route to worker's IP
-    2. If no worker IP, try docker network service name (e.g., http://upload-service:8103)
-    3. Fallback to environment variable for direct URL
+    Priority:
+    1. Worker's tunnel_url (ngrok) - for production
+    2. Docker network (upload-service:8103) - for local dev
+    3. Environment variable fallback
     """
     
     # Find available workers with this service
@@ -39,29 +39,24 @@ async def proxy_to_service(
     worker_url = None
 
     if service_workers:
-        # Found workers with this service
-        workers_with_ip = [w for w in service_workers if w.ip_address]
+        # Found workers with this service - use their tunnel URL
+        workers_with_tunnel = [w for w in service_workers 
+                               if hasattr(w, 'tunnel_url') and w.tunnel_url]
         
-        if workers_with_ip:
-            # Route to worker IP/tunnel URL
-            selected_worker = min(workers_with_ip, key=lambda w: w.current_load)
-            container = next(
-                (c for c in selected_worker.assigned_containers 
-                 if service_name in c.name.lower()),
-                None
-            )
-            if container:
-                # Use tunnel URL if available, otherwise use IP
-                if hasattr(selected_worker, 'tunnel_url') and selected_worker.tunnel_url:
-                    worker_url = f"{selected_worker.tunnel_url}/{path}"
-                else:
-                    # For local testing: if worker IP looks like a LAN/public IP,
-                    # prefer Docker network name since IP won't route to container ports
-                    worker_url = None  # Force fallback to Docker network name
+        if workers_with_tunnel:
+            # Route to worker's ngrok tunnel
+            selected_worker = min(workers_with_tunnel, key=lambda w: w.current_load)
+            
+            # ngrok URL should already include the service path like:
+            # https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload
+            # So we just append the path
+            base_url = selected_worker.tunnel_url.rstrip('/')
+            worker_url = f"{base_url}/{path.lstrip('/')}"
+            
+            print(f"🔀 Routing {service_name}/{path} to worker {selected_worker.worker_id}: {worker_url}")
     
-    # Fallback to Docker network service name
+    # Fallback to Docker network service name (local development)
     if not worker_url:
-        # Map service name to container name
         service_map = {
             "upload": ("upload-service", 8103),
             "rag": ("rag-service", 8102),
@@ -74,16 +69,12 @@ async def proxy_to_service(
         if service_name in service_map:
             container_name, port = service_map[service_name]
             worker_url = f"http://{container_name}:{port}/{path}"
-        else:
-            # Last resort: environment variable
-            fallback_url = os.getenv(f"{service_name.upper().replace('-', '_')}_SERVICE_URL")
-            if fallback_url:
-                worker_url = f"{fallback_url}/{path}"
+            print(f"🔀 Routing {service_name}/{path} to Docker network: {worker_url}")
     
     if not worker_url:
         raise HTTPException(
             status_code=503,
-            detail=f"No workers or services available for {service_name}. Please ensure service containers are running or workers are connected."
+            detail=f"No workers available for {service_name}. Ensure workers are registered with tunnel URLs."
         )
 
     # Forward the request
@@ -94,7 +85,7 @@ async def proxy_to_service(
             if request.method in ["POST", "PUT", "PATCH"]:
                 body = await request.body()
             
-            # Prepare headers (exclude host and connection headers)
+            # Prepare headers (exclude problematic headers)
             headers = {
                 k: v for k, v in request.headers.items()
                 if k.lower() not in ['host', 'connection', 'content-length']
@@ -110,18 +101,28 @@ async def proxy_to_service(
             )
             
             # Return response
-            return JSONResponse(
-                content=response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text,
-                status_code=response.status_code,
-                headers=dict(response.headers)
-            )
+            content_type = response.headers.get('content-type', '')
+            if 'application/json' in content_type:
+                return JSONResponse(
+                    content=response.json(),
+                    status_code=response.status_code,
+                    headers={k: v for k, v in response.headers.items() 
+                            if k.lower() not in ['content-length', 'transfer-encoding']}
+                )
+            else:
+                return JSONResponse(
+                    content={"data": response.text},
+                    status_code=response.status_code
+                )
             
     except httpx.HTTPError as e:
+        print(f"❌ Proxy error for {service_name}/{path}: {str(e)}")
         raise HTTPException(
             status_code=502,
-            detail=f"Worker request failed: {str(e)}"
+            detail=f"Failed to reach service: {str(e)}"
         )
     except Exception as e:
+        print(f"❌ Unexpected error for {service_name}/{path}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Internal error: {str(e)}"
