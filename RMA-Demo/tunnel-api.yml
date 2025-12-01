@@ -1,0 +1,7 @@
+tunnel: c723240f-9c6d-4558-b104-0f5cc37afa32
+credentials-file: /home/user/.cloudflared/c723240f-9c6d-4558-b104-0f5cc37afa32.json
+
+ingress:
+  - hostname: api.rmatool.org.uk
+    service: http://localhost:8080
+  - service: http_status:404

@@ -1,0 +1,26 @@
+# Cloudflare Tunnel Configuration for RMA Workers
+# Domain: rmatool.org.uk
+# This config exposes local services through Cloudflare Tunnels
+
+tunnel: PUT_YOUR_TUNNEL_ID_HERE
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Worker 1 - Upload Service
+  - hostname: worker1.rmatool.org.uk
+    service: http://upload-service:8103
+  
+  # Worker 2 - RAG Service  
+  - hostname: worker2.rmatool.org.uk
+    service: http://rag-service:8102
+  
+  # Worker 3 - Notes Service
+  - hostname: worker3.rmatool.org.uk
+    service: http://notes-service:8100
+  
+  # Worker 4 - NER/Graph Service
+  - hostname: worker4.rmatool.org.uk
+    service: http://ner-service:8108
+  
+  # Catch-all rule (required)
+  - service: http_status:404
