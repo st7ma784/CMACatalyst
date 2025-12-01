@@ -55,47 +55,74 @@ class ContainerWorkerAgent:
         service_name = os.getenv("SERVICE_NAME", "upload-service")
         print(f"🔧 Starting Cloudflare Tunnel for {service_name}:{self.service_port}...")
         
-        try:
-            # Start cloudflared quick tunnel pointing to the service container
-            self.tunnel_process = subprocess.Popen(
-                ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1
-            )
-            
-            # Wait for tunnel URL (appears in stderr)
-            timeout = 30
-            start_time = time.time()
-            
-            while time.time() - start_time < timeout:
-                if self.tunnel_process.poll() is not None:
-                    stderr = self.tunnel_process.stderr.read()
-                    print(f"❌ Tunnel process exited unexpectedly: {stderr}")
-                    return None
-                    
-                line = self.tunnel_process.stderr.readline()
-                if 'trycloudflare.com' in line:
-                    # Extract URL from line like: "Your quick Tunnel has been created! Visit it at (it may take some time to be reachable): https://xxx.trycloudflare.com"
-                    parts = line.split('https://')
-                    if len(parts) > 1:
-                        url = 'https://' + parts[1].split()[0].strip()
-                        self.tunnel_url = url
-                        print(f"✅ Tunnel active: {url}")
-                        return url
+        # Retry logic for tunnel creation (API can be flaky)
+        max_retries = 3
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    print(f"🔄 Retry {attempt}/{max_retries} after {retry_delay}s...")
+                    time.sleep(retry_delay)
+                
+                # Start cloudflared quick tunnel pointing to the service container
+                self.tunnel_process = subprocess.Popen(
+                    ['cloudflared', 'tunnel', '--url', f'http://{service_name}:{self.service_port}'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1
+                )
+                
+                # Wait for tunnel URL (appears in stderr)
+                timeout = 30
+                start_time = time.time()
+                
+                while time.time() - start_time < timeout:
+                    if self.tunnel_process.poll() is not None:
+                        stderr = self.tunnel_process.stderr.read()
+                        if "EOF" in stderr or "TLS" in stderr:
+                            # API connection issue, try again
+                            print(f"⚠️  Cloudflare API connection failed (attempt {attempt + 1}/{max_retries})")
+                            break
+                        else:
+                            print(f"❌ Tunnel process exited: {stderr}")
+                            return None
                         
-                time.sleep(0.1)
-            
-            print("⚠️  Tunnel URL not found in output, using IP instead")
-            return None
-            
-        except FileNotFoundError:
-            print("⚠️  cloudflared not found, skipping tunnel (worker will use IP)")
-            return None
-        except Exception as e:
-            print(f"⚠️  Tunnel setup failed: {e}")
-            return None
+                    line = self.tunnel_process.stderr.readline()
+                    if 'trycloudflare.com' in line:
+                        # Extract URL from line
+                        parts = line.split('https://')
+                        if len(parts) > 1:
+                            url = 'https://' + parts[1].split()[0].strip()
+                            self.tunnel_url = url
+                            print(f"✅ Tunnel active: {url}")
+                            return url
+                            
+                    time.sleep(0.1)
+                
+                # If we got here, timeout occurred, try again
+                if attempt < max_retries - 1:
+                    if self.tunnel_process:
+                        self.tunnel_process.terminate()
+                        self.tunnel_process.wait()
+                    continue
+                else:
+                    print("⚠️  Tunnel creation timed out after retries, using IP instead")
+                    return None
+                
+            except FileNotFoundError:
+                print("⚠️  cloudflared not found, skipping tunnel (worker will use IP)")
+                return None
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"⚠️  Tunnel attempt {attempt + 1} failed: {e}, retrying...")
+                    continue
+                else:
+                    print(f"⚠️  Tunnel setup failed after {max_retries} attempts: {e}")
+                    return None
+        
+        return None
 
     def detect_capabilities(self) -> Dict[str, Any]:
         """Detect container capabilities"""
@@ -164,16 +191,23 @@ class ContainerWorkerAgent:
         capabilities = self.detect_capabilities()
         ip_address = capabilities.get("ip_address")
         
-        # Use tunnel URL if available, otherwise use IP
-        endpoint_url = self.tunnel_url or ip_address
+        # Priority: ngrok env var > tunnel URL > IP address
+        ngrok_url = os.getenv("NGROK_URL")
+        if ngrok_url:
+            endpoint_url = ngrok_url
+            print(f"🔗 Using ngrok URL from environment: {ngrok_url}")
+        elif self.tunnel_url:
+            endpoint_url = self.tunnel_url
+        else:
+            endpoint_url = ip_address
 
         try:
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/register",
                 json={
                     "capabilities": capabilities,
-                    "ip_address": endpoint_url,  # Send tunnel URL as "IP"
-                    "tunnel_url": self.tunnel_url  # Also send separately for clarity
+                    "ip_address": endpoint_url,  # Send tunnel/ngrok URL as "IP"
+                    "tunnel_url": ngrok_url or self.tunnel_url  # Send tunnel URL separately
                 },
                 timeout=30
             )

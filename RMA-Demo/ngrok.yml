@@ -1,0 +1,27 @@
+version: "2"
+authtoken: ${NGROK_AUTHTOKEN}
+
+tunnels:
+  upload-service:
+    proto: http
+    addr: 8103
+    subdomain: rma-upload
+    inspect: false
+  
+  rag-service:
+    proto: http
+    addr: 8102
+    subdomain: rma-rag
+    inspect: false
+  
+  notes-service:
+    proto: http
+    addr: 8100
+    subdomain: rma-notes
+    inspect: false
+  
+  ner-service:
+    proto: http
+    addr: 8108
+    subdomain: rma-ner
+    inspect: false

@@ -7,7 +7,8 @@ services:
     env_file:
       - ../.env.coordinator
     environment:
-      - USE_TUNNEL=true
+      - USE_TUNNEL=false  # Disabled - using ngrok instead
+      - NGROK_URL=https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload
       - SERVICE_PORT=8103
       - SERVICE_NAME=upload-service
     restart: unless-stopped

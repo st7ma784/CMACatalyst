@@ -5,10 +5,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies and SSL certificates
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
+    ca-certificates \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install cloudflared

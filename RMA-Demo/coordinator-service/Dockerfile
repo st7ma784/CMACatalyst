@@ -12,6 +12,9 @@ COPY models/ ./models/
 COPY routers/ ./routers/
 COPY utils/ ./utils/
 
+# Copy frontend static files (if they exist)
+COPY static/ ./static/ 2>/dev/null || true
+
 # Create __init__.py files
 RUN touch app/__init__.py models/__init__.py routers/__init__.py utils/__init__.py
 

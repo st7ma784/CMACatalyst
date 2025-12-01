@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: rma-nginx-proxy
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - rma-network
+    restart: unless-stopped
+
+networks:
+  rma-network:
+    external: true
