@@ -21,11 +21,10 @@ docker run -d \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
   -e WORKER_TYPE=cpu \
   -e WORKER_NAME=$(hostname)-cpu \
-  -e USE_TUNNEL=true \
   ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
 ```
 
-**Note**: `USE_TUNNEL=true` enables automatic Cloudflare Tunnel creation for exposing services. Set to `false` if you have direct network access.
+**Note**: Cloudflare Tunnel is enabled by default. Set `USE_TUNNEL=false` if you have direct network access and want to minimize latency.
 
 ### GPU Worker Deployment
 
@@ -38,11 +37,10 @@ docker run -d \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
   -e WORKER_TYPE=gpu \
   -e WORKER_NAME=$(hostname)-gpu \
-  -e USE_TUNNEL=true \
   ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
 ```
 
-**Note**: GPU workers require NVIDIA Docker runtime. The tunnel automatically exposes GPU services securely.
+**Note**: GPU workers require NVIDIA Docker runtime. Cloudflare Tunnel automatically exposes GPU services securely.
 
 ## Detailed Setup
 
@@ -238,7 +236,7 @@ docker run -d \
 | `COORDINATOR_URL` | Yes | - | URL of the coordinator service |
 | `WORKER_TYPE` | No | `cpu` | Type of worker: `cpu` or `gpu` |
 | `WORKER_NAME` | No | `hostname` | Unique identifier for this worker |
-| `USE_TUNNEL` | No | `false` | Enable Cloudflare Tunnel for services |
+| `USE_TUNNEL` | No | `true` | Enable Cloudflare Tunnel for services |
 | `SERVICE_NAME` | No | `upload-service` | Service container name to tunnel |
 | `SERVICE_PORT` | No | `8103` | Service port to tunnel |
 | `HEARTBEAT_INTERVAL` | No | `30` | Seconds between heartbeats |
@@ -344,7 +342,7 @@ docker start rma-cpu-worker
 
 ### Cloudflare Tunnel Support
 
-Workers automatically create Cloudflare Tunnels when `USE_TUNNEL=true` is set. This allows services running behind firewalls or NAT to be accessible without port forwarding.
+Workers automatically create Cloudflare Tunnels by default. This allows services running behind firewalls or NAT to be accessible without port forwarding.
 
 **Benefits:**
 - ✅ No port forwarding required
@@ -358,22 +356,27 @@ Workers automatically create Cloudflare Tunnels when `USE_TUNNEL=true` is set. T
 3. Registers the tunnel URL with coordinator
 4. Coordinator routes requests through the tunnel
 
-**Example with tunnel:**
+**Example with tunnel (default):**
 ```bash
 docker run -d \
   --name rma-cpu-worker \
   --restart unless-stopped \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
-  -e USE_TUNNEL=true \
   -e SERVICE_NAME=upload-service \
   -e SERVICE_PORT=8103 \
   ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
 ```
 
-**When NOT to use tunnels:**
-- You have direct public IP access
-- Services are already behind a reverse proxy
-- You want to minimize latency (tunnels add ~50-100ms)
+**Disable tunnels for direct access:**
+If you have direct public IP access and want to minimize latency:
+```bash
+docker run -d \
+  --name rma-cpu-worker \
+  --restart unless-stopped \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  -e USE_TUNNEL=false \
+  ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+```
 
 ### Running Multiple Workers on Same Host
 

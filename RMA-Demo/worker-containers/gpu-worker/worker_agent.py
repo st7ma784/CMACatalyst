@@ -305,8 +305,8 @@ class GPUWorkerAgent:
 def main():
     """Main entry point"""
     coordinator_url = os.getenv("COORDINATOR_URL", "http://localhost:8080")
-    use_tunnel = os.getenv("USE_TUNNEL", "false").lower() == "true"
-    service_port = int(os.getenv("SERVICE_PORT", "8000"))
+    use_tunnel = os.getenv("USE_TUNNEL", "true").lower() == "true"
+    service_port = int(os.getenv("SERVICE_PORT", "8103"))
     
     print(f"Starting GPU worker for coordinator: {coordinator_url}")
     if use_tunnel:
