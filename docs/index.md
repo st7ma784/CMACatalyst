@@ -42,12 +42,13 @@ tech-stack/ai-integration
 ```
 
 ```{toctree}
-```{toctree}
 :maxdepth: 1
 :caption: Root Documentation Summaries
 
 root_summaries
 ```
+
+```{toctree}
 :maxdepth: 2
 :caption: Deployment & Hosting
 
@@ -55,6 +56,7 @@ deployment/overview
 deployment/aws-setup
 deployment/cost-optimization
 deployment/monitoring
+deployment/worker-deployment
 ```
 
 ```{toctree}
