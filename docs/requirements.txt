@@ -4,3 +4,4 @@ sphinx-rtd-theme
 sphinx-copybutton
 sphinx-tabs
 sphinxcontrib-mermaid
+linkify-it-py
