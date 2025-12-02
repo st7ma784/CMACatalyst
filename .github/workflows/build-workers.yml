@@ -1,0 +1,145 @@
+name: Build and Push Worker Containers
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'RMA-Demo/worker-containers/cpu-worker/**'
+      - 'RMA-Demo/worker-containers/gpu-worker/**'
+      - '.github/workflows/build-workers.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-cpu-worker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: Build and push CPU worker
+        uses: docker/build-push-action@v5
+        with:
+          context: RMA-Demo/worker-containers/cpu-worker
+          file: RMA-Demo/worker-containers/cpu-worker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate deployment instructions
+        run: |
+          echo "## 🚀 CPU Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pull and run the CPU worker:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name rma-cpu-worker \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  build-gpu-worker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: Build and push GPU worker
+        uses: docker/build-push-action@v5
+        with:
+          context: RMA-Demo/worker-containers/gpu-worker
+          file: RMA-Demo/worker-containers/gpu-worker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Generate deployment instructions
+        run: |
+          echo "## 🚀 GPU Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pull and run the GPU worker:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name rma-gpu-worker \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --gpus all \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  notify-success:
+    needs: [build-cpu-worker, build-gpu-worker]
+    if: success()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "## ✅ Worker Containers Published" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Both CPU and GPU worker containers are now available at:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🖥️  CPU Worker: \`ghcr.io/${{ github.repository }}/cpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎮 GPU Worker: \`ghcr.io/${{ github.repository }}/gpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📖 See [Worker Deployment Guide](https://github.com/${{ github.repository }}/blob/master/docs/deployment/worker-deployment.md)" >> $GITHUB_STEP_SUMMARY
