@@ -50,7 +50,7 @@ A fully distributed RMA-Demo system hosted on Cloudflare with **$0/month** cost:
 # Go to: https://dash.cloudflare.com
 # Create Pages project from GitHub
 # Build command: cd RMA-Demo/frontend && npm ci && npm run build
-# Build output: RMA-Demo/frontend/.next
+# Build output: RMA-Demo/frontend/out
 # Env vars: NEXT_PUBLIC_API_URL=https://api.rmatool.org.uk
 # Custom domain: rmatool.org.uk
 ```
@@ -97,11 +97,12 @@ open https://rmatool.org.uk
 - **Build**: Automatic on git push
 - **Environment**: `NEXT_PUBLIC_API_URL=https://api.rmatool.org.uk`
 
-### Coordinator (Local + CF Tunnel)
+### Coordinator (Cloudflare Worker + KV)
 - **URL**: https://api.rmatool.org.uk
-- **Location**: Your server at `localhost:8080`
-- **Tunnel**: Cloudflare named tunnel "rma-api"
-- **Config**: `tunnel-api.yml`
+- **Location**: Cloudflare Edge (global)
+- **Storage**: Cloudflare KV for worker registry
+- **Code**: `cloudflare-worker-coordinator/worker.js`
+- **Authentication**: Built-in (admin/admin123)
 
 ### Workers (Distributed)
 - **Configuration**: `docker-compose.override.yml` in each worker directory

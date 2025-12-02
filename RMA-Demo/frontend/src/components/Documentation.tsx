@@ -408,6 +408,124 @@ function AIArchitectureGuide() {
         </div>
       </div>
 
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Current Deployment Architecture</h2>
+      
+      <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-8">
+        <div className="font-mono text-sm">
+          <div className="text-center mb-6">
+            <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg">
+              <div className="font-bold text-lg">🌐 Users</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-6">
+            <div className="inline-block bg-blue-50 border-2 border-blue-300 px-6 py-4 rounded-lg">
+              <div className="font-bold text-blue-900 mb-1">Frontend</div>
+              <div className="text-sm text-blue-700">https://rmatool.org.uk</div>
+              <div className="text-xs text-blue-600 mt-1">Cloudflare Pages (Global CDN)</div>
+            </div>
+          </div>
+
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-6">
+            <div className="inline-block bg-purple-50 border-2 border-purple-300 px-6 py-4 rounded-lg">
+              <div className="font-bold text-purple-900 mb-1">Coordinator API</div>
+              <div className="text-sm text-purple-700">https://api.rmatool.org.uk</div>
+              <div className="text-xs text-purple-600 mt-1">Cloudflare Workers (Edge Network)</div>
+              <div className="text-xs text-gray-500 mt-2">
+                • Authentication<br/>
+                • Worker Registry (KV Storage)<br/>
+                • Service Routing & Load Balancing
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-2 text-gray-600 text-sm">Routes requests to:</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto mt-4">
+            <div className="bg-green-50 border-2 border-green-300 p-4 rounded-lg">
+              <div className="font-bold text-green-900 mb-2">💻 CPU Workers</div>
+              <div className="text-xs text-green-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Upload Service</span>
+                  <span className="text-gray-500">:8103</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Notes Service</span>
+                  <span className="text-gray-500">:8100</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>NER Service</span>
+                  <span className="text-gray-500">:8108</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 2/3:</strong> 4+ CPU cores<br/>
+                <strong>Location:</strong> Docker containers anywhere<br/>
+                <strong>Access:</strong> Cloudflare Tunnels
+              </div>
+            </div>
+
+            <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-lg">
+              <div className="font-bold text-orange-900 mb-2">🚀 GPU Workers</div>
+              <div className="text-xs text-orange-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>RAG Service</span>
+                  <span className="text-gray-500">:8102</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Vision AI (LLaVA)</span>
+                  <span className="text-gray-500">:8104</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Text AI (Llama)</span>
+                  <span className="text-gray-500">:8105</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 1:</strong> GPU + VRAM<br/>
+                <strong>Location:</strong> Docker containers anywhere<br/>
+                <strong>Access:</strong> Cloudflare Tunnels
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-300 rounded-lg">
+            <div className="text-sm text-gray-700">
+              <strong className="text-gray-900">How it Works:</strong>
+              <ol className="list-decimal list-inside mt-2 space-y-1 text-xs">
+                <li>Workers register with coordinator via HTTPS, providing their tunnel URL</li>
+                <li>Coordinator tracks worker health via 30-second heartbeats</li>
+                <li>Frontend requests go to coordinator at api.rmatool.org.uk</li>
+                <li>Coordinator routes to healthy worker with lowest load</li>
+                <li>Worker processes request through its service containers</li>
+                <li>Response returns through Cloudflare Tunnel to user</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-300 rounded-lg">
+            <div className="text-xs text-blue-900">
+              <strong>💰 Cost:</strong> $0/month<br/>
+              <strong>🌍 Global:</strong> Frontend and API on Cloudflare edge (300+ locations)<br/>
+              <strong>🔒 Secure:</strong> All traffic over HTTPS with TLS 1.3<br/>
+              <strong>📈 Scalable:</strong> Add workers anywhere with Docker - auto-registration
+            </div>
+          </div>
+        </div>
+      </div>
+
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How Our AI Services Work</h2>
 
       <p className="text-gray-700 mb-6">

@@ -1,14 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Cloudflare Pages supports Next.js SSR and API routes
+  output: 'export',
   images: {
     unoptimized: true,
   },
+  trailingSlash: true,
+  // Skip validation for dynamic routes - they'll use fallback client-side routing
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+  // Remove API routes - they won't work with static export
+  // All API calls will go directly to the coordinator
   env: {
-    NOTES_SERVICE_URL: process.env.NOTES_SERVICE_URL || 'http://localhost:8100',
-    DOC_PROCESSOR_URL: process.env.DOC_PROCESSOR_URL || 'http://localhost:8101',
-    RAG_SERVICE_URL: process.env.RAG_SERVICE_URL || 'http://localhost:8102',
-    UPLOAD_SERVICE_URL: process.env.UPLOAD_SERVICE_URL || 'http://localhost:8103',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.rmatool.org.uk',
   },
 }
 
