@@ -123,7 +123,7 @@ docker restart rma-cpu-worker-1
 
 ### ✅ Dashboard Connectivity
 ```bash
-curl https://rma-coordinator.fly.dev/api/admin/workers
+curl https://api.rmatool.org.uk/api/admin/workers
 # Result: Returns all 7 workers
 # Dashboard UI updates in real-time
 ```
@@ -190,7 +190,7 @@ docker restart rma-cpu-worker-1 rma-cpu-worker-2 rma-cpu-worker-3
 
 # 4. Verify persistence
 flyctl machine restart -a rma-coordinator
-curl https://rma-coordinator.fly.dev/api/admin/workers
+curl https://api.rmatool.org.uk/api/admin/workers
 ```
 
 ---
@@ -199,12 +199,12 @@ curl https://rma-coordinator.fly.dev/api/admin/workers
 
 ### Check Worker Count
 ```bash
-curl -s https://rma-coordinator.fly.dev/health | jq
+curl -s https://api.rmatool.org.uk/health | jq
 ```
 
 ### View All Workers
 ```bash
-curl -s https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl -s https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 ### Check Persistence File

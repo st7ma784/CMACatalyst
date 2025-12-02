@@ -48,7 +48,7 @@ Add coordinator URL to `.env.local`:
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:8080
 
 # For production
-NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
 ```
 
 ### 2. Start Coordinator
@@ -191,7 +191,7 @@ python worker_agent.py --coordinator http://localhost:8080
 For production, update `.env.local`:
 
 ```bash
-NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
 ```
 
 ### CORS Configuration

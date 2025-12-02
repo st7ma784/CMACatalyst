@@ -105,7 +105,7 @@ cd /home/user/CMACatalyst/RMA-Demo/worker-containers/cpu-worker
 docker-compose up -d --scale cpu-worker=4
 
 # Check worker registration
-curl https://cmacatalyst.onrender.com/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 Each worker will register with:
@@ -116,19 +116,19 @@ Each worker will register with:
 
 ### Test Frontend
 ```bash
-curl https://cmacatalyst.onrender.com/
+curl https://api.rmatool.org.uk/
 # Should return Next.js HTML
 ```
 
 ### Test API
 ```bash
 # Login
-curl -X POST https://cmacatalyst.onrender.com/api/auth/login \
+curl -X POST https://api.rmatool.org.uk/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "admin123"}'
 
 # Check workers
-curl https://cmacatalyst.onrender.com/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 ### Test Service Routing
@@ -137,7 +137,7 @@ curl https://cmacatalyst.onrender.com/api/admin/workers | jq
 curl https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload/health
 
 # Through coordinator proxy
-curl https://cmacatalyst.onrender.com/api/service/upload/health
+curl https://api.rmatool.org.uk/api/service/upload/health
 ```
 
 ## Benefits of Merged Architecture
@@ -177,7 +177,7 @@ docker-compose -f docker-compose.proxy.yml down
 # Check coordinator URL in worker env
 cat /home/user/CMACatalyst/RMA-Demo/worker-containers/.env.coordinator
 
-# Should be: COORDINATOR_URL=https://cmacatalyst.onrender.com
+# Should be: COORDINATOR_URL=https://api.rmatool.org.uk
 
 # Check worker logs
 docker-compose -f worker-containers/cpu-worker/docker-compose.yml logs
@@ -193,7 +193,7 @@ WORKER_PERSISTENCE_FILE=/tmp/workers.json
 
 ### Workers (.env.coordinator)
 ```bash
-COORDINATOR_URL=https://cmacatalyst.onrender.com
+COORDINATOR_URL=https://api.rmatool.org.uk
 NGROK_URL=https://cesar-uneuphemistic-unloyally.ngrok-free.dev/upload
 USE_TUNNEL=false
 ```

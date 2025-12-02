@@ -34,7 +34,7 @@ The RMA system has **two main architectures** for accessing the frontend, depend
        │
 ┌──────▼──────────────────────────────────────┐
 │      Coordinator Service                     │
-│      https://rma-coordinator.fly.dev         │
+│      https://api.rmatool.org.uk         │
 │      - Manages worker registry               │
 │      - Routes inference requests             │
 │      - Admin dashboard API                   │
@@ -64,7 +64,7 @@ fly deploy
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 ```
 
-**Coordinator URL**: `https://rma-coordinator.fly.dev` or `http://localhost:8080`
+**Coordinator URL**: `https://api.rmatool.org.uk` or `http://localhost:8080`
 
 #### 2. Start CPU Workers (Already Done!)
 
@@ -93,7 +93,7 @@ services:
       - "3000:3000"
     environment:
       # Coordinator URL (change to your deployed coordinator)
-      - NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+      - NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
       
       # For system orchestrator dashboard
       - NEXT_PUBLIC_API_URL=http://localhost:3000
@@ -132,13 +132,13 @@ Available features:
   - Navigate to: http://localhost:3000/advisor-dashboard or similar
   
 - **Admin Dashboard**: Full system monitoring
-  - Navigate to coordinator directly: https://rma-coordinator.fly.dev/api/admin/workers
+  - Navigate to coordinator directly: https://api.rmatool.org.uk/api/admin/workers
 
 ### How Requests Flow
 
 1. **User opens browser** → http://localhost:3000
 2. **User queries RAG system** → Frontend makes API call to `/api/rag/query`
-3. **Next.js API route** → Proxies to coordinator: `https://rma-coordinator.fly.dev/api/inference/rag/query`
+3. **Next.js API route** → Proxies to coordinator: `https://api.rmatool.org.uk/api/inference/rag/query`
 4. **Coordinator** → Finds available Tier 2 worker running RAG service
 5. **Coordinator** → Routes request to worker's RAG container
 6. **Worker processes** → Returns response
@@ -213,7 +213,7 @@ You have **4 CPU workers** running as **Tier 2** (Service Workers).
 **Option 1: View in Coordinator Admin API**
 
 ```bash
-curl https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 **Option 2: Start Frontend with System Orchestrator**
@@ -289,7 +289,7 @@ xdg-open http://localhost:3000  # Linux
 
 ```bash
 # Coordinator (for distributed mode)
-NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
 
 # API proxy base (for internal routing)
 NEXT_PUBLIC_API_URL=http://localhost:3000
@@ -305,7 +305,7 @@ NEXT_PUBLIC_NEO4J_BROWSER_URL=http://localhost:7474
 
 ```bash
 # Coordinator URL (set automatically by compose file)
-COORDINATOR_URL=https://rma-coordinator.fly.dev
+COORDINATOR_URL=https://api.rmatool.org.uk
 
 # Worker ID (assigned by coordinator on registration)
 WORKER_ID=worker-abc12345  # Auto-generated
@@ -394,7 +394,7 @@ docker logs cpu-worker-cpu-worker-1 | grep "Heartbeat"
 2. **Build Frontend with Coordinator URL**
    ```bash
    cd frontend
-   docker build --build-arg NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev -t rma-frontend .
+   docker build --build-arg NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk -t rma-frontend .
    ```
 
 3. **Scale Workers as Needed**

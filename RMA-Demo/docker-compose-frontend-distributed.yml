@@ -10,13 +10,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+        - NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
     container_name: rma-frontend-distributed
     ports:
       - "3002:3000"
     environment:
       # Public coordinator
-      - NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+      - NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
       
       # API routing
       - NEXT_PUBLIC_API_URL=http://localhost:3000

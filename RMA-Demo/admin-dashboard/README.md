@@ -59,7 +59,7 @@ cd ../coordinator-service
 fly deploy
 ```
 
-Dashboard will be at: https://rma-coordinator.fly.dev/
+Dashboard will be at: https://api.rmatool.org.uk/
 
 ### Option 2: Deploy Separately (Vercel)
 
@@ -76,7 +76,7 @@ Update `vite.config.js` to point to production coordinator:
 ```javascript
 proxy: {
   '/api': {
-    target: 'https://rma-coordinator.fly.dev',
+    target: 'https://api.rmatool.org.uk',
     changeOrigin: true
   }
 }
@@ -95,7 +95,7 @@ npm run build
 
 Add `_redirects` file in `public/`:
 ```
-/api/* https://rma-coordinator.fly.dev/api/:splat 200
+/api/* https://api.rmatool.org.uk/api/:splat 200
 /* /index.html 200
 ```
 

@@ -66,7 +66,7 @@ cp ~/.cloudflared/<tunnel-id>.json /data/CMACatalyst/RMA-Demo/worker-containers/
 services:
   cpu-worker:
     environment:
-      - COORDINATOR_URL=https://cmacatalyst.onrender.com
+      - COORDINATOR_URL=https://api.rmatool.org.uk
       - USE_TUNNEL=true
       - TUNNEL_TYPE=named
       - TUNNEL_CREDENTIALS=/app/tunnel-credentials.json
@@ -246,7 +246,7 @@ cp ~/.cloudflared/<tunnel-id>.json worker-containers/tunnel-credentials.json
 docker-compose up -d
 
 # 5. Check worker registered with tunnel URL
-curl https://cmacatalyst.onrender.com/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 ---

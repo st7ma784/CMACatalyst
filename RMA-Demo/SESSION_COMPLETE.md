@@ -9,7 +9,7 @@
 ## 🎉 What We Deployed
 
 ### 1. Coordinator Service ✅
-- **URL**: https://rma-coordinator.fly.dev
+- **URL**: https://api.rmatool.org.uk
 - **Platform**: Fly.io (Free Tier)
 - **Status**: Running and accepting connections
 - **Features**:
@@ -19,7 +19,7 @@
   - Admin API
 
 ### 2. Admin Dashboard ✅
-- **URL**: https://rma-dashboard-misty-glade-7156.fly.dev
+- **URL**: https://dashboard.rmatool.org.uk
 - **Platform**: Fly.io (Free Tier)
 - **Status**: Deployed and accessible
 - **Features**:
@@ -146,13 +146,13 @@ TOTAL:         $1/month
 ### Check System Status
 ```bash
 # Coordinator health
-curl https://rma-coordinator.fly.dev/health
+curl https://api.rmatool.org.uk/health
 
 # List workers
-curl https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 
 # View dashboard
-open https://rma-dashboard-misty-glade-7156.fly.dev
+open https://dashboard.rmatool.org.uk
 ```
 
 ### Manage Workers
@@ -165,13 +165,13 @@ docker logs rma-cpu-worker-1
 
 # Start new CPU worker
 docker run -d --name rma-cpu-worker-4 \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-cpu-worker:latest
 
 # Start GPU worker (requires NVIDIA GPU)
 docker run -d --name rma-gpu-worker-1 \
   --gpus all \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-gpu-worker:latest
 ```
 
@@ -218,8 +218,8 @@ docker build -t rma-cpu-worker:latest .
 ### Services
 | Service | Status | URL | Uptime |
 |---------|--------|-----|--------|
-| Coordinator | ✅ Running | https://rma-coordinator.fly.dev | Active |
-| Dashboard | ✅ Running | https://rma-dashboard-misty-glade-7156.fly.dev | Active |
+| Coordinator | ✅ Running | https://api.rmatool.org.uk | Active |
+| Dashboard | ✅ Running | https://dashboard.rmatool.org.uk | Active |
 | CPU Workers | ⚠️ Reconnecting | Local containers | Active |
 
 ### Workers
@@ -336,9 +336,9 @@ CMACatalyst/
 - [DEPLOYMENT_COMPLETE.md](./RMA-Demo/DEPLOYMENT_COMPLETE.md) - Operations guide
 
 ### Live Services
-- Coordinator: https://rma-coordinator.fly.dev
-- Dashboard: https://rma-dashboard-misty-glade-7156.fly.dev
-- Health Check: https://rma-coordinator.fly.dev/health
+- Coordinator: https://api.rmatool.org.uk
+- Dashboard: https://dashboard.rmatool.org.uk
+- Health Check: https://api.rmatool.org.uk/health
 
 ### Commands
 ```bash

@@ -5,7 +5,7 @@ services:
     build: ../cpu-worker
     image: rma-cpu-worker:latest
     environment:
-      - COORDINATOR_URL=https://cmacatalyst.onrender.com
+      - COORDINATOR_URL=https://api.rmatool.org.uk
       - USE_TUNNEL=true
       - SERVICE_PORT=3000
       - SERVICE_NAME=rma-frontend-distributed

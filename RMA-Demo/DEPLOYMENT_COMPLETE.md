@@ -3,7 +3,7 @@
 ## ✅ Successfully Deployed
 
 ### 1. Coordinator Service
-- **URL**: https://rma-coordinator.fly.dev
+- **URL**: https://api.rmatool.org.uk
 - **Status**: ✅ Running on Fly.io free tier
 - **Region**: London (lhr)
 - **Features**:
@@ -13,7 +13,7 @@
   - Auto-scaling (scales to zero when idle)
 
 ### 2. Admin Dashboard
-- **URL**: https://rma-dashboard-misty-glade-7156.fly.dev
+- **URL**: https://dashboard.rmatool.org.uk
 - **Status**: ✅ Running on Fly.io free tier
 - **Features**:
   - Real-time worker monitoring
@@ -37,10 +37,10 @@
 
 | Service | URL | Status |
 |---------|-----|--------|
-| Coordinator | https://rma-coordinator.fly.dev | ✅ Live |
-| Dashboard | https://rma-dashboard-misty-glade-7156.fly.dev | ✅ Live |
-| Health Check | https://rma-coordinator.fly.dev/health | ✅ Live |
-| Worker API | https://rma-coordinator.fly.dev/api/admin/workers | ✅ Live |
+| Coordinator | https://api.rmatool.org.uk | ✅ Live |
+| Dashboard | https://dashboard.rmatool.org.uk | ✅ Live |
+| Health Check | https://api.rmatool.org.uk/health | ✅ Live |
+| Worker API | https://api.rmatool.org.uk/api/admin/workers | ✅ Live |
 
 ---
 
@@ -74,7 +74,7 @@
 ```bash
 docker run -d \
   --name rma-cpu-worker-1 \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-cpu-worker:latest
 ```
@@ -102,7 +102,7 @@ docker build -t rma-gpu-worker:latest .
 docker run -d \
   --name rma-gpu-worker-1 \
   --gpus all \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-gpu-worker:latest
 ```
@@ -120,10 +120,10 @@ docker-compose up -d
 ### Check Worker Status
 ```bash
 # View all workers
-curl https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 
 # View system health
-curl https://rma-coordinator.fly.dev/health | jq
+curl https://api.rmatool.org.uk/health | jq
 
 # View coordinator logs
 flyctl logs -a rma-coordinator
@@ -154,11 +154,11 @@ docker rm -f rma-cpu-worker-1
 ```bash
 # Add more CPU workers
 docker run -d --name rma-cpu-worker-2 \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-cpu-worker:latest
 
 docker run -d --name rma-cpu-worker-3 \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-cpu-worker:latest
 ```
 
@@ -194,7 +194,7 @@ Limit worker resource usage:
 docker run -d \
   --cpus="4.0" \
   --memory="8g" \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-cpu-worker:latest
 ```
 
@@ -221,7 +221,7 @@ If you have a GPU machine available:
 cd RMA-Demo/worker-containers/gpu-worker
 docker build -t rma-gpu-worker:latest .
 docker run -d --gpus all \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   rma-gpu-worker:latest
 ```
 
@@ -262,7 +262,7 @@ Secure the coordinator API:
 docker logs rma-cpu-worker-1
 
 # Test coordinator connectivity
-curl https://rma-coordinator.fly.dev/health
+curl https://api.rmatool.org.uk/health
 
 # Restart worker
 docker restart rma-cpu-worker-1
@@ -340,7 +340,7 @@ Your machine will automatically:
 
 - **GitHub Issues**: Report bugs or request features
 - **Coordinator Logs**: `flyctl logs -a rma-coordinator`
-- **Dashboard**: https://rma-dashboard-misty-glade-7156.fly.dev
+- **Dashboard**: https://dashboard.rmatool.org.uk
 
 ---
 

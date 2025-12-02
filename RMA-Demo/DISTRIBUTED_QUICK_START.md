@@ -26,7 +26,7 @@ You're about to set up a **democratized compute pool** where:
 cd RMA-Demo/coordinator-service
 
 # Install flyctl (if not installed)
-curl -L https://fly.io/install.sh | sh
+curl -L https://Cloudflare/install.sh | sh
 
 # Login
 fly auth login
@@ -39,7 +39,7 @@ fly deploy
 
 # Get URL
 fly status
-# Your coordinator is now at: https://rma-coordinator.fly.dev
+# Your coordinator is now at: https://api.rmatool.org.uk
 ```
 
 ### Option B: Railway (Free Tier)
@@ -70,7 +70,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
 
 ```bash
 # Test coordinator health
-curl https://rma-coordinator.fly.dev/health
+curl https://api.rmatool.org.uk/health
 
 # Should return:
 # {
@@ -117,7 +117,7 @@ python worker_agent.py --test-capabilities
 
 ```bash
 # Connect to production coordinator
-python worker_agent.py --coordinator https://rma-coordinator.fly.dev
+python worker_agent.py --coordinator https://api.rmatool.org.uk
 
 # Or local testing
 python worker_agent.py --coordinator http://localhost:8080
@@ -143,7 +143,7 @@ RMA Worker Agent
 ✅ RAM: 64.0GB
 ✅ Storage: 1024.5GB
 
-📡 Registering with coordinator: https://rma-coordinator.fly.dev
+📡 Registering with coordinator: https://api.rmatool.org.uk
 
 ✅ Registered successfully!
    Worker ID: worker-abc12345
@@ -213,7 +213,7 @@ You should now see:
 ### Test LLM Inference (Tier 1 Worker)
 
 ```bash
-curl -X POST https://rma-coordinator.fly.dev/api/inference/llm \
+curl -X POST https://api.rmatool.org.uk/api/inference/llm \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama2:7b",
@@ -228,11 +228,11 @@ First, start a Tier 2 worker (on a machine without GPU):
 
 ```bash
 # On a different machine (or same machine)
-python worker_agent.py --coordinator https://rma-coordinator.fly.dev
+python worker_agent.py --coordinator https://api.rmatool.org.uk
 # This will be assigned Tier 2 (Service worker)
 
 # Then test RAG
-curl -X POST https://rma-coordinator.fly.dev/api/inference/rag/query \
+curl -X POST https://api.rmatool.org.uk/api/inference/rag/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What is RMA?"}'
 ```
@@ -244,7 +244,7 @@ curl -X POST https://rma-coordinator.fly.dev/api/inference/rag/query \
 ```
 ┌─────────────────────────────────────────┐
 │  Coordinator (Free Tier)                │
-│  https://rma-coordinator.fly.dev        │
+│  https://api.rmatool.org.uk        │
 │  - Worker registry                      │
 │  - Request routing                      │
 │  - Health monitoring                    │
@@ -291,10 +291,10 @@ Just run worker agent on more machines:
 
 ```bash
 # On Machine 2
-python worker_agent.py --coordinator https://rma-coordinator.fly.dev
+python worker_agent.py --coordinator https://api.rmatool.org.uk
 
 # On Machine 3
-python worker_agent.py --coordinator https://rma-coordinator.fly.dev
+python worker_agent.py --coordinator https://api.rmatool.org.uk
 
 # Check dashboard - worker count increases!
 ```
@@ -327,7 +327,7 @@ Requires=docker.service
 [Service]
 Type=simple
 User=youruser
-Environment="COORDINATOR_URL=https://rma-coordinator.fly.dev"
+Environment="COORDINATOR_URL=https://api.rmatool.org.uk"
 WorkingDirectory=/path/to/worker-agent
 ExecStart=/usr/bin/python3 /path/to/worker-agent/worker_agent.py
 Restart=always
@@ -351,7 +351,7 @@ services:
   rma-worker:
     build: ./worker-agent
     environment:
-      COORDINATOR_URL: https://rma-coordinator.fly.dev
+      COORDINATOR_URL: https://api.rmatool.org.uk
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
@@ -380,7 +380,7 @@ python -m uvicorn app.main:app --reload
 
 ```bash
 # Test connection
-curl https://rma-coordinator.fly.dev/health
+curl https://api.rmatool.org.uk/health
 
 # Check Docker is running
 docker ps
@@ -406,7 +406,7 @@ rocm-smi
 
 ```bash
 # Verify workers registered
-curl https://rma-coordinator.fly.dev/api/admin/workers
+curl https://api.rmatool.org.uk/api/admin/workers
 
 # Check CORS settings in coordinator
 # Check proxy config in admin-dashboard/vite.config.js

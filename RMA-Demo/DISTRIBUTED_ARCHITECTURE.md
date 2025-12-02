@@ -140,7 +140,7 @@ Transform RMA from a centralized microservices architecture to a **distributed w
    │         "image": "registry.rma.ai/vllm-worker:latest",
    │         "port": 8000,
    │         "env": {
-   │           "COORDINATOR_URL": "https://rma-coordinator.fly.dev",
+   │           "COORDINATOR_URL": "https://api.rmatool.org.uk",
    │           "WORKER_ID": "worker-abc123",
    │           "HEARTBEAT_INTERVAL": 30
    │         }
@@ -153,7 +153,7 @@ Transform RMA from a centralized microservices architecture to a **distributed w
 4. Worker Pulls Container & Starts
    ├─> docker pull registry.rma.ai/vllm-worker:latest
    ├─> docker run -d --gpus all \
-   │       -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+   │       -e COORDINATOR_URL=https://api.rmatool.org.uk \
    │       -e WORKER_ID=worker-abc123 \
    │       registry.rma.ai/vllm-worker:latest
    │
@@ -292,7 +292,7 @@ import docker
 import psutil
 import GPUtil  # for GPU detection
 
-COORDINATOR_URL = "https://rma-coordinator.fly.dev"
+COORDINATOR_URL = "https://api.rmatool.org.uk"
 
 def get_capabilities():
     """Detect hardware capabilities"""

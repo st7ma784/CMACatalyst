@@ -54,7 +54,7 @@ worker-container/
 ## Environment Variables
 
 All worker containers accept:
-- `COORDINATOR_URL` - Coordinator endpoint (e.g., https://rma-coordinator.fly.dev)
+- `COORDINATOR_URL` - Coordinator endpoint (e.g., https://api.rmatool.org.uk)
 - `WORKER_ID` - Unique worker identifier (set by worker agent)
 
 Plus service-specific variables:

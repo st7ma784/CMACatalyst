@@ -25,7 +25,7 @@ Make the RMA distributed system publicly accessible so anyone can:
 │  Coordinator Service API                             │
 │  Fly.io (Free Tier) or Railway (Free Tier)          │
 │  Cost: $0/month                                      │
-│  https://rma-coordinator.fly.dev                    │
+│  https://api.rmatool.org.uk                    │
 └──────────────┬───────────────────────────────────────┘
                │
                ▼
@@ -190,7 +190,7 @@ fly deploy
 # Just connect GitHub repo, Railway auto-deploys
 ```
 
-**Get URL:** `https://rma-coordinator.fly.dev`
+**Get URL:** `https://api.rmatool.org.uk`
 
 ### Phase 2: Deploy Frontend (5 minutes)
 
@@ -198,7 +198,7 @@ fly deploy
 cd RMA-Demo/frontend
 
 # Update .env.local
-echo "NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev" > .env.local
+echo "NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk" > .env.local
 
 # Build and deploy
 npm run build
@@ -488,7 +488,7 @@ logging.basicConfig(level=logging.WARNING)
 4. Runs locally:
    ```bash
    pip install rma-worker
-   rma-worker start --coordinator https://rma-coordinator.fly.dev
+   rma-worker start --coordinator https://api.rmatool.org.uk
    ```
 5. Worker auto-registers and appears in dashboard
 6. User can see their contribution
@@ -542,7 +542,7 @@ fly deploy --region fra
 Monitor uptime for free:
 1. Sign up at https://uptimerobot.com (free)
 2. Add monitors:
-   - `https://rma-coordinator.fly.dev/health`
+   - `https://api.rmatool.org.uk/health`
    - `https://rma-demo.vercel.app`
 3. Get email alerts on downtime
 4. Free: 50 monitors, 5-min intervals

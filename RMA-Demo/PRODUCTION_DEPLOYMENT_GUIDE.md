@@ -4,7 +4,7 @@
 
 Your coordinator is deployed and publicly accessible at:
 
-**https://rma-coordinator.fly.dev**
+**https://api.rmatool.org.uk**
 
 ### Current Status
 
@@ -21,26 +21,26 @@ Your coordinator is deployed and publicly accessible at:
 
 ```bash
 # System Health
-curl https://rma-coordinator.fly.dev/health | jq
+curl https://api.rmatool.org.uk/health | jq
 
 # List All Workers
-curl https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 
 # System Statistics
-curl https://rma-coordinator.fly.dev/api/admin/stats | jq
+curl https://api.rmatool.org.uk/api/admin/stats | jq
 
 # Health Overview
-curl https://rma-coordinator.fly.dev/api/admin/health | jq
+curl https://api.rmatool.org.uk/api/admin/health | jq
 ```
 
 ### Live Monitoring
 
 ```bash
 # Watch workers in real-time
-watch -n 5 'curl -s https://rma-coordinator.fly.dev/api/admin/workers | jq ".workers[] | {id: .worker_id, status, load: .current_load}"'
+watch -n 5 'curl -s https://api.rmatool.org.uk/api/admin/workers | jq ".workers[] | {id: .worker_id, status, load: .current_load}"'
 
 # Monitor system stats
-watch -n 5 'curl -s https://rma-coordinator.fly.dev/api/admin/stats | jq'
+watch -n 5 'curl -s https://api.rmatool.org.uk/api/admin/stats | jq'
 ```
 
 ---
@@ -59,7 +59,7 @@ docker compose up -d --scale cpu-worker=8
 docker compose up -d --scale cpu-worker=2
 
 # Verify
-curl -s https://rma-coordinator.fly.dev/api/admin/stats | jq '.total_workers'
+curl -s https://api.rmatool.org.uk/api/admin/stats | jq '.total_workers'
 ```
 
 ### Deploy Workers from Other Machines
@@ -79,7 +79,7 @@ docker compose up -d --scale cpu-worker=4
 
 The workers will automatically:
 1. Detect hardware capabilities
-2. Register with https://rma-coordinator.fly.dev
+2. Register with https://api.rmatool.org.uk
 3. Get assigned a tier
 4. Start sending heartbeats
 
@@ -127,14 +127,14 @@ flyctl apps restart rma-coordinator
 
 ```bash
 # In your frontend .env or docker-compose
-NEXT_PUBLIC_COORDINATOR_URL=https://rma-coordinator.fly.dev
+NEXT_PUBLIC_COORDINATOR_URL=https://api.rmatool.org.uk
 ```
 
 ### Example Frontend Request
 
 ```javascript
 // In your React/Next.js app
-const COORDINATOR_URL = 'https://rma-coordinator.fly.dev'
+const COORDINATOR_URL = 'https://api.rmatool.org.uk'
 
 // Fetch workers
 const response = await fetch(`${COORDINATOR_URL}/api/admin/workers`)
@@ -174,7 +174,7 @@ app.add_middleware(
     <title>RMA Workers Dashboard</title>
     <script>
         async function updateStatus() {
-            const response = await fetch('https://rma-coordinator.fly.dev/api/admin/stats')
+            const response = await fetch('https://api.rmatool.org.uk/api/admin/stats')
             const data = await response.json()
             document.getElementById('workers').textContent = data.total_workers
             document.getElementById('healthy').textContent = data.healthy_workers
@@ -196,9 +196,9 @@ app.add_middleware(
 ```bash
 # Real-time dashboard in terminal
 watch -n 2 'echo "=== RMA System Status ===" && \
-curl -s https://rma-coordinator.fly.dev/api/admin/stats | jq && \
+curl -s https://api.rmatool.org.uk/api/admin/stats | jq && \
 echo && echo "=== Workers ===" && \
-curl -s https://rma-coordinator.fly.dev/api/admin/workers | \
+curl -s https://api.rmatool.org.uk/api/admin/workers | \
 jq ".workers[] | {id: .worker_id, status, load: .current_load}"'
 ```
 
@@ -234,7 +234,7 @@ docker compose up -d --scale cpu-worker=2
 
 # Option 2: Docker Run (Simple)
 docker run -d \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --name rma-worker \
   rma-cpu-worker:latest
 ```
@@ -249,7 +249,7 @@ RMA CPU Worker (Containerized)
 ✅ CPU Cores: 8
 ✅ RAM: 16.0GB
 
-📡 Registering with coordinator: https://rma-coordinator.fly.dev
+📡 Registering with coordinator: https://api.rmatool.org.uk
 
 ✅ Registered successfully!
    Worker ID: worker-abc12345
@@ -349,7 +349,7 @@ docker logs cpu-worker-cpu-worker-1
 
 # Test coordinator from worker
 docker exec cpu-worker-cpu-worker-1 \
-  curl -s https://rma-coordinator.fly.dev/health
+  curl -s https://api.rmatool.org.uk/health
 
 # Check DNS resolution
 docker exec cpu-worker-cpu-worker-1 \
@@ -374,7 +374,7 @@ flyctl apps restart rma-coordinator
 
 ```bash
 # Verify SSL certificate
-curl -v https://rma-coordinator.fly.dev/health
+curl -v https://api.rmatool.org.uk/health
 
 # Check Fly.io DNS
 flyctl ips list
@@ -406,7 +406,7 @@ flyctl ips list
 
 1. **Test Your Deployment**:
    ```bash
-   curl https://rma-coordinator.fly.dev/api/admin/stats | jq
+   curl https://api.rmatool.org.uk/api/admin/stats | jq
    ```
 
 2. **Share with Team**:
@@ -421,7 +421,7 @@ flyctl ips list
 
 4. **Monitor for 24 Hours**:
    ```bash
-   watch -n 60 'curl -s https://rma-coordinator.fly.dev/api/admin/stats | jq'
+   watch -n 60 'curl -s https://api.rmatool.org.uk/api/admin/stats | jq'
    ```
 
 ---
@@ -429,13 +429,13 @@ flyctl ips list
 ## 📞 Support
 
 ### Fly.io Resources:
-- Dashboard: https://fly.io/dashboard
-- Docs: https://fly.io/docs
-- Status: https://status.fly.io
+- Dashboard: https://Cloudflare/dashboard
+- Docs: https://Cloudflare/docs
+- Status: https://status.Cloudflare
 
 ### Your Deployment:
-- App: https://fly.io/apps/rma-coordinator
-- Monitoring: https://fly.io/apps/rma-coordinator/monitoring
+- App: https://Cloudflare/apps/rma-coordinator
+- Monitoring: https://Cloudflare/apps/rma-coordinator/monitoring
 
 ---
 
@@ -443,12 +443,12 @@ flyctl ips list
 
 You now have a **production-ready distributed compute system**:
 
-- 🌍 **Public coordinator**: https://rma-coordinator.fly.dev
+- 🌍 **Public coordinator**: https://api.rmatool.org.uk
 - 💻 **7 workers**: Contributing compute from multiple machines
 - 💰 **$0 cost**: Running on free tier
 - 📈 **Scalable**: Add workers from anywhere
 - 🔒 **Stable**: Extended timeouts prevent premature scaling
 
-**Share this URL with contributors**: https://rma-coordinator.fly.dev
+**Share this URL with contributors**: https://api.rmatool.org.uk
 
 **Monitor your system**: Watch as workers join and contribute! 🚀

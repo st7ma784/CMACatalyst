@@ -13,8 +13,8 @@
 ### Deployed Services
 | Service | URL | Status | Cost |
 |---------|-----|--------|------|
-| Coordinator | https://rma-coordinator.fly.dev | ✅ Running | $0 |
-| Dashboard | https://rma-dashboard-misty-glade-7156.fly.dev | ✅ Running | $0 |
+| Coordinator | https://api.rmatool.org.uk | ✅ Running | $0 |
+| Dashboard | https://dashboard.rmatool.org.uk | ✅ Running | $0 |
 | CPU Workers | Local Docker containers (3x) | ⚠️ Connecting | $0 |
 
 ### Known Issue
@@ -220,7 +220,7 @@ flyctl deploy
 ```bash
 docker run -d \
   --name rma-cpu-worker \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-cpu-worker:latest
 ```
@@ -230,7 +230,7 @@ docker run -d \
 docker run -d \
   --name rma-gpu-worker \
   --gpus all \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-gpu-worker:latest
 ```
@@ -238,10 +238,10 @@ docker run -d \
 ### Check System Status
 ```bash
 # View all workers
-curl https://rma-coordinator.fly.dev/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 
 # View dashboard
-open https://rma-dashboard-misty-glade-7156.fly.dev
+open https://dashboard.rmatool.org.uk
 ```
 
 ---

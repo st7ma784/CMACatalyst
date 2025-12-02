@@ -70,7 +70,7 @@ docker logs rma-cpu-worker-1 | grep -i tunnel
 # 💡 No api.trycloudflare.com calls made - using your domain!
 
 # Check coordinator
-curl -s https://cmacatalyst.onrender.com/api/admin/workers | jq '.workers[].tunnel_url'
+curl -s https://api.rmatool.org.uk/api/admin/workers | jq '.workers[].tunnel_url'
 ```
 
 ---
@@ -201,7 +201,7 @@ Your workers now bypass the IT firewall and connect through your own domain via 
 
 Check the coordinator:
 ```bash
-curl https://cmacatalyst.onrender.com/api/admin/workers | jq
+curl https://api.rmatool.org.uk/api/admin/workers | jq
 ```
 
 You should see `tunnel_url` fields populated with your domain!

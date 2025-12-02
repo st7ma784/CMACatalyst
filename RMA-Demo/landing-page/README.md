@@ -48,7 +48,7 @@ Before deploying, update the URLs in `index.html`:
 
 ```html
 <!-- Replace these placeholders -->
-COORDINATOR_URL  → https://rma-coordinator.fly.dev
+COORDINATOR_URL  → https://api.rmatool.org.uk
 FRONTEND_URL     → https://rma-demo.vercel.app
 ADMIN_URL        → https://rma-admin.vercel.app
 ```
@@ -212,7 +212,7 @@ Add meta tags to `<head>`:
 
 1. Check coordinator is accessible:
    ```bash
-   curl https://rma-coordinator.fly.dev/api/admin/stats
+   curl https://api.rmatool.org.uk/api/admin/stats
    ```
 
 2. Check CORS configuration in coordinator

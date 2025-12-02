@@ -33,7 +33,7 @@ The RMA (Return Merchandise Authorization) Distributed System is a democratized 
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                  COORDINATOR SERVICE                            │
-│          https://rma-coordinator.fly.dev                        │
+│          https://api.rmatool.org.uk                        │
 │                                                                 │
 │  Core Responsibilities:                                         │
 │  ├─ Worker Registration & Discovery                            │
@@ -214,7 +214,7 @@ npm run dev
 # On any machine with Docker
 docker run -d \
   --name rma-cpu-worker \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-cpu-worker:latest
 
@@ -222,7 +222,7 @@ docker run -d \
 docker run -d \
   --name rma-gpu-worker \
   --gpus all \
-  -e COORDINATOR_URL=https://rma-coordinator.fly.dev \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
   --restart unless-stopped \
   rma-gpu-worker:latest
 ```
@@ -373,7 +373,7 @@ Dashboard              Coordinator
   "requires_gpu": True,
   "env": {
     "MODEL": "llama2:7b",
-    "COORDINATOR_URL": "https://rma-coordinator.fly.dev"
+    "COORDINATOR_URL": "https://api.rmatool.org.uk"
   }
 }
 ```

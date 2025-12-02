@@ -16,7 +16,7 @@ Minimal coordinator service for managing distributed RMA worker pool.
 
 ```bash
 # Install flyctl
-curl -L https://fly.io/install.sh | sh
+curl -L https://Cloudflare/install.sh | sh
 
 # Login to Fly.io
 fly auth login

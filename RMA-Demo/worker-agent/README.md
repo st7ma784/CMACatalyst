@@ -46,10 +46,10 @@ chmod +x worker_agent.py
 python worker_agent.py
 
 # Register with specific coordinator
-python worker_agent.py --coordinator https://rma-coordinator.fly.dev
+python worker_agent.py --coordinator https://api.rmatool.org.uk
 
 # Set coordinator via environment variable
-export COORDINATOR_URL=https://rma-coordinator.fly.dev
+export COORDINATOR_URL=https://api.rmatool.org.uk
 python worker_agent.py
 ```
 
@@ -92,7 +92,7 @@ Requires=docker.service
 [Service]
 Type=simple
 User=your-username
-Environment="COORDINATOR_URL=https://rma-coordinator.fly.dev"
+Environment="COORDINATOR_URL=https://api.rmatool.org.uk"
 WorkingDirectory=/path/to/worker-agent
 ExecStart=/usr/bin/python3 /path/to/worker-agent/worker_agent.py
 Restart=always
@@ -125,7 +125,7 @@ services:
   rma-worker:
     build: .
     environment:
-      COORDINATOR_URL: https://rma-coordinator.fly.dev
+      COORDINATOR_URL: https://api.rmatool.org.uk
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
@@ -212,7 +212,7 @@ python worker_agent.py  # Run in foreground to see errors
 
 ```bash
 # Test connection
-curl https://rma-coordinator.fly.dev/health
+curl https://api.rmatool.org.uk/health
 
 # Check firewall
 sudo ufw status
