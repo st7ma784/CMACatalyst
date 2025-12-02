@@ -523,6 +523,41 @@ function AIArchitectureGuide() {
               <strong>📈 Scalable:</strong> Add workers anywhere with Docker - auto-registration
             </div>
           </div>
+
+          <div className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-3xl">🚀</div>
+              <div>
+                <h3 className="text-lg font-bold text-green-900 mb-2">Want to Help?</h3>
+                <p className="text-sm text-green-800 mb-3">
+                  Our distributed architecture relies on donated compute resources. You can contribute by running a worker container on your machine - it takes just 2 commands!
+                </p>
+                <div className="bg-white rounded-lg p-3 mb-2">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">For CPU workers:</p>
+                  <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
+                    docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest<br/>
+                    docker run -d --name rma-cpu-worker --restart unless-stopped \<br/>
+                    &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+                  </code>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">For GPU workers:</p>
+                  <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
+                    docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest<br/>
+                    docker run -d --name rma-gpu-worker --restart unless-stopped \<br/>
+                    &nbsp;&nbsp;--gpus all -e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+                  </code>
+                </div>
+                <p className="text-xs text-green-700 mt-3">
+                  ✅ Workers automatically create secure Cloudflare Tunnels<br/>
+                  ✅ Works behind firewalls - no port forwarding needed<br/>
+                  ✅ Auto-registers with coordinator at api.rmatool.org.uk
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
