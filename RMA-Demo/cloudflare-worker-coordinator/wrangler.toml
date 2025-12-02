@@ -1,0 +1,14 @@
+name = "rma-coordinator"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV namespace for worker storage
+[[kv_namespaces]]
+binding = "WORKERS"
+id = "abcba0813261418d8c29c55d95855de0"
+preview_id = "dabf50e84db64be484a2711a8c3ab84f"
+
+# Custom domain
+routes = [
+  { pattern = "api.rmatool.org.uk/*", zone_name = "rmatool.org.uk" }
+]

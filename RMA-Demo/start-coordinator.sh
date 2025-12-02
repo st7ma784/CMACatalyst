@@ -24,16 +24,27 @@ echo ""
 # Start coordinator in background
 echo "📡 Starting coordinator service..."
 cd coordinator-service
-conda init
-conda activate opence
-# Check if dependencies are installed
-if ! python3 -c "import uvicorn" 2>/dev/null; then
+
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv venv
+
     echo "📦 Installing dependencies..."
-    pip install -r requirements.txt
+    ./venv/bin/pip install --upgrade pip
+    ./venv/bin/pip install -r requirements.txt
+else
+    # Check if dependencies are installed
+    if ! ./venv/bin/python -c "import uvicorn" 2>/dev/null; then
+        echo "📦 Installing dependencies..."
+        ./venv/bin/pip install -r requirements.txt
+    fi
 fi
 
-# Start coordinator
-nohup python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8080 > ../coordinator.log 2>&1 &
+echo "✅ Using virtual environment at coordinator-service/venv"
+
+# Start coordinator using venv python
+nohup ./venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8080 > ../coordinator.log 2>&1 &
 COORDINATOR_PID=$!
 echo "✅ Coordinator started (PID: $COORDINATOR_PID)"
 echo "   Logs: tail -f coordinator.log"
