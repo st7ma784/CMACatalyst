@@ -158,54 +158,63 @@ async function handleVerifyToken(request, env, corsHeaders) {
 }
 
 async function handleWorkerRegister(request, env, corsHeaders) {
-  const data = await request.json();
-  const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  try {
+    const data = await request.json();
+    const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  const worker = {
-    worker_id: workerId,
-    tier: determineTier(data.capabilities),
-    status: 'healthy',
-    registered_at: new Date().toISOString(),
-    last_heartbeat: new Date().toISOString(),
-    capabilities: data.capabilities,
-    services: data.services || [],  // NEW: Service manifest
-    ip_address: data.ip_address,
-    tunnel_url: data.tunnel_url,
-    is_heartbeat_leader: false,
-  };
+    const worker = {
+      worker_id: workerId,
+      tier: determineTier(data.capabilities),
+      status: 'healthy',
+      registered_at: new Date().toISOString(),
+      last_heartbeat: new Date().toISOString(),
+      capabilities: data.capabilities,
+      services: data.services || [],  // NEW: Service manifest
+      ip_address: data.ip_address,
+      tunnel_url: data.tunnel_url,
+      is_heartbeat_leader: false,
+    };
 
-  // Store worker data
-  await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+    // Store worker data
+    await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
 
-  // Update service index for each service this worker provides
-  for (const service of worker.services) {
-    await addWorkerToService(env, service.name, workerId);
-  }
-
-  // Assign heartbeat leadership if needed and requested
-  let assignedLeader = false;
-  if (data.wants_heartbeat_leadership) {
-    const currentLeader = await getHeartbeatLeader(env);
-    if (!currentLeader) {
-      worker.is_heartbeat_leader = true;
-      assignedLeader = true;
-      await env.WORKERS.put('heartbeat_leader', workerId);
-      await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+    // Update service index for each service this worker provides
+    for (const service of worker.services) {
+      await addWorkerToService(env, service.name, workerId);
     }
+
+    // Assign heartbeat leadership if needed and requested
+    let assignedLeader = false;
+    if (data.wants_heartbeat_leadership) {
+      const currentLeader = await getHeartbeatLeader(env);
+      if (!currentLeader) {
+        worker.is_heartbeat_leader = true;
+        assignedLeader = true;
+        await env.WORKERS.put('heartbeat_leader', workerId);
+        await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+      }
+    }
+
+    // Add to worker list
+    const workerIds = await getWorkerIds(env);
+    workerIds.push(workerId);
+    await env.WORKERS.put('worker_ids', JSON.stringify(workerIds));
+
+    return jsonResponse({
+      worker_id: workerId,
+      tier: worker.tier,
+      heartbeat_interval: 30,
+      is_heartbeat_leader: assignedLeader,
+      services_registered: worker.services.length,
+    }, corsHeaders);
+  } catch (error) {
+    console.error('Worker registration error:', error);
+    return jsonResponse({
+      error: 'Registration failed',
+      message: error.message,
+      stack: error.stack
+    }, corsHeaders, 500);
   }
-
-  // Add to worker list
-  const workerIds = await getWorkerIds(env);
-  workerIds.push(workerId);
-  await env.WORKERS.put('worker_ids', JSON.stringify(workerIds));
-
-  return jsonResponse({
-    worker_id: workerId,
-    tier: worker.tier,
-    heartbeat_interval: 30,
-    is_heartbeat_leader: assignedLeader,
-    services_registered: worker.services.length,
-  }, corsHeaders);
 }
 
 async function handleHeartbeat(request, env, corsHeaders) {
