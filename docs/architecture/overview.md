@@ -228,3 +228,40 @@ sequenceDiagram
 - **Webhook Support**: Event notifications to external systems
 
 This architecture ensures the CMA Case Management System can scale efficiently while maintaining security, compliance, and performance standards required for debt advice services.
+
+---
+
+## 🚀 Want to Help?
+
+Our distributed architecture relies on donated compute resources. You can contribute by running a worker container on your machine:
+
+**For CPU workers:**
+```bash
+# Pull the latest CPU worker image
+docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+
+# Run the worker
+docker run -d \
+  --name rma-cpu-worker \
+  --restart unless-stopped \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+```
+
+**For GPU workers** (requires NVIDIA GPU):
+```bash
+# Pull the latest GPU worker image
+docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+
+# Run the worker
+docker run -d \
+  --name rma-gpu-worker \
+  --restart unless-stopped \
+  --gpus all \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+```
+
+Workers automatically create secure Cloudflare Tunnels and work behind firewalls. No port forwarding needed!
+
+📖 See the full [Worker Deployment Guide](../deployment/worker-deployment.md) for more options and troubleshooting.
