@@ -86,7 +86,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy RMA-Demo/frontend/out --project-name=rma-frontend --branch=production
+          command: pages deploy RMA-Demo/frontend/out --project-name=rma-frontend --production
 
   notify-success:
     needs: [deploy-coordinator, deploy-frontend]
