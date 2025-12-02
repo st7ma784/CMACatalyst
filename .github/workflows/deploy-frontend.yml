@@ -37,13 +37,11 @@ jobs:
           VITE_API_URL: https://api.rmatool.org.uk
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: rma-dashboard
-          directory: RMA-Demo/admin-dashboard/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy RMA-Demo/admin-dashboard/dist --project-name=rma-dashboard --branch=master
 
       - name: Verify deployment
         run: |
@@ -79,13 +77,11 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.rmatool.org.uk
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: rma-frontend
-          directory: RMA-Demo/frontend/.next
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy RMA-Demo/frontend/.next --project-name=rma-frontend --branch=master
 
       - name: Verify deployment
         run: |
