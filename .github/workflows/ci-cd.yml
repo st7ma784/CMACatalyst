@@ -109,13 +109,13 @@ jobs:
       matrix:
         include:
           - dockerfile: Dockerfile
-              image: ${{ env.IMAGE_NAME_API }}
+            image: ${{ env.IMAGE_NAME_API }}
             context: .
           - dockerfile: Dockerfile.frontend
-              image: ${{ env.IMAGE_NAME_FRONTEND }}
+            image: ${{ env.IMAGE_NAME_FRONTEND }}
             context: .
           - dockerfile: Dockerfile.chatbot
-              image: ${{ env.IMAGE_NAME_CHATBOT }}
+            image: ${{ env.IMAGE_NAME_CHATBOT }}
             context: .
 
     steps:
