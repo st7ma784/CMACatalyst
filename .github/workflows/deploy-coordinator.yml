@@ -1,0 +1,44 @@
+name: Deploy Coordinator to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'RMA-Demo/cloudflare-worker-coordinator/**'
+      - '.github/workflows/deploy-coordinator.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Workers
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: RMA-Demo/cloudflare-worker-coordinator/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd RMA-Demo/cloudflare-worker-coordinator
+          npm ci
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'RMA-Demo/cloudflare-worker-coordinator'
+          command: deploy
+          
+      - name: Deployment Summary
+        run: |
+          echo "✅ Coordinator deployed to Cloudflare Workers"
+          echo "🌐 Live at: https://api.rmatool.org.uk"
+          echo "📊 View at: https://dash.cloudflare.com"
