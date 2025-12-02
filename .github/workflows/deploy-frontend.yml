@@ -6,49 +6,10 @@ on:
       - master
     paths:
       - 'RMA-Demo/frontend/**'
-      - 'RMA-Demo/admin-dashboard/**'
       - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
 jobs:
-  deploy-admin-dashboard:
-    runs-on: ubuntu-latest
-    name: Deploy Admin Dashboard to Cloudflare Pages
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        working-directory: RMA-Demo/admin-dashboard
-        run: npm ci
-
-      - name: Build admin dashboard
-        working-directory: RMA-Demo/admin-dashboard
-        run: npm run build
-        env:
-          VITE_API_URL: https://api.rmatool.org.uk
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy RMA-Demo/admin-dashboard/dist --project-name=rma-dashboard
-
-      - name: Verify deployment
-        run: |
-          echo "🎉 Admin Dashboard deployed!"
-          echo "Testing dashboard..."
-          sleep 10
-          curl -f https://dashboard.rmatool.org.uk || exit 1
-          echo "✅ Dashboard is accessible"
-
   deploy-main-frontend:
     runs-on: ubuntu-latest
     name: Deploy Main Frontend to Cloudflare Pages
@@ -91,4 +52,3 @@ jobs:
         if: success()
         run: |
           echo "::notice::Frontend deployed to https://rmatool.org.uk"
-          echo "::notice::Dashboard deployed to https://dashboard.rmatool.org.uk"

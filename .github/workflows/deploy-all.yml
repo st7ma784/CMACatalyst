@@ -23,7 +23,6 @@ jobs:
     outputs:
       coordinator: ${{ steps.filter.outputs.coordinator }}
       frontend: ${{ steps.filter.outputs.frontend }}
-      admin: ${{ steps.filter.outputs.admin }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
@@ -34,8 +33,6 @@ jobs:
               - 'RMA-Demo/cloudflare-worker-coordinator/**'
             frontend:
               - 'RMA-Demo/frontend/**'
-            admin:
-              - 'RMA-Demo/admin-dashboard/**'
 
   deploy-coordinator:
     needs: changes
@@ -63,33 +60,6 @@ jobs:
           sleep 5
           curl -f https://api.rmatool.org.uk/health
           echo "✅ Coordinator healthy"
-
-  deploy-admin-dashboard:
-    needs: changes
-    if: needs.changes.outputs.admin == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Build admin dashboard
-        working-directory: RMA-Demo/admin-dashboard
-        run: |
-          npm ci
-          npm run build
-        env:
-          VITE_API_URL: https://api.rmatool.org.uk
-      
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy RMA-Demo/admin-dashboard/dist --project-name=rma-dashboard
 
   deploy-frontend:
     needs: changes
@@ -119,7 +89,7 @@ jobs:
           command: pages deploy RMA-Demo/frontend/out --project-name=rma-frontend
 
   notify-success:
-    needs: [deploy-coordinator, deploy-admin-dashboard, deploy-frontend]
+    needs: [deploy-coordinator, deploy-frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -129,7 +99,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Deployed Services:" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Coordinator: https://api.rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Admin Dashboard: https://dashboard.rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Frontend: https://rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Cost: **\$0/month** (Cloudflare Free Tier)" >> $GITHUB_STEP_SUMMARY
