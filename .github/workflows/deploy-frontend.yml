@@ -39,7 +39,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy RMA-Demo/admin-dashboard/dist --project-name=rma-dashboard --branch=master
+          command: pages deploy RMA-Demo/admin-dashboard/dist --project-name=rma-dashboard
 
       - name: Verify deployment
         run: |
@@ -77,7 +77,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy RMA-Demo/frontend/out --project-name=rma-frontend --branch=master
+          command: pages deploy RMA-Demo/frontend/out --project-name=rma-frontend
 
       - name: Verify deployment
         run: |
