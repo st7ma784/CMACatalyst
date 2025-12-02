@@ -1,6 +1,7 @@
 /**
  * RMA Coordinator as a Cloudflare Worker
  * Production-ready with KV storage for worker persistence
+ * Deployed via GitHub Actions
  */
 
 export default {
