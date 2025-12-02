@@ -102,3 +102,4 @@ gh workflow run deploy-all.yml
 - Cloudflare Pages: Unlimited free builds
 
 **Total: FREE** 🎉
+# Test deployment
