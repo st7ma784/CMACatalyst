@@ -3,7 +3,7 @@ services:
     build: .
     image: rma-cpu-worker:latest
     environment:
-      - COORDINATOR_URL=https://cmacatalyst.onrender.com
+      - COORDINATOR_URL=https://api.rmatool.org.uk
       - USE_TUNNEL=true
       - SERVICE_PORT=8103
       - SERVICE_NAME=upload-service

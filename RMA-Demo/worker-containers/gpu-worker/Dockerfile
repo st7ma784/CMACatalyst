@@ -29,7 +29,7 @@ RUN pip3 install --no-cache-dir \
 COPY worker_agent.py .
 
 # Environment variables
-ENV COORDINATOR_URL=https://cmacatalyst.onrender.com
+ENV COORDINATOR_URL=https://api.rmatool.org.uk
 ENV PYTHONUNBUFFERED=1
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility

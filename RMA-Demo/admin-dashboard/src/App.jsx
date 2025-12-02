@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
-// Direct API endpoint (no proxy needed)
-const API_BASE = 'https://rma-coordinator.fly.dev/api'
+// Direct API endpoint - Cloudflare deployment
+const API_BASE = 'https://api.rmatool.org.uk/api'
 
 function App() {
   const [stats, setStats] = useState(null)
