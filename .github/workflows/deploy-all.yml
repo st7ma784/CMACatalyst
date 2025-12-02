@@ -1,0 +1,139 @@
+name: Deploy All RMA Services
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'RMA-Demo/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      coordinator: ${{ steps.filter.outputs.coordinator }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            coordinator:
+              - 'RMA-Demo/cloudflare-worker-coordinator/**'
+            frontend:
+              - 'RMA-Demo/frontend/**'
+            admin:
+              - 'RMA-Demo/admin-dashboard/**'
+
+  deploy-coordinator:
+    needs: changes
+    if: needs.changes.outputs.coordinator == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install and deploy coordinator
+        working-directory: RMA-Demo/cloudflare-worker-coordinator
+        run: |
+          npm ci
+          npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      
+      - name: Verify coordinator
+        run: |
+          sleep 5
+          curl -f https://api.rmatool.org.uk/health
+          echo "✅ Coordinator healthy"
+
+  deploy-admin-dashboard:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Build admin dashboard
+        working-directory: RMA-Demo/admin-dashboard
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: https://api.rmatool.org.uk
+      
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: rma-dashboard
+          directory: RMA-Demo/admin-dashboard/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Build frontend
+        working-directory: RMA-Demo/frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.rmatool.org.uk
+      
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: rma-frontend
+          directory: RMA-Demo/frontend/out
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-success:
+    needs: [deploy-coordinator, deploy-admin-dashboard, deploy-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Services:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Coordinator: https://api.rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Admin Dashboard: https://dashboard.rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend: https://rmatool.org.uk" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cost: **\$0/month** (Cloudflare Free Tier)" >> $GITHUB_STEP_SUMMARY

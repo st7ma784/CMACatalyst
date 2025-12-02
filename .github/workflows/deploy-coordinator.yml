@@ -1,4 +1,4 @@
-name: Deploy Coordinator to Cloudflare Workers
+name: Deploy RMA Coordinator to Cloudflare Workers
 
 on:
   push:
@@ -7,14 +7,15 @@ on:
     paths:
       - 'RMA-Demo/cloudflare-worker-coordinator/**'
       - '.github/workflows/deploy-coordinator.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Workers
+    name: Deploy Coordinator to Cloudflare Workers
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -22,12 +23,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: RMA-Demo/cloudflare-worker-coordinator/package-lock.json
+          cache-dependency-path: 'RMA-Demo/cloudflare-worker-coordinator/package-lock.json'
 
       - name: Install dependencies
-        run: |
-          cd RMA-Demo/cloudflare-worker-coordinator
-          npm ci
+        working-directory: RMA-Demo/cloudflare-worker-coordinator
+        run: npm ci
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -36,9 +36,16 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: 'RMA-Demo/cloudflare-worker-coordinator'
           command: deploy
-          
-      - name: Deployment Summary
+
+      - name: Verify deployment
         run: |
-          echo "✅ Coordinator deployed to Cloudflare Workers"
-          echo "🌐 Live at: https://api.rmatool.org.uk"
-          echo "📊 View at: https://dash.cloudflare.com"
+          echo "🎉 Coordinator deployed successfully!"
+          echo "Testing health endpoint..."
+          sleep 5
+          curl -f https://api.rmatool.org.uk/health || exit 1
+          echo "✅ Coordinator is healthy"
+
+      - name: Notify deployment status
+        if: success()
+        run: |
+          echo "::notice::Coordinator deployed to https://api.rmatool.org.uk"

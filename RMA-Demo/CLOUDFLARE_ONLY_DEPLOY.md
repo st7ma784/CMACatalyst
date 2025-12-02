@@ -180,7 +180,7 @@ Everything on free tier:
 |---------|-----------|------------|------|
 | Workers | 100K req/day | ~10K/day | $0 |
 | KV Reads | 100K/day | ~5K/day | $0 |
-| KV Writes | 1K/day | ~100/day | $0 |
+| KV Writes | 1K/day | ~300/day (3 workers) | $0 |
 | Pages | Unlimited | Unlimited | $0 |
 | DNS | Unlimited | 2 records | $0 |
 | **Total** | | | **$0** |

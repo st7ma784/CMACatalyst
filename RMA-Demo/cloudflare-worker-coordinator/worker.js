@@ -56,6 +56,10 @@ export default {
         return await handleStats(env, corsHeaders);
       }
 
+      if (path === '/api/admin/services' && request.method === 'GET') {
+        return await handleListServices(env, corsHeaders);
+      }
+
       if (path === '/api/admin/health' && request.method === 'GET') {
         return jsonResponse({ 
           status: 'healthy',
@@ -163,12 +167,31 @@ async function handleWorkerRegister(request, env, corsHeaders) {
     registered_at: new Date().toISOString(),
     last_heartbeat: new Date().toISOString(),
     capabilities: data.capabilities,
+    services: data.services || [],  // NEW: Service manifest
     ip_address: data.ip_address,
     tunnel_url: data.tunnel_url,
+    is_heartbeat_leader: false,
   };
 
-  // Store in KV
+  // Store worker data
   await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+
+  // Update service index for each service this worker provides
+  for (const service of worker.services) {
+    await addWorkerToService(env, service.name, workerId);
+  }
+
+  // Assign heartbeat leadership if needed and requested
+  let assignedLeader = false;
+  if (data.wants_heartbeat_leadership) {
+    const currentLeader = await getHeartbeatLeader(env);
+    if (!currentLeader) {
+      worker.is_heartbeat_leader = true;
+      assignedLeader = true;
+      await env.WORKERS.put('heartbeat_leader', workerId);
+      await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+    }
+  }
 
   // Add to worker list
   const workerIds = await getWorkerIds(env);
@@ -179,6 +202,8 @@ async function handleWorkerRegister(request, env, corsHeaders) {
     worker_id: workerId,
     tier: worker.tier,
     heartbeat_interval: 30,
+    is_heartbeat_leader: assignedLeader,
+    services_registered: worker.services.length,
   }, corsHeaders);
 }
 
@@ -192,18 +217,49 @@ async function handleHeartbeat(request, env, corsHeaders) {
   }
 
   const worker = JSON.parse(workerData);
-  worker.last_heartbeat = new Date().toISOString();
+  const now = new Date().toISOString();
+  const lastHeartbeatTime = new Date(worker.last_heartbeat);
+  const currentTime = new Date(now);
+  
+  // Only write to KV if:
+  // 1. Status changed, OR
+  // 2. More than 5 minutes since last write (reduces writes by 10x)
+  const shouldWrite = 
+    worker.status !== (data.status || 'healthy') ||
+    (currentTime - lastHeartbeatTime) > 5 * 60 * 1000;
+
+  // Always update in-memory data
+  worker.last_heartbeat = now;
   worker.status = data.status || 'healthy';
   worker.current_load = data.current_load;
   worker.available_memory = data.available_memory;
 
-  await env.WORKERS.put(workerKey, JSON.stringify(worker));
+  // Only persist to KV when necessary
+  if (shouldWrite) {
+    await env.WORKERS.put(workerKey, JSON.stringify(worker));
+  }
 
   return jsonResponse({ status: 'ok' }, corsHeaders);
 }
 
 async function handleUnregister(workerId, env, corsHeaders) {
   const workerKey = `worker:${workerId}`;
+  
+  // Get worker data to find services before deletion
+  const workerData = await env.WORKERS.get(workerKey);
+  if (workerData) {
+    const worker = JSON.parse(workerData);
+    
+    // Remove worker from each service index
+    for (const service of worker.services || []) {
+      await removeWorkerFromService(env, service.name, workerId);
+    }
+    
+    // Clean up if was heartbeat leader
+    if (worker.is_heartbeat_leader) {
+      await env.WORKERS.delete('heartbeat_leader');
+    }
+  }
 
   // Remove worker data
   await env.WORKERS.delete(workerKey);
@@ -213,7 +269,7 @@ async function handleUnregister(workerId, env, corsHeaders) {
   const filteredIds = workerIds.filter(id => id !== workerId);
   await env.WORKERS.put('worker_ids', JSON.stringify(filteredIds));
 
-  return jsonResponse({ status: 'ok' }, corsHeaders);
+  return jsonResponse({ status: 'ok', message: 'Worker and services cleaned up' }, corsHeaders);
 }
 
 async function handleListWorkers(env, corsHeaders) {
@@ -266,6 +322,43 @@ async function handleStats(env, corsHeaders) {
   return jsonResponse(stats, corsHeaders);
 }
 
+async function handleListServices(env, corsHeaders) {
+  const serviceNames = await listAvailableServices(env);
+  const serviceDetails = {};
+  
+  for (const serviceName of serviceNames) {
+    const serviceKey = `service:${serviceName}`;
+    const workersJson = await env.WORKERS.get(serviceKey);
+    const workerIds = workersJson ? JSON.parse(workersJson) : [];
+    
+    // Count healthy workers
+    let healthyCount = 0;
+    const now = new Date();
+    
+    for (const workerId of workerIds) {
+      const workerData = await env.WORKERS.get(`worker:${workerId}`);
+      if (workerData) {
+        const worker = JSON.parse(workerData);
+        const ageSeconds = (now - new Date(worker.last_heartbeat)) / 1000;
+        if (ageSeconds <= 90) {
+          healthyCount++;
+        }
+      }
+    }
+    
+    serviceDetails[serviceName] = {
+      total_workers: workerIds.length,
+      healthy_workers: healthyCount,
+      status: healthyCount > 0 ? 'available' : 'unavailable'
+    };
+  }
+  
+  return jsonResponse({
+    services: serviceDetails,
+    total_services: serviceNames.length
+  }, corsHeaders);
+}
+
 async function getWorkerIds(env) {
   const idsData = await env.WORKERS.get('worker_ids');
   return idsData ? JSON.parse(idsData) : [];
@@ -282,31 +375,70 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
   const serviceName = pathParts[2]; // 'upload', 'rag', 'notes', etc.
   const servicePath = '/' + pathParts.slice(3).join('/');
 
-  // Get all workers
-  const workerIds = await getWorkerIds(env);
-  let targetWorker = null;
-
-  // Find a healthy worker with a tunnel URL
+  // Get workers providing this service
+  const serviceKey = `service:${serviceName}`;
+  const workersJson = await env.WORKERS.get(serviceKey);
+  
+  if (!workersJson) {
+    // Graceful fallback: list available services
+    const availableServices = await listAvailableServices(env);
+    return jsonResponse({ 
+      error: `Service '${serviceName}' not available`,
+      available_services: availableServices,
+      suggestion: "Start a worker with this service enabled or choose from available services"
+    }, corsHeaders, 503);
+  }
+  
+  const workerIds = JSON.parse(workersJson);
+  
+  // Find healthy workers with tunnel URLs and track stale ones
+  const healthyWorkers = [];
+  const staleWorkers = [];
+  const now = new Date();
+  
   for (const workerId of workerIds) {
     const workerData = await env.WORKERS.get(`worker:${workerId}`);
-    if (workerData) {
-      const worker = JSON.parse(workerData);
-      const lastHeartbeat = new Date(worker.last_heartbeat);
-      const ageSeconds = (new Date() - lastHeartbeat) / 1000;
-      
-      if (ageSeconds <= 90 && worker.tunnel_url) {
-        targetWorker = worker;
-        break;
-      }
+    
+    if (!workerData) {
+      // Worker deleted but still in service index
+      staleWorkers.push(workerId);
+      continue;
+    }
+    
+    const worker = JSON.parse(workerData);
+    const lastHeartbeat = new Date(worker.last_heartbeat);
+    const ageSeconds = (now - lastHeartbeat) / 1000;
+    
+    if (ageSeconds > 90) {
+      // Worker is stale (no heartbeat in 90s)
+      staleWorkers.push(workerId);
+    } else if (worker.tunnel_url) {
+      healthyWorkers.push(worker);
+    }
+  }
+  
+  // Cleanup stale workers from service index (async, non-blocking)
+  if (staleWorkers.length > 0) {
+    const cleanedWorkers = workerIds.filter(id => !staleWorkers.includes(id));
+    if (cleanedWorkers.length > 0) {
+      await env.WORKERS.put(serviceKey, JSON.stringify(cleanedWorkers));
+    } else {
+      // No healthy workers left, remove service entirely
+      await env.WORKERS.delete(serviceKey);
     }
   }
 
-  if (!targetWorker) {
+  if (healthyWorkers.length === 0) {
+    const availableServices = await listAvailableServices(env);
     return jsonResponse({ 
-      error: 'No healthy workers available',
-      service: serviceName
+      error: `No healthy workers available for '${serviceName}'`,
+      available_services: availableServices,
+      suggestion: "All workers for this service are offline. Try again later or use an alternative service."
     }, corsHeaders, 503);
   }
+
+  // Load balancing: random selection (could be enhanced with least-load)
+  const targetWorker = healthyWorkers[Math.floor(Math.random() * healthyWorkers.length)];
 
   // Proxy the request to the worker's tunnel URL
   const targetUrl = `${targetWorker.tunnel_url}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
@@ -332,6 +464,15 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
       headers: responseHeaders,
     });
   } catch (error) {
+    // Failover: try another worker if available
+    if (healthyWorkers.length > 1) {
+      return jsonResponse({ 
+        error: 'Service temporarily unavailable, retry recommended',
+        retry_after: 2,
+        healthy_workers: healthyWorkers.length - 1
+      }, corsHeaders, 503);
+    }
+    
     return jsonResponse({ 
       error: 'Service proxy failed',
       message: error.message,
@@ -355,4 +496,61 @@ function jsonResponse(data, headers = {}, status = 200) {
       ...headers,
     },
   });
+}
+
+// Service registry helpers
+async function addWorkerToService(env, serviceName, workerId) {
+  const serviceKey = `service:${serviceName}`;
+  const workersJson = await env.WORKERS.get(serviceKey);
+  const workers = workersJson ? JSON.parse(workersJson) : [];
+  
+  if (!workers.includes(workerId)) {
+    workers.push(workerId);
+    await env.WORKERS.put(serviceKey, JSON.stringify(workers));
+  }
+}
+
+async function getHeartbeatLeader(env) {
+  const leaderId = await env.WORKERS.get('heartbeat_leader');
+  if (!leaderId) return null;
+  
+  const workerData = await env.WORKERS.get(`worker:${leaderId}`);
+  if (!workerData) {
+    await env.WORKERS.delete('heartbeat_leader');
+    return null;
+  }
+  
+  const worker = JSON.parse(workerData);
+  const lastHeartbeat = new Date(worker.last_heartbeat);
+  const ageSeconds = (new Date() - lastHeartbeat) / 1000;
+  
+  // Leader is stale (offline for >90s), remove
+  if (ageSeconds > 90) {
+    await env.WORKERS.delete('heartbeat_leader');
+    return null;
+  }
+  
+  return worker;
+}
+
+async function removeWorkerFromService(env, serviceName, workerId) {
+  const serviceKey = `service:${serviceName}`;
+  const workersJson = await env.WORKERS.get(serviceKey);
+  
+  if (workersJson) {
+    const workers = JSON.parse(workersJson);
+    const filtered = workers.filter(id => id !== workerId);
+    
+    if (filtered.length > 0) {
+      await env.WORKERS.put(serviceKey, JSON.stringify(filtered));
+    } else {
+      // No more workers for this service, remove key
+      await env.WORKERS.delete(serviceKey);
+    }
+  }
+}
+
+async function listAvailableServices(env) {
+  const keys = await env.WORKERS.list({ prefix: 'service:' });
+  return keys.keys.map(k => k.name.replace('service:', ''));
 }

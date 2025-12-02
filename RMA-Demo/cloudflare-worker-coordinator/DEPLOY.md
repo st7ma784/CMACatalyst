@@ -295,19 +295,19 @@ wrangler deploy
 
 ### Current Capacity (Free Tier)
 
-- **Workers**: 1,000+ workers
+- **Workers**: 3 workers (optimized heartbeats)
 - **Requests**: 100,000/day = ~69 requests/minute
-- **Heartbeats**: Supports hundreds of workers
+- **Heartbeats**: 1 KV write per 5 minutes (vs 30 seconds)
 - **KV Storage**: 1GB = ~1M worker records
 
 ### When to Scale to Paid
 
 You'll need paid tier when:
 - More than 100,000 API requests/day
-- More than 1,000 worker registrations/day
+- More than 3 active workers (due to KV writes)
 - More than 1GB of stored data
 
-For most use cases, **free tier is plenty**!
+**Paid tier**: $5/month supports 10-20 workers easily!
 
 ---
 

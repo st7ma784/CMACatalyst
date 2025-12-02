@@ -141,6 +141,48 @@ class ContainerWorkerAgent:
         
         return None
 
+    def detect_services(self) -> List[Dict[str, Any]]:
+        """Detect what services are running in this worker"""
+        print("🔍 Detecting available services...")
+        services = []
+        
+        # Service detection map: service_name -> (container_name, port)
+        service_checks = {
+            "upload": ("upload-service", 8103),
+            "rag": ("rag-service", 8102),
+            "notes": ("notes-service", 8100),
+            "ner": ("ner-graph-service", 8108),
+            "doc-processor": ("doc-processor", 8104),
+            "client-rag": ("client-rag-service", 8101),
+            "vllm": ("vllm-service", 8000),
+            "ocr": ("ocr-service", 8105),
+        }
+        
+        for service_name, (container_name, port) in service_checks.items():
+            try:
+                # Check if service is reachable
+                response = requests.get(
+                    f'http://{container_name}:{port}/health',
+                    timeout=2
+                )
+                if response.status_code == 200:
+                    health_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else {}
+                    services.append({
+                        "name": service_name,
+                        "container": container_name,
+                        "port": port,
+                        "health": "healthy",
+                        "version": health_data.get("version", "unknown")
+                    })
+                    print(f"   ✅ {service_name} (port {port})")
+            except Exception as e:
+                # Service not available - that's okay
+                print(f"   ⚪ {service_name} (not available)")
+                pass
+        
+        print(f"✅ Found {len(services)} active service(s)")
+        return services
+
     def detect_capabilities(self) -> Dict[str, Any]:
         """Detect container capabilities"""
         print("🔍 Detecting container capabilities...")
@@ -206,6 +248,7 @@ class ContainerWorkerAgent:
         print(f"\n📡 Registering with coordinator: {self.coordinator_url}")
 
         capabilities = self.detect_capabilities()
+        services = self.detect_services()
         ip_address = capabilities.get("ip_address")
         
         # Priority: ngrok env var > tunnel URL > IP address
@@ -223,8 +266,10 @@ class ContainerWorkerAgent:
                 f"{self.coordinator_url}/api/worker/register",
                 json={
                     "capabilities": capabilities,
+                    "services": services,  # NEW: Advertise available services
                     "ip_address": endpoint_url,  # Send tunnel/ngrok URL as "IP"
-                    "tunnel_url": ngrok_url or self.tunnel_url  # Send tunnel URL separately
+                    "tunnel_url": ngrok_url or self.tunnel_url,  # Send tunnel URL separately
+                    "wants_heartbeat_leadership": len(services) > 0  # Offer to be leader if running services
                 },
                 timeout=30
             )
@@ -233,10 +278,14 @@ class ContainerWorkerAgent:
 
             self.worker_id = assignment["worker_id"]
             self.tier = assignment["tier"]
+            is_leader = assignment.get("is_heartbeat_leader", False)
 
             print(f"\n✅ Registered successfully!")
             print(f"   Worker ID: {self.worker_id}")
             print(f"   Tier: {self.tier}")
+            print(f"   Services: {len(services)}")
+            if is_leader:
+                print(f"   Role: ♕ HEARTBEAT LEADER")
             if self.tunnel_url:
                 print(f"   Tunnel URL: {self.tunnel_url}")
             elif ip_address:
