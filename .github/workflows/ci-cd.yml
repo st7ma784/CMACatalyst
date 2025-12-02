@@ -109,13 +109,13 @@ jobs:
       matrix:
         include:
           - dockerfile: Dockerfile
-            image: ${{ env.IMAGE_NAME_API }}
+            image: ghcr.io/${{ github.repository }}/api-gateway
             context: .
           - dockerfile: Dockerfile.frontend
-            image: ${{ env.IMAGE_NAME_FRONTEND }}
+            image: ghcr.io/${{ github.repository }}/frontend
             context: .
           - dockerfile: Dockerfile.chatbot
-            image: ${{ env.IMAGE_NAME_CHATBOT }}
+            image: ghcr.io/${{ github.repository }}/chatbot
             context: .
 
     steps:
@@ -148,8 +148,8 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-  cache-from: type=gha
-  cache-to: type=gha,mode=max
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy-staging:
     needs: build-and-push
