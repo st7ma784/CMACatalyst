@@ -427,8 +427,10 @@ Add to workflow:
 ```bash
 cd RMA-Demo/frontend
 npm run build
-npx wrangler pages deploy out --project-name=rma-frontend
+npx wrangler pages deploy --project-name=rma-frontend
 ```
+
+**Note:** The `wrangler.toml` is now configured with `pages_build_output_dir = "out"` so wrangler will automatically use the correct output directory.
 
 ### Deploy Coordinator Manually (if needed)
 ```bash

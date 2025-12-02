@@ -17,7 +17,7 @@ import {
   Users
 } from 'lucide-react'
 
-const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL || 'https://rma-coordinator.fly.dev'
+const COORDINATOR_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rmatool.org.uk'
 
 interface Worker {
   worker_id: string
@@ -39,17 +39,22 @@ interface Worker {
 interface SystemStats {
   total_workers: number
   healthy_workers: number
-  workers_by_tier: {
+  by_tier?: {
+    '1': number
+    '2': number
+    '3': number
+  }
+  workers_by_tier?: {
     gpu_workers: number
     service_workers: number
     data_workers: number
   }
-  average_load_by_tier: {
+  average_load_by_tier?: {
     gpu_workers: number
     service_workers: number
     data_workers: number
   }
-  total_tasks_completed: number
+  total_tasks_completed?: number
 }
 
 interface SystemHealth {
@@ -73,25 +78,63 @@ export default function SystemOrchestrator() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
+  // Helper functions to handle both old and new API response formats
+  const getWorkersByTier = (tier: number): number => {
+    if (!stats) return 0
+    if (stats.by_tier) {
+      return stats.by_tier[tier.toString() as '1' | '2' | '3'] || 0
+    }
+    if (stats.workers_by_tier) {
+      const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : 'data_workers'
+      return stats.workers_by_tier[key] || 0
+    }
+    return 0
+  }
+
+  const getAverageLoad = (tier: number): number => {
+    if (!stats?.average_load_by_tier) return 0
+    const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : 'data_workers'
+    return stats.average_load_by_tier[key] || 0
+  }
+
   const fetchSystemData = async () => {
     try {
-      const [workersRes, statsRes, healthRes] = await Promise.all([
+      const [workersRes, statsRes] = await Promise.all([
         fetch(`${COORDINATOR_URL}/api/admin/workers`),
-        fetch(`${COORDINATOR_URL}/api/admin/stats`),
-        fetch(`${COORDINATOR_URL}/api/admin/health`)
+        fetch(`${COORDINATOR_URL}/api/admin/stats`)
       ])
 
-      if (!workersRes.ok || !statsRes.ok || !healthRes.ok) {
+      if (!workersRes.ok || !statsRes.ok) {
         throw new Error('Failed to fetch system data')
       }
 
       const workersData = await workersRes.json()
       const statsData = await statsRes.json()
-      const healthData = await healthRes.json()
 
-      setWorkers(workersData.workers || [])
+      // API returns array directly
+      const workersArray = Array.isArray(workersData) ? workersData : []
+      setWorkers(workersArray)
       setStats(statsData)
-      setHealth(healthData)
+      
+      // Derive health from workers and stats
+      const healthyCount = workersArray.filter(w => w.status === 'healthy').length
+      const degradedCount = workersArray.filter(w => w.status === 'degraded').length
+      const offlineCount = workersArray.filter(w => w.status === 'offline').length
+      
+      setHealth({
+        overall_status: workersArray.length === 0 ? 'error' : 
+                       healthyCount === workersArray.length ? 'healthy' : 'degraded',
+        workers_by_status: {
+          healthy: healthyCount,
+          degraded: degradedCount,
+          offline: offlineCount
+        },
+        has_minimum_workers: {
+          gpu_workers: (statsData?.by_tier?.['1'] || 0) > 0,
+          service_workers: (statsData?.by_tier?.['2'] || 0) > 0
+        }
+      })
+      
       setError(null)
       setLastUpdate(new Date())
     } catch (err) {
@@ -262,10 +305,10 @@ export default function SystemOrchestrator() {
               <Cpu className="h-8 w-8 text-purple-600" />
               <div>
                 <div className="text-2xl font-bold">
-                  {stats?.workers_by_tier?.gpu_workers || 0}
+                  {getWorkersByTier(1)}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {((stats?.average_load_by_tier?.gpu_workers || 0) * 100).toFixed(0)}% avg load
+                  {(getAverageLoad(1) * 100).toFixed(0)}% avg load
                 </div>
               </div>
             </div>
@@ -296,22 +339,22 @@ export default function SystemOrchestrator() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">
-              {stats?.workers_by_tier?.gpu_workers || 0}
+              {getWorkersByTier(1)}
             </div>
             <p className="text-xs text-gray-600 mt-1">vLLM, Vision Models</p>
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-600">Average Load</span>
                 <span className="font-semibold">
-                  {((stats?.average_load_by_tier?.gpu_workers || 0) * 100).toFixed(0)}%
+                  {(getAverageLoad(1) * 100).toFixed(0)}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${getLoadBarColor(
-                    stats?.average_load_by_tier?.gpu_workers || 0
+                    getAverageLoad(1)
                   )}`}
-                  style={{ width: `${(stats?.average_load_by_tier?.gpu_workers || 0) * 100}%` }}
+                  style={{ width: `${(getAverageLoad(1) * 100)}%` }}
                 />
               </div>
             </div>
@@ -327,23 +370,23 @@ export default function SystemOrchestrator() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
-              {stats?.workers_by_tier?.service_workers || 0}
+              {getWorkersByTier(2)}
             </div>
             <p className="text-xs text-gray-600 mt-1">RAG, Notes, NER</p>
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-600">Average Load</span>
                 <span className="font-semibold">
-                  {((stats?.average_load_by_tier?.service_workers || 0) * 100).toFixed(0)}%
+                  {(getAverageLoad(2) * 100).toFixed(0)}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${getLoadBarColor(
-                    stats?.average_load_by_tier?.service_workers || 0
+                    getAverageLoad(2)
                   )}`}
                   style={{
-                    width: `${(stats?.average_load_by_tier?.service_workers || 0) * 100}%`
+                    width: `${(getAverageLoad(2) * 100)}%`
                   }}
                 />
               </div>
@@ -360,22 +403,22 @@ export default function SystemOrchestrator() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">
-              {stats?.workers_by_tier?.data_workers || 0}
+              {getWorkersByTier(3)}
             </div>
             <p className="text-xs text-gray-600 mt-1">PostgreSQL, Neo4j, Redis</p>
             <div className="mt-3">
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-600">Average Load</span>
                 <span className="font-semibold">
-                  {((stats?.average_load_by_tier?.data_workers || 0) * 100).toFixed(0)}%
+                  {(getAverageLoad(3) * 100).toFixed(0)}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${getLoadBarColor(
-                    stats?.average_load_by_tier?.data_workers || 0
+                    getAverageLoad(3)
                   )}`}
-                  style={{ width: `${(stats?.average_load_by_tier?.data_workers || 0) * 100}%` }}
+                  style={{ width: `${(getAverageLoad(3) * 100)}%` }}
                 />
               </div>
             </div>
@@ -455,36 +498,40 @@ export default function SystemOrchestrator() {
                           <div className="w-24 bg-gray-200 rounded-full h-2 mb-1">
                             <div
                               className={`h-2 rounded-full ${getLoadBarColor(
-                                worker.current_load
+                                worker.current_load || 0
                               )}`}
-                              style={{ width: `${worker.current_load * 100}%` }}
+                              style={{ width: `${(worker.current_load || 0) * 100}%` }}
                             />
                           </div>
                           <span className="text-xs text-gray-600">
-                            {(worker.current_load * 100).toFixed(0)}%
+                            {((worker.current_load || 0) * 100).toFixed(0)}%
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="space-y-1">
-                          {worker.assigned_containers.map((container, i) => (
-                            <div key={i} className="text-xs text-gray-600">
-                              {container.replace('rma-', '').replace('-worker', '')}
-                            </div>
-                          ))}
+                          {worker.assigned_containers && worker.assigned_containers.length > 0 ? (
+                            worker.assigned_containers.map((container, i) => (
+                              <div key={i} className="text-xs text-gray-600">
+                                {container.replace('rma-', '').replace('-worker', '')}
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400">None</span>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-xs text-gray-600 space-y-1">
-                          {worker.capabilities.gpu_type && (
+                          {worker.capabilities?.gpu_type && (
                             <div>{worker.capabilities.gpu_type}</div>
                           )}
-                          <div>{worker.capabilities.cpu_cores} cores</div>
-                          <div>{worker.capabilities.ram} RAM</div>
+                          <div>{worker.capabilities?.cpu_cores || 0} cores</div>
+                          <div>{worker.capabilities?.ram || 'N/A'}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-semibold">{worker.tasks_completed}</span>
+                        <span className="text-sm font-semibold">{worker.tasks_completed || 0}</span>
                       </td>
                     </tr>
                   ))}
