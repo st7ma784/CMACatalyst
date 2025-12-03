@@ -1,15 +1,23 @@
 /**
  * API URL configuration
  *
- * Uses Next.js API proxy routes to avoid CORS issues with Docker rootless networking.
- * All API calls should use these URLs instead of directly accessing backend services.
+ * In production: Routes all requests through the Cloudflare Worker coordinator at api.rmatool.org.uk
+ * In development: Uses environment variables or defaults to localhost
  */
 
+const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL || 'https://api.rmatool.org.uk'
+
 export const getApiUrl = (service: 'rag' | 'upload' | 'client-rag' | 'doc-processor' | 'notes') => {
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/api/${service}`
+  // Map service names to coordinator routes
+  const routeMap: Record<string, string> = {
+    'rag': '/api/rag/query',
+    'upload': '/api/upload',
+    'client-rag': '/api/client-rag/query',
+    'doc-processor': '/api/doc-processor',
+    'notes': '/api/notes',
   }
-  return `/api/${service}`
+  
+  return `${COORDINATOR_URL}${routeMap[service] || `/api/${service}`}`
 }
 
 export const API_URLS = {
