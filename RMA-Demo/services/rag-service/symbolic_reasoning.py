@@ -275,12 +275,7 @@ Analyze and output roles:"""
 
         try:
             from langchain_community.llms import Ollama
-            llm = Ollama(
-                model=llm_model,
-                base_url=os.getenv('OLLAMA_URL', 'http://ollama:11434'),
-                temperature=0.1,
-                num_ctx=32768  # Increase context window to 32k tokens
-            )
+            llm = Ollama(model=llm_model, base_url=os.getenv('OLLAMA_URL', 'http://ollama:11434'), temperature=0.1)
             response = llm.invoke(discovery_prompt)
             
             # Parse response

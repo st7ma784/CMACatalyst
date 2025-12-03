@@ -12,7 +12,10 @@ import AskTheManuals from '@/components/AskTheManuals'
 import ClientDocumentSearch from '@/components/ClientDocumentSearch'
 import Documentation from '@/components/Documentation'
 import DebugVectorStore from '@/components/DebugVectorStore'
-import { FileText, QrCode, BookOpen, Search, HelpCircle, LogIn, LogOut, RefreshCw, Bug } from 'lucide-react'
+import EligibilityChecker from '@/components/EligibilityChecker'
+import DebtAdviceGraph from '@/components/DebtAdviceGraph'
+import InteractiveDebtGraph from '@/components/InteractiveDebtGraph'
+import { FileText, QrCode, BookOpen, Search, HelpCircle, LogIn, LogOut, RefreshCw, Bug, CheckCircle, GitBranch, Zap } from 'lucide-react'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('notes')
@@ -73,7 +76,7 @@ export default function Home() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-8">
+          <TabsList className="grid w-full grid-cols-9 mb-8">
             <TabsTrigger value="notes" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Notes to CoA
@@ -82,6 +85,10 @@ export default function Home() {
               <QrCode className="h-4 w-4" />
               Client QR Codes
             </TabsTrigger>
+            <TabsTrigger value="eligibility" className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Eligibility
+            </TabsTrigger>
             <TabsTrigger value="client-search" className="flex items-center gap-2">
               <Search className="h-4 w-4" />
               Search Client Docs
@@ -89,6 +96,14 @@ export default function Home() {
             <TabsTrigger value="manuals" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Ask the Manuals
+            </TabsTrigger>
+            <TabsTrigger value="graph" className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4" />
+              Graph View
+            </TabsTrigger>
+            <TabsTrigger value="interactive" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Interactive Routes
             </TabsTrigger>
             <TabsTrigger value="debug" className="flex items-center gap-2">
               <Bug className="h-4 w-4" />
@@ -108,12 +123,24 @@ export default function Home() {
             <QRCodeGenerator />
           </TabsContent>
 
+          <TabsContent value="eligibility">
+            <EligibilityChecker />
+          </TabsContent>
+
           <TabsContent value="client-search">
             <ClientDocumentSearch />
           </TabsContent>
 
           <TabsContent value="manuals">
             <AskTheManuals />
+          </TabsContent>
+
+          <TabsContent value="graph">
+            <DebtAdviceGraph />
+          </TabsContent>
+
+          <TabsContent value="interactive">
+            <InteractiveDebtGraph />
           </TabsContent>
 
           <TabsContent value="debug">
