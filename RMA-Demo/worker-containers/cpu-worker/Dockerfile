@@ -14,9 +14,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install cloudflared
-RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
-    && dpkg -i cloudflared-linux-amd64.deb \
-    && rm cloudflared-linux-amd64.deb
+RUN ARCH=$(dpkg --print-architecture) && \
+    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}.deb \
+    && dpkg -i cloudflared-linux-${ARCH}.deb \
+    && rm cloudflared-linux-${ARCH}.deb
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
