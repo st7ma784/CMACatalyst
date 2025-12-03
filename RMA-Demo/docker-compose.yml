@@ -1,23 +1,82 @@
 version: '3.8'
 
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: rma-ollama
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: rma-vllm
     ports:
-      - "11434:11434"
+      - "8000:8000"
     volumes:
-      - ollama_data:/root/.ollama
+      - vllm_data:/root/.cache
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - VLLM_API_KEY=local
+      - VLLM_HOST=0.0.0.0
+      - VLLM_PORT=8000
+      - VLLM_SERVED_MODEL_NAME=mistral
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: --model mistralai/Mistral-7B-Instruct-v0.2 --gpu-memory-utilization 0.9 --tensor-parallel-size 1
+
+  embedding-service:
+    build:
+      context: ./services/embedding-service
+      dockerfile: Dockerfile
+    container_name: rma-embedding-service
+    ports:
+      - "8006:8006"
+    environment:
+      - PORT=8006
+      - DEVICE=cuda
     restart: unless-stopped
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              count: 1
               capabilities: [gpu]
+
+  markitdown:
+    build:
+      context: ./services/markitdown
+      dockerfile: Dockerfile
+    container_name: rma-markitdown
+    ports:
+      - "8008:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  document-extraction-service:
+    build:
+      context: ./services/document-extraction-service
+      dockerfile: Dockerfile
+    container_name: rma-document-extraction
+    ports:
+      - "8007:8007"
+    environment:
+      - PORT=8007
+      - BACKEND_SERVICE=markitdown
+      - BACKEND_URL=http://markitdown:8008
+      - FALLBACK_SERVICE=olmocr2
+      - FALLBACK_URL=http://olmocr2:8009
+    restart: unless-stopped
+    depends_on:
+      - markitdown
 
   chromadb:
     image: chromadb/chroma:0.4.24
@@ -31,6 +90,9 @@ services:
       - CHROMA_SERVER_HOST=0.0.0.0
       - CHROMA_SERVER_HTTP_PORT=8000
     restart: unless-stopped
+    depends_on:
+      - embedding-service
+      - document-extraction-service
 
   notes-service:
     build:
@@ -40,9 +102,9 @@ services:
     ports:
       - "8100:8100"
     environment:
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://vllm:8000
     depends_on:
-      - ollama
+      - vllm
     restart: unless-stopped
 
   doc-processor:
@@ -54,9 +116,11 @@ services:
       - "8101:8101"
     environment:
       - LLAMA_PARSE_API_KEY=${LLAMA_PARSE_API_KEY:-}
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://vllm:8000
+      - EXTRACTION_SERVICE_URL=http://document-extraction-service:8007
     depends_on:
-      - ollama
+      - vllm
+      - document-extraction-service
     restart: unless-stopped
     deploy:
       resources:
@@ -72,17 +136,19 @@ services:
       dockerfile: Dockerfile
     container_name: rma-rag-service
     ports:
-      - "0.0.0.0:8102:8102"
+      - "8102:8102"
     volumes:
       - ./manuals:/manuals
     environment:
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://vllm:8000
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8006
       - MANUALS_PATH=/manuals
     depends_on:
-      - ollama
+      - vllm
       - chromadb
+      - embedding-service
     restart: unless-stopped
 
   client-rag-service:
@@ -91,16 +157,16 @@ services:
       dockerfile: Dockerfile
     container_name: rma-client-rag-service
     ports:
-      - "0.0.0.0:8104:8104"
+      - "8104:8104"
     environment:
-      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_URL=http://vllm:8000
       - CHROMADB_HOST=chromadb
       - CHROMADB_PORT=8000
-      - RAG_SERVICE_URL=http://rag-service:8102
+      - EMBEDDING_SERVICE_URL=http://embedding-service:8006
     depends_on:
-      - ollama
+      - vllm
       - chromadb
-      - rag-service
+      - embedding-service
     restart: unless-stopped
 
   upload-service:
@@ -109,7 +175,7 @@ services:
       dockerfile: Dockerfile
     container_name: rma-upload-service
     ports:
-      - "0.0.0.0:8103:8103"
+      - "8103:8103"
     volumes:
       - upload_data:/data/uploads
     environment:
@@ -117,12 +183,10 @@ services:
       - UPLOAD_DIR=/data/uploads
       - DOC_PROCESSOR_URL=http://doc-processor:8101
       - CLIENT_RAG_URL=http://client-rag-service:8104
-      - RAG_SERVICE_URL=http://rag-service:8102
       - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3000}
     depends_on:
       - doc-processor
       - client-rag-service
-      - rag-service
     restart: unless-stopped
 
   frontend:
@@ -183,7 +247,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  ollama_data:
+  vllm_data:
   chroma_data:  # Shared ChromaDB storage for all collections
   upload_data:
   n8n_data:
