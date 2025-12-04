@@ -54,7 +54,8 @@ class RAGSystemOrchestrator:
         readiness = {
             "has_gpu_worker": False,
             "has_cpu_worker": False,
-            "has_chromadb": False,
+            "has_storage": False,
+            "has_vector_database": False,
             "has_rag_service": False
         }
         
@@ -66,14 +67,14 @@ class RAGSystemOrchestrator:
         for worker in workers:
             tier = worker.get("tier")
             capabilities = worker.get("capabilities", {})
-            containers = worker.get("containers", [])
+            services = worker.get("services", [])
             status = worker.get("status", "offline")
             
-            if status != "online":
+            if status not in ["online", "healthy"]:
                 continue
             
-            # Check for GPU worker (Tier 1)
-            if tier == 1 and capabilities.get("has_gpu", False):
+            # Check for GPU worker (Tier 1) - can also do CPU tasks
+            if tier == 1 or capabilities.get("has_gpu", False):
                 readiness["has_gpu_worker"] = True
                 logger.debug(f"Found GPU worker: {worker.get('worker_id')}")
             
@@ -82,15 +83,23 @@ class RAGSystemOrchestrator:
                 readiness["has_cpu_worker"] = True
                 logger.debug(f"Found CPU worker: {worker.get('worker_id')}")
             
-            # Check for specific services in containers
-            for container in containers:
-                service_name = container.get("name", "")
+            # Check for storage capability (Tier 3)
+            if tier == 3 or capabilities.get("has_storage", False):
+                readiness["has_storage"] = True
+                logger.debug(f"Found storage worker: {worker.get('worker_id')}")
+            
+            # Check for specific services in service manifest
+            for service in services:
+                service_name = service.get("name", "")
+                service_caps = service.get("capabilities", [])
                 
-                if service_name == "chromadb":
-                    readiness["has_chromadb"] = True
-                    logger.debug(f"Found ChromaDB service")
+                # Check for vector database (chromadb or similar)
+                if service_name == "chromadb" or "vector_database" in service_caps:
+                    readiness["has_vector_database"] = True
+                    logger.debug(f"Found vector database service: {service_name}")
                 
-                if service_name in ["rag-service", "gpu-worker"]:
+                # Check for RAG service
+                if service_name in ["rag", "gpu-worker"] or "rag" in service_caps:
                     readiness["has_rag_service"] = True
                     logger.debug(f"Found RAG service: {service_name}")
         
@@ -160,13 +169,15 @@ class RAGSystemOrchestrator:
                     logger.info("System Status:")
                     logger.info(f"  GPU Worker: {'✅' if readiness['has_gpu_worker'] else '❌'}")
                     logger.info(f"  CPU Worker: {'✅' if readiness['has_cpu_worker'] else '❌'}")
-                    logger.info(f"  ChromaDB: {'✅' if readiness['has_chromadb'] else '❌'}")
+                    logger.info(f"  Storage: {'✅' if readiness['has_storage'] else '❌'}")
+                    logger.info(f"  Vector Database: {'✅' if readiness['has_vector_database'] else '❌'}")
                     logger.info(f"  RAG Service: {'✅' if readiness['has_rag_service'] else '❌'}")
                     
-                    # Check if system is ready
+                    # Check if system is ready (need GPU, vector DB, and RAG service)
+                    # CPU and general storage are optional (GPU can do CPU tasks)
                     if all([
                         readiness['has_gpu_worker'],
-                        readiness['has_chromadb'],
+                        readiness['has_vector_database'],
                         readiness['has_rag_service']
                     ]):
                         if not self.ingestion_triggered:
@@ -186,8 +197,8 @@ class RAGSystemOrchestrator:
                         missing = []
                         if not readiness['has_gpu_worker']:
                             missing.append("GPU worker")
-                        if not readiness['has_chromadb']:
-                            missing.append("ChromaDB")
+                        if not readiness['has_vector_database']:
+                            missing.append("vector database (ChromaDB)")
                         if not readiness['has_rag_service']:
                             missing.append("RAG service")
                         

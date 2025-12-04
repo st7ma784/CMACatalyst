@@ -144,13 +144,45 @@ class GPUWorkerAgent:
         print(f"\n📡 Registering with coordinator: {self.coordinator_url}")
 
         capabilities = self.detect_capabilities()
+        capabilities["has_gpu"] = True  # Explicitly mark GPU capability
         endpoint_url = self.tunnel_url or capabilities.get("ip_address")
+
+        # Define services this GPU worker can provide
+        # GPU workers are Tier 1 and can handle GPU + CPU + processing tasks
+        services = [
+            {
+                "name": "gpu-worker",  # Generic GPU worker service
+                "service_url": endpoint_url,
+                "port": 8102,
+                "capabilities": ["llm", "embeddings", "ocr", "vision", "rag"],
+                "health_endpoint": "/health"
+            },
+            {
+                "name": "rag",  # RAG query service
+                "service_url": endpoint_url,
+                "port": 8102,
+                "health_endpoint": "/health"
+            },
+            {
+                "name": "vllm",  # vLLM inference (if available)
+                "service_url": endpoint_url,
+                "port": 8102,
+                "health_endpoint": "/health"
+            },
+            {
+                "name": "embeddings",  # Embedding generation
+                "service_url": endpoint_url,
+                "port": 8102,
+                "health_endpoint": "/health"
+            }
+        ]
 
         try:
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/register",
                 json={
                     "capabilities": capabilities,
+                    "containers": services,  # Use containers format for service manifest
                     "ip_address": endpoint_url,
                     "tunnel_url": self.tunnel_url
                 },
@@ -164,7 +196,8 @@ class GPUWorkerAgent:
 
             print(f"\n✅ Registered successfully!")
             print(f"   Worker ID: {self.worker_id}")
-            print(f"   Tier: {self.tier}")
+            print(f"   Tier: {self.tier} (GPU - can handle GPU, CPU, and processing tasks)")
+            print(f"   Services: {', '.join([s['name'] for s in services])}")
             if self.tunnel_url:
                 print(f"   Tunnel URL: {self.tunnel_url}")
             elif endpoint_url:
@@ -174,17 +207,8 @@ class GPUWorkerAgent:
 
         except requests.RequestException as e:
             print(f"❌ Registration failed: {e}")
-            return None
-            self.tier = assignment["tier"]
-
-            print(f"\n✅ Registered successfully!")
-            print(f"   Worker ID: {self.worker_id}")
-            print(f"   Tier: {self.tier}")
-
-            return assignment
-
-        except requests.RequestException as e:
-            print(f"❌ Registration failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"   Response: {e.response.text}")
             return None
 
     def send_heartbeat(self):

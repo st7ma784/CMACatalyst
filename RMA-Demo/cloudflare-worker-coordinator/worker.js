@@ -160,7 +160,26 @@ async function handleVerifyToken(request, env, corsHeaders) {
 async function handleWorkerRegister(request, env, corsHeaders) {
   try {
     const data = await request.json();
-    const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const workerId = data.worker_id || `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Extract services from either containers[] or services[] for backward compatibility
+    let services = [];
+    if (data.containers && Array.isArray(data.containers)) {
+      // New format: containers with service details
+      services = data.containers.map(c => ({
+        name: c.name,
+        service_url: c.service_url || data.tunnel_url,
+        port: c.port,
+        health_endpoint: c.health_endpoint,
+        version: c.version
+      }));
+    } else if (data.services && Array.isArray(data.services)) {
+      // Legacy format: simple service list
+      services = data.services.map(s => ({
+        name: typeof s === 'string' ? s : s.name,
+        service_url: data.tunnel_url || data.ip_address
+      }));
+    }
 
     const worker = {
       worker_id: workerId,
@@ -169,7 +188,7 @@ async function handleWorkerRegister(request, env, corsHeaders) {
       registered_at: new Date().toISOString(),
       last_heartbeat: new Date().toISOString(),
       capabilities: data.capabilities,
-      services: data.services || [],  // NEW: Service manifest
+      services: services,
       ip_address: data.ip_address,
       tunnel_url: data.tunnel_url,
       is_heartbeat_leader: false,
@@ -179,8 +198,10 @@ async function handleWorkerRegister(request, env, corsHeaders) {
     await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
 
     // Update service index for each service this worker provides
-    for (const service of worker.services) {
-      await addWorkerToService(env, service.name, workerId);
+    for (const service of services) {
+      const serviceName = service.name;
+      await addWorkerToService(env, serviceName, workerId);
+      console.log(`Registered worker ${workerId} for service: ${serviceName}`);
     }
 
     // Assign heartbeat leadership if needed and requested
@@ -401,7 +422,7 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
   
   const workerIds = JSON.parse(workersJson);
   
-  // Find healthy workers with tunnel URLs and track stale ones
+  // Find healthy workers that provide this service
   const healthyWorkers = [];
   const staleWorkers = [];
   const now = new Date();
@@ -422,8 +443,23 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
     if (ageSeconds > 90) {
       // Worker is stale (no heartbeat in 90s)
       staleWorkers.push(workerId);
-    } else if (worker.tunnel_url) {
-      healthyWorkers.push(worker);
+      continue;
+    }
+    
+    // Find the service-specific URL from worker's service manifest
+    let serviceUrl = worker.tunnel_url; // Default to worker tunnel
+    if (worker.services && Array.isArray(worker.services)) {
+      const serviceEntry = worker.services.find(s => s.name === serviceName);
+      if (serviceEntry && serviceEntry.service_url) {
+        serviceUrl = serviceEntry.service_url;
+      }
+    }
+    
+    if (serviceUrl) {
+      healthyWorkers.push({
+        ...worker,
+        effective_service_url: serviceUrl // URL specific to this service
+      });
     }
   }
   
@@ -447,11 +483,14 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
     }, corsHeaders, 503);
   }
 
-  // Load balancing: random selection (could be enhanced with least-load)
-  const targetWorker = healthyWorkers[Math.floor(Math.random() * healthyWorkers.length)];
+  // Load balancing: Prefer higher-tier workers (GPU > CPU > Storage) but use what's available
+  // Sort by tier ascending (1=GPU, 2=CPU, 3=Storage), so GPU workers are preferred
+  healthyWorkers.sort((a, b) => a.tier - b.tier);
+  
+  const targetWorker = healthyWorkers[0]; // Use best available worker
 
-  // Proxy the request to the worker's tunnel URL
-  const targetUrl = `${targetWorker.tunnel_url}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
+  // Proxy the request to the worker's service-specific URL
+  const targetUrl = `${targetWorker.effective_service_url}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
 
   try {
     const proxyRequest = new Request(targetUrl, {
@@ -492,10 +531,33 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
   }
 }
 
+/**
+ * Determine worker tier based on capabilities
+ * Tier 1 (GPU): Can handle GPU tasks + CPU tasks + processing tasks
+ * Tier 2 (CPU): Can handle CPU tasks + processing tasks  
+ * Tier 3 (Storage/Infrastructure): Handles persistence, caching, databases
+ * 
+ * Note: Higher tiers can accept lower tier tasks, but not vice versa
+ */
 function determineTier(capabilities) {
-  if (capabilities.gpu_memory || capabilities.gpu_type) return 1;
-  if (capabilities.cpu_cores >= 4) return 2;
-  return 3;
+  // Tier 1: GPU workers - can do everything (GPU, CPU, processing)
+  if (capabilities.has_gpu || capabilities.gpu_memory || capabilities.gpu_type) {
+    return 1;
+  }
+  
+  // Tier 2: CPU workers - can do CPU + processing tasks
+  if (capabilities.cpu_cores >= 4 || capabilities.worker_type === 'cpu') {
+    return 2;
+  }
+  
+  // Tier 3: Storage/Infrastructure workers - handles persistence
+  // Includes: chromadb, redis, postgres, neo4j, minio, etc.
+  if (capabilities.has_storage || capabilities.storage_type) {
+    return 3;
+  }
+  
+  // Default to Tier 2 for unknown capability profiles
+  return 2;
 }
 
 function jsonResponse(data, headers = {}, status = 200) {

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-ChromaDB Storage Worker Agent
-Registers with coordinator as Tier 3 (Storage) worker
-Provides persistent vector database for RAG system
+Storage Worker Agent
+Registers with coordinator as Tier 3 (Storage/Infrastructure) worker
+Provides persistent storage services: ChromaDB, Redis, PostgreSQL, MinIO, Neo4j
+Can be configured to run multiple storage services simultaneously
 """
 
 import os
@@ -13,7 +14,7 @@ import requests
 import subprocess
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,23 +22,56 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class ChromaDBWorkerAgent:
-    """Agent for ChromaDB storage worker registration and health monitoring"""
+class StorageWorkerAgent:
+    """Agent for storage worker registration and health monitoring"""
     
     def __init__(self):
         self.coordinator_url = os.getenv("COORDINATOR_URL", "https://api.rmatool.org.uk")
-        self.worker_id = os.getenv("WORKER_ID", f"chromadb-worker-{socket.gethostname()}-{int(time.time())}")
+        self.worker_id = os.getenv("WORKER_ID", f"storage-worker-{socket.gethostname()}-{int(time.time())}")
         self.chromadb_port = int(os.getenv("CHROMADB_PORT", "8000"))
         self.use_tunnel = os.getenv("USE_TUNNEL", "true").lower() == "true"
         self.tunnel_process: Optional[subprocess.Popen] = None
         self.tunnel_url: Optional[str] = None
         self.heartbeat_interval = 30  # seconds
         
-        logger.info(f"ChromaDB Worker Agent initialized")
+        # Storage service configuration
+        self.enabled_services = self._detect_enabled_services()
+        
+        logger.info(f"Storage Worker Agent initialized")
         logger.info(f"Worker ID: {self.worker_id}")
         logger.info(f"Coordinator: {self.coordinator_url}")
-        logger.info(f"ChromaDB Port: {self.chromadb_port}")
+        logger.info(f"Enabled services: {', '.join(self.enabled_services)}")
         logger.info(f"Tunnel Mode: {self.use_tunnel}")
+    
+    def _detect_enabled_services(self) -> List[str]:
+        """Detect which storage services are enabled in this container"""
+        services = []
+        
+        # Check for ChromaDB
+        if os.getenv("ENABLE_CHROMADB", "true").lower() == "true":
+            services.append("chromadb")
+        
+        # Check for Redis (if REDIS_PORT is set)
+        if os.getenv("REDIS_PORT"):
+            services.append("redis")
+        
+        # Check for PostgreSQL (if POSTGRES_PORT is set)
+        if os.getenv("POSTGRES_PORT"):
+            services.append("postgres")
+        
+        # Check for MinIO (if MINIO_PORT is set)
+        if os.getenv("MINIO_PORT"):
+            services.append("minio")
+        
+        # Check for Neo4j (if NEO4J_PORT is set)
+        if os.getenv("NEO4J_PORT"):
+            services.append("neo4j")
+        
+        # Default to ChromaDB if nothing specified
+        if not services:
+            services.append("chromadb")
+        
+        return services
     
     def start_tunnel(self) -> bool:
         """Start Cloudflare Tunnel for ChromaDB access"""
@@ -104,7 +138,7 @@ class ChromaDBWorkerAgent:
         return False
     
     def register_with_coordinator(self) -> bool:
-        """Register this ChromaDB worker with the coordinator"""
+        """Register this storage worker with the coordinator"""
         try:
             # Determine service URL
             if self.tunnel_url:
@@ -115,33 +149,78 @@ class ChromaDBWorkerAgent:
                 local_ip = socket.gethostbyname(hostname)
                 service_url = f"http://{local_ip}:{self.chromadb_port}"
             
+            # Build service manifest for all enabled storage services
+            containers = []
+            
+            if "chromadb" in self.enabled_services:
+                containers.append({
+                    "name": "chromadb",
+                    "service_url": service_url,
+                    "port": self.chromadb_port,
+                    "health_endpoint": "/api/v1/heartbeat",
+                    "version": "0.4.24",
+                    "capabilities": ["vector_database", "embeddings_storage", "semantic_search"]
+                })
+            
+            if "redis" in self.enabled_services:
+                redis_port = int(os.getenv("REDIS_PORT", "6379"))
+                containers.append({
+                    "name": "redis",
+                    "service_url": f"http://{socket.gethostbyname(socket.gethostname())}:{redis_port}",
+                    "port": redis_port,
+                    "health_endpoint": "/ping",
+                    "capabilities": ["cache", "session_storage", "task_queue"]
+                })
+            
+            if "postgres" in self.enabled_services:
+                postgres_port = int(os.getenv("POSTGRES_PORT", "5432"))
+                containers.append({
+                    "name": "postgres",
+                    "service_url": f"postgresql://{socket.gethostbyname(socket.gethostname())}:{postgres_port}",
+                    "port": postgres_port,
+                    "capabilities": ["relational_database", "sql", "transactions"]
+                })
+            
+            if "minio" in self.enabled_services:
+                minio_port = int(os.getenv("MINIO_PORT", "9000"))
+                containers.append({
+                    "name": "minio",
+                    "service_url": f"http://{socket.gethostbyname(socket.gethostname())}:{minio_port}",
+                    "port": minio_port,
+                    "health_endpoint": "/minio/health/live",
+                    "capabilities": ["object_storage", "s3_compatible", "file_storage"]
+                })
+            
+            if "neo4j" in self.enabled_services:
+                neo4j_port = int(os.getenv("NEO4J_PORT", "7474"))
+                containers.append({
+                    "name": "neo4j",
+                    "service_url": f"http://{socket.gethostbyname(socket.gethostname())}:{neo4j_port}",
+                    "port": neo4j_port,
+                    "capabilities": ["graph_database", "cypher", "relationships"]
+                })
+            
             registration_data = {
                 "worker_id": self.worker_id,
-                "tier": 3,  # Tier 3: Storage workers
                 "capabilities": {
                     "cpu_cores": os.cpu_count() or 2,
                     "ram_gb": 4,
                     "has_gpu": False,
                     "has_storage": True,
-                    "storage_type": "vector_database",
-                    "services": ["chromadb"]
+                    "storage_type": "multi_service",
+                    "storage_services": self.enabled_services,
+                    "worker_type": "storage"
                 },
-                "containers": [
-                    {
-                        "name": "chromadb",
-                        "service_url": service_url,
-                        "port": self.chromadb_port,
-                        "health_endpoint": "/api/v1/heartbeat",
-                        "version": "0.4.24"
-                    }
-                ]
+                "containers": containers,
+                "tunnel_url": self.tunnel_url
             }
             
-            logger.info(f"📡 Registering with coordinator at {self.coordinator_url}/api/workers/register")
+            logger.info(f"📡 Registering with coordinator at {self.coordinator_url}/api/worker/register")
             logger.info(f"Service URL: {service_url}")
+            logger.info(f"Providing services: {', '.join(self.enabled_services)}")
             
             response = requests.post(
-                f"{self.coordinator_url}/api/workers/register",
+                f"{self.coordinator_url}/api/worker/register",
                 json=registration_data,
                 timeout=10
             )
@@ -150,8 +229,8 @@ class ChromaDBWorkerAgent:
                 result = response.json()
                 logger.info(f"✅ Registration successful!")
                 logger.info(f"Worker ID: {self.worker_id}")
-                logger.info(f"Tier: 3 (Storage)")
-                logger.info(f"Assigned containers: chromadb")
+                logger.info(f"Tier: 3 (Storage/Infrastructure)")
+                logger.info(f"Services registered: {', '.join(self.enabled_services)}")
                 return True
             else:
                 logger.error(f"❌ Registration failed: {response.status_code}")
@@ -163,30 +242,36 @@ class ChromaDBWorkerAgent:
             return False
     
     def send_heartbeat(self) -> bool:
-        """Send heartbeat to coordinator"""
+        """Send heartbeat to coordinator with storage service health"""
         try:
-            # Check ChromaDB health
-            chromadb_healthy = False
-            try:
-                health_response = requests.get(
-                    f"http://localhost:{self.chromadb_port}/api/v1/heartbeat",
-                    timeout=2
-                )
-                chromadb_healthy = health_response.status_code == 200
-            except:
-                pass
+            # Check health of all enabled services
+            services_status = {}
+            
+            if "chromadb" in self.enabled_services:
+                try:
+                    health_response = requests.get(
+                        f"http://localhost:{self.chromadb_port}/api/v1/heartbeat",
+                        timeout=2
+                    )
+                    services_status["chromadb"] = "healthy" if health_response.status_code == 200 else "unhealthy"
+                except:
+                    services_status["chromadb"] = "unhealthy"
+            
+            # Add health checks for other services as needed
+            # Redis, Postgres, MinIO, Neo4j would have their own health checks
+            
+            # Overall status is healthy if at least one service is healthy
+            any_healthy = any(status == "healthy" for status in services_status.values())
             
             heartbeat_data = {
                 "worker_id": self.worker_id,
-                "status": "online" if chromadb_healthy else "degraded",
-                "current_load": 0.0,  # Storage workers don't track load
-                "services_status": {
-                    "chromadb": "healthy" if chromadb_healthy else "unhealthy"
-                }
+                "status": "online" if any_healthy else "degraded",
+                "current_load": 0.0,  # Storage workers don't track CPU load
+                "services_status": services_status
             }
             
             response = requests.post(
-                f"{self.coordinator_url}/api/workers/heartbeat",
+                f"{self.coordinator_url}/api/worker/heartbeat",
                 json=heartbeat_data,
                 timeout=5
             )
@@ -204,7 +289,8 @@ class ChromaDBWorkerAgent:
     
     def run(self):
         """Main worker agent loop"""
-        logger.info("🚀 Starting ChromaDB Worker Agent...")
+        logger.info("🚀 Starting Storage Worker Agent...")
+        logger.info(f"Services: {', '.join(self.enabled_services)}")
         
         # Start tunnel if enabled
         if self.use_tunnel:
@@ -213,10 +299,11 @@ class ChromaDBWorkerAgent:
                 logger.warning("Tunnel failed to start, will use local network")
                 self.use_tunnel = False
         
-        # Wait for ChromaDB to be ready
-        if not self.wait_for_chromadb():
-            logger.error("ChromaDB not ready, exiting")
-            sys.exit(1)
+        # Wait for ChromaDB to be ready (if enabled)
+        if "chromadb" in self.enabled_services:
+            if not self.wait_for_chromadb():
+                logger.error("ChromaDB not ready, exiting")
+                sys.exit(1)
         
         # Register with coordinator
         max_retries = 5
@@ -254,7 +341,7 @@ class ChromaDBWorkerAgent:
                         logger.error("Re-registration failed")
                         
             except KeyboardInterrupt:
-                logger.info("Shutting down worker agent...")
+                logger.info("Shutting down storage worker agent...")
                 if self.tunnel_process:
                     self.tunnel_process.terminate()
                 break
@@ -263,5 +350,5 @@ class ChromaDBWorkerAgent:
                 time.sleep(5)
 
 if __name__ == "__main__":
-    agent = ChromaDBWorkerAgent()
+    agent = StorageWorkerAgent()
     agent.run()

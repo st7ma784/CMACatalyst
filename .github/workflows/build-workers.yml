@@ -154,13 +154,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/chromadb-worker
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker
           tags: |
             type=raw,value=latest
             type=sha,prefix={{branch}}-
             type=ref,event=branch
 
-      - name: Build and push ChromaDB worker
+      - name: Build and push Storage worker
         uses: docker/build-push-action@v5
         with:
           context: RMA-Demo/worker-containers/chromadb
@@ -174,18 +174,19 @@ jobs:
 
       - name: Generate deployment instructions
         run: |
-          echo "## 🚀 ChromaDB Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Storage Worker Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Pull and run the ChromaDB storage worker:" >> $GITHUB_STEP_SUMMARY
+          echo "Pull and run the storage worker (ChromaDB, Redis, PostgreSQL, MinIO, Neo4j):" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/chromadb-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Basic (ChromaDB only)" >> $GITHUB_STEP_SUMMARY
           echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name rma-chromadb-worker \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name rma-storage-worker \\" >> $GITHUB_STEP_SUMMARY
           echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
           echo "  -v chromadb_data:/chroma/chroma \\" >> $GITHUB_STEP_SUMMARY
           echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/chromadb-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   notify-success:
@@ -197,9 +198,21 @@ jobs:
         run: |
           echo "## ✅ Worker Containers Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All worker containers are now available at:" >> $GITHUB_STEP_SUMMARY
-          echo "- 🖥️  CPU Worker: \`ghcr.io/${{ github.repository }}/cpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 🎮 GPU Worker: \`ghcr.io/${{ github.repository }}/gpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "- 💾 ChromaDB Storage: \`ghcr.io/${{ github.repository }}/chromadb-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "All worker containers are now available:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tier 1: GPU Workers" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎮 **GPU Worker**: \`ghcr.io/${{ github.repository }}/gpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Services: LLM, RAG, embeddings, OCR, vision" >> $GITHUB_STEP_SUMMARY
+          echo "  - Can handle GPU + CPU + processing tasks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tier 2: CPU Workers" >> $GITHUB_STEP_SUMMARY
+          echo "- 🖥️  **CPU Worker**: \`ghcr.io/${{ github.repository }}/cpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Services: Processing, computation" >> $GITHUB_STEP_SUMMARY
+          echo "  - Can handle CPU + processing tasks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tier 3: Storage/Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "- 💾 **Storage Worker**: \`ghcr.io/${{ github.repository }}/storage-worker:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Services: ChromaDB, Redis, PostgreSQL, MinIO, Neo4j" >> $GITHUB_STEP_SUMMARY
+          echo "  - Handles persistence, caching, databases" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📖 See [Worker Deployment Guide](https://github.com/${{ github.repository }}/blob/master/docs/deployment/worker-deployment.md)" >> $GITHUB_STEP_SUMMARY
