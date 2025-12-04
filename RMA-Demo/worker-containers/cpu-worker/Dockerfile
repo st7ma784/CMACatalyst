@@ -5,11 +5,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies and SSL certificates
+# Install system dependencies, build tools, and SSL certificates
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
     ca-certificates \
+    gcc \
+    python3-dev \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,7 +21,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
     && dpkg -i cloudflared-linux-${ARCH}.deb \
     && rm cloudflared-linux-${ARCH}.deb
 
-# Install Python dependencies
+# Install Python dependencies (psutil requires gcc for compilation)
 RUN pip install --no-cache-dir \
     requests==2.31.0 \
     psutil==5.9.6
