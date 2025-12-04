@@ -1,0 +1,375 @@
+# Tier-3 Storage Worker Configuration
+# Optimized for RAM disk / SSD-backed database and cache services
+# Designed for high-performance storage node with fast I/O
+
+version: '3.8'
+
+services:
+  # ============================================
+  # REDIS - High-Performance Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: rma-redis-storage
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 8gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+      --auto-aof-rewrite-percentage 100
+      --auto-aof-rewrite-min-size 64mb
+      --tcp-backlog 511
+      --timeout 0
+      --tcp-keepalive 300
+      --supervised no
+      --loglevel notice
+    volumes:
+      # Mount to RAM disk for ultra-fast access
+      # Alternative: Mount to SSD path like /mnt/ssd/redis-data
+      - type: tmpfs
+        target: /data
+        tmpfs:
+          size: 10g
+          mode: 1777
+      # Persistent backup location (SSD)
+      - redis-backup:/backup
+    environment:
+      TZ: "UTC"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rma-network
+    restart: unless-stopped
+    labels:
+      - "com.rma.service=cache"
+      - "com.rma.tier=storage"
+      - "com.rma.storage-type=ramdisk"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 10G
+        reservations:
+          cpus: '2'
+          memory: 8G
+
+  # ============================================
+  # POSTGRESQL - Primary Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: rma-postgres-storage
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "rma_user"
+      POSTGRES_PASSWORD: "rma_secure_password_change_in_production"
+      POSTGRES_DB: "rma_db"
+      # Performance tuning for SSD/RAM disk
+      POSTGRES_SHARED_BUFFERS: "4GB"
+      POSTGRES_EFFECTIVE_CACHE_SIZE: "12GB"
+      POSTGRES_MAINTENANCE_WORK_MEM: "1GB"
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: "0.9"
+      POSTGRES_WAL_BUFFERS: "16MB"
+      POSTGRES_DEFAULT_STATISTICS_TARGET: "100"
+      POSTGRES_RANDOM_PAGE_COST: "1.1"  # SSD optimized
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: "200"  # SSD optimized
+      POSTGRES_WORK_MEM: "64MB"
+      POSTGRES_MIN_WAL_SIZE: "2GB"
+      POSTGRES_MAX_WAL_SIZE: "8GB"
+      POSTGRES_MAX_WORKER_PROCESSES: "8"
+      POSTGRES_MAX_PARALLEL_WORKERS_PER_GATHER: "4"
+      POSTGRES_MAX_PARALLEL_WORKERS: "8"
+      POSTGRES_MAX_PARALLEL_MAINTENANCE_WORKERS: "4"
+      PGDATA: "/var/lib/postgresql/data"
+      TZ: "UTC"
+    volumes:
+      # Option 1: SSD-backed persistent storage (recommended for production)
+      - postgres-data:/var/lib/postgresql/data
+      
+      # Option 2: RAM disk for extreme performance (uncomment and comment out above)
+      # WARNING: Data lost on restart unless backed up!
+      # - type: tmpfs
+      #   target: /var/lib/postgresql/data
+      #   tmpfs:
+      #     size: 20g
+      
+      # Backup location (always on persistent storage)
+      - postgres-backup:/backup
+      
+      # Init scripts
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    command: >
+      postgres
+      -c shared_buffers=4GB
+      -c effective_cache_size=12GB
+      -c maintenance_work_mem=1GB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=2GB
+      -c max_wal_size=8GB
+      -c max_worker_processes=8
+      -c max_parallel_workers_per_gather=4
+      -c max_parallel_workers=8
+      -c max_parallel_maintenance_workers=4
+      -c fsync=on
+      -c synchronous_commit=on
+      -c full_page_writes=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rma_user -d rma_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - rma-network
+    restart: unless-stopped
+    labels:
+      - "com.rma.service=database"
+      - "com.rma.tier=storage"
+      - "com.rma.storage-type=ssd"
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '4'
+          memory: 12G
+
+  # ============================================
+  # NEO4J - Graph Database
+  # ============================================
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: rma-neo4j-storage
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: "neo4j/rma_neo4j_password_change_in_production"
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      # Performance tuning
+      NEO4J_dbms_memory_heap_initial__size: "2G"
+      NEO4J_dbms_memory_heap_max__size: "4G"
+      NEO4J_dbms_memory_pagecache_size: "4G"
+      NEO4J_dbms_tx__log_rotation_retention__policy: "3 days"
+      NEO4J_dbms_checkpoint_interval_time: "15m"
+      NEO4J_dbms_checkpoint_interval_tx: "100000"
+      # SSD optimized
+      NEO4J_dbms_tx__log_preallocate: "true"
+      NEO4J_dbms_memory_transaction_max__size: "512m"
+      TZ: "UTC"
+    volumes:
+      # SSD-backed storage recommended
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+      - neo4j-import:/import
+      - neo4j-plugins:/plugins
+      
+      # Backup location
+      - neo4j-backup:/backup
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "rma_neo4j_password_change_in_production", "RETURN 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - rma-network
+    restart: unless-stopped
+    labels:
+      - "com.rma.service=graph-db"
+      - "com.rma.tier=storage"
+      - "com.rma.storage-type=ssd"
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 12G
+        reservations:
+          cpus: '3'
+          memory: 8G
+
+  # ============================================
+  # CHROMADB - Vector Database
+  # ============================================
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: rma-chromadb-storage
+    ports:
+      - "8500:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: "/chroma/chroma"
+      ANONYMIZED_TELEMETRY: "FALSE"
+      ALLOW_RESET: "TRUE"
+      # Performance settings
+      CHROMA_SERVER_CORS_ALLOW_ORIGINS: '["*"]'
+      CHROMA_SERVER_HOST: "0.0.0.0"
+      TZ: "UTC"
+    volumes:
+      # SSD-backed storage for embeddings
+      - chromadb-data:/chroma/chroma
+      
+      # Backup location
+      - chromadb-backup:/backup
+    command: >
+      --workers 4
+      --host 0.0.0.0
+      --port 8000
+      --log-config chromadb/log_config.yml
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rma-network
+    restart: unless-stopped
+    labels:
+      - "com.rma.service=vector-db"
+      - "com.rma.tier=storage"
+      - "com.rma.storage-type=ssd"
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  # ============================================
+  # BACKUP SERVICE - Periodic Backups
+  # ============================================
+  backup-service:
+    image: alpine:latest
+    container_name: rma-backup-service
+    volumes:
+      - redis-backup:/backup/redis
+      - postgres-backup:/backup/postgres
+      - neo4j-backup:/backup/neo4j
+      - chromadb-backup:/backup/chromadb
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: /bin/sh
+    command: >
+      -c "while true; do
+        echo '[Backup] Starting backup at $(date)';
+        sh /backup.sh;
+        echo '[Backup] Backup completed at $(date)';
+        sleep 3600;
+      done"
+    networks:
+      - rma-network
+    restart: unless-stopped
+    labels:
+      - "com.rma.service=backup"
+      - "com.rma.tier=storage"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  rma-network:
+    external: true
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  # Persistent backup volumes (always on SSD/disk)
+  redis-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/backups/redis
+  
+  postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/postgres
+  
+  postgres-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/backups/postgres
+  
+  neo4j-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/neo4j/data
+  
+  neo4j-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/neo4j/logs
+  
+  neo4j-import:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/neo4j/import
+  
+  neo4j-plugins:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/neo4j/plugins
+  
+  neo4j-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/backups/neo4j
+  
+  chromadb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/chromadb
+  
+  chromadb-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/storage/rma/backups/chromadb

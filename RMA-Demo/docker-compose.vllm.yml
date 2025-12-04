@@ -20,11 +20,16 @@ services:
       MAX_MODEL_LEN: "4096"
       TENSOR_PARALLEL_SIZE: "1"
       HUGGINGFACE_HUB_CACHE: "/app/.cache/huggingface/hub"
+      CUDA_VISIBLE_DEVICES: "0"  # Use first P100 GPU
     volumes:
       - vllm-cache:/app/.cache
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -79,6 +84,14 @@ services:
     entrypoint: /usr/local/bin/entrypoint.sh
     environment:
       OLLAMA_HOST: "0.0.0.0:11434"
+      CUDA_VISIBLE_DEVICES: "1"  # Use second P100 GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
