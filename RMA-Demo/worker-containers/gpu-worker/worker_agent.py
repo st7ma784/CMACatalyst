@@ -139,6 +139,44 @@ class GPUWorkerAgent:
 
         return capabilities
 
+    def detect_loaded_models(self) -> list:
+        """Detect which AI models are currently loaded"""
+        loaded_models = []
+        
+        # Check for vLLM/LLM models by checking Ollama if available
+        try:
+            # Check if Ollama is running and has models loaded
+            response = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if response.status_code == 200:
+                models_data = response.json()
+                if 'models' in models_data:
+                    for model in models_data['models']:
+                        model_name = model.get('name', '').split(':')[0]  # Get base name without tag
+                        if model_name and model_name not in loaded_models:
+                            loaded_models.append(model_name)
+        except Exception:
+            pass  # Ollama not available or no models
+        
+        # Check for embedding models (nomic-embed-text commonly used)
+        try:
+            # Try to detect if embedding service is responding
+            response = requests.get("http://localhost:8000/health", timeout=1)
+            if response.status_code == 200:
+                loaded_models.append('nomic-embed-text')
+        except Exception:
+            pass
+        
+        # Check for vision/OCR models (PaddleOCR or llama-vision)
+        try:
+            # Check if OCR service is available
+            response = requests.get("http://localhost:8001/health", timeout=1)
+            if response.status_code == 200:
+                loaded_models.append('llama-vision')
+        except Exception:
+            pass
+        
+        return loaded_models
+
     def register_with_coordinator(self) -> Dict[str, Any]:
         """Register this worker with the coordinator"""
         print(f"\n📡 Registering with coordinator: {self.coordinator_url}")
@@ -227,19 +265,34 @@ class GPUWorkerAgent:
             if gpus:
                 gpu = gpus[0]
                 gpu_stats = {
-                    "gpu_utilization": f"{gpu.load * 100:.1f}%",
+                    "gpu_utilization": gpu.load * 100,  # Send as number, not formatted string
                     "gpu_memory_used": f"{gpu.memoryUsed}MB",
                     "gpu_temperature": f"{gpu.temperature}°C"
                 }
         except Exception:
             pass
 
+        # Detect loaded models
+        loaded_models = self.detect_loaded_models()
+        
+        # Get active request count (can be enhanced by tracking actual requests)
+        active_requests = 0  # TODO: Track this from actual request handler
+        
+        # Get specialization from environment variable
+        specialization = os.getenv("WORKER_SPECIALIZATION")  # e.g., "ocr", "vllm", "embeddings"
+
         heartbeat_data = {
             "worker_id": self.worker_id,
             "status": "healthy",
             "current_load": current_load,
-            "available_memory": f"{available_memory:.1f}GB"
+            "available_memory": f"{available_memory:.1f}GB",
+            "loaded_models": loaded_models,
+            "active_requests": active_requests
         }
+        
+        if specialization:
+            heartbeat_data["specialization"] = specialization
+            
         heartbeat_data.update(gpu_stats)
 
         try:
@@ -252,8 +305,11 @@ class GPUWorkerAgent:
 
             # Log every 5 minutes
             if int(time.time()) % 300 < 30:
-                gpu_info = f", GPU: {gpu_stats.get('gpu_utilization', 'N/A')}" if gpu_stats else ""
-                print(f"💓 Heartbeat sent (CPU: {current_load:.1%}{gpu_info})")
+                gpu_info = f", GPU: {gpu_stats.get('gpu_utilization', 'N/A'):.1f}%" if gpu_stats else ""
+                models_info = f", Models: {', '.join(loaded_models)}" if loaded_models else ", Models: None"
+                spec_info = f", Specialization: {specialization}" if specialization else ""
+                print(f"💓 Heartbeat sent (CPU: {current_load:.1%}{gpu_info}{models_info}{spec_info})")
+
 
         except requests.RequestException as e:
             print(f"⚠️  Heartbeat failed: {e}")

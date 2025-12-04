@@ -69,6 +69,11 @@ export default {
         }, corsHeaders);
       }
 
+      // Job broadcasting for parallel execution
+      if (path === '/api/coordinator/broadcast-job' && request.method === 'POST') {
+        return await handleBroadcastJob(request, env, corsHeaders);
+      }
+
       // Service proxy routes - route to worker services
       if (path.startsWith('/api/service/')) {
         return await handleServiceProxy(path, request, env, corsHeaders);
@@ -262,8 +267,19 @@ async function handleHeartbeat(request, env, corsHeaders) {
   // Always update in-memory data
   worker.last_heartbeat = now;
   worker.status = data.status || 'healthy';
-  worker.current_load = data.current_load;
+  worker.current_load = data.current_load || 0;
   worker.available_memory = data.available_memory;
+  
+  // NEW: Track loaded models and active requests
+  worker.loaded_models = data.loaded_models || [];
+  worker.active_requests = data.active_requests || 0;
+  worker.gpu_utilization = data.gpu_utilization || 0;
+  worker.services_status = data.services_status || {};
+  
+  // NEW: Track worker specialization (which services it primarily handles)
+  if (data.specialization) {
+    worker.specialization = data.specialization;
+  }
 
   // Only persist to KV when necessary
   if (shouldWrite) {
@@ -395,6 +411,107 @@ async function getWorkerIds(env) {
   return idsData ? JSON.parse(idsData) : [];
 }
 
+/**
+ * Broadcast a job to multiple capable workers for parallel execution
+ * Useful for tasks like bulk ingestion that can be parallelized
+ */
+async function handleBroadcastJob(request, env, corsHeaders) {
+  try {
+    const data = await request.json();
+    const { job_type, job_data, required_capability } = data;
+    
+    if (!job_type || !job_data) {
+      return jsonResponse({ 
+        error: 'Missing required fields',
+        required: ['job_type', 'job_data']
+      }, corsHeaders, 400);
+    }
+
+    // Get all registered workers
+    const workerIds = await getWorkerIds(env);
+    const capableWorkers = [];
+    
+    // Find workers capable of handling this job
+    for (const workerId of workerIds) {
+      const workerData = await env.WORKERS.get(`worker:${workerId}`);
+      if (!workerData) continue;
+      
+      const worker = JSON.parse(workerData);
+      
+      // Check if worker is healthy and has required capability
+      if (worker.status !== 'online') continue;
+      
+      // For RAG ingestion jobs, prefer GPU/CPU workers (tier 1-2)
+      if (worker.tier > 2) continue;
+      
+      // Check capability if specified
+      if (required_capability) {
+        const hasCapability = worker.capabilities?.includes(required_capability) ||
+          worker.services?.some(s => s.capabilities?.includes(required_capability));
+        if (!hasCapability) continue;
+      }
+      
+      capableWorkers.push(worker);
+    }
+
+    if (capableWorkers.length === 0) {
+      return jsonResponse({ 
+        error: 'No capable workers available',
+        job_type,
+        required_capability
+      }, corsHeaders, 503);
+    }
+
+    // Broadcast job to all capable workers in parallel
+    const broadcastPromises = capableWorkers.map(async (worker) => {
+      try {
+        const jobEndpoint = `${worker.tunnel_url}/jobs/execute`;
+        const response = await fetch(jobEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            job_type,
+            job_data,
+            broadcast_id: crypto.randomUUID(),
+            coordinator_timestamp: Date.now()
+          })
+        });
+        
+        return {
+          worker_id: worker.worker_id,
+          status: response.ok ? 'accepted' : 'failed',
+          status_code: response.status
+        };
+      } catch (error) {
+        return {
+          worker_id: worker.worker_id,
+          status: 'error',
+          error: error.message
+        };
+      }
+    });
+
+    const results = await Promise.all(broadcastPromises);
+    
+    const successful = results.filter(r => r.status === 'accepted').length;
+    const failed = results.length - successful;
+
+    return jsonResponse({ 
+      job_type,
+      broadcasted_to: capableWorkers.length,
+      successful,
+      failed,
+      workers: results
+    }, corsHeaders);
+
+  } catch (error) {
+    return jsonResponse({ 
+      error: 'Job broadcast failed',
+      message: error.message
+    }, corsHeaders, 500);
+  }
+}
+
 async function handleServiceProxy(path, request, env, corsHeaders) {
   // Extract service name from path: /api/service/upload/... or /api/service/rag/...
   const pathParts = path.split('/').filter(Boolean);
@@ -483,12 +600,9 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
     }, corsHeaders, 503);
   }
 
-  // Load balancing: Prefer higher-tier workers (GPU > CPU > Storage) but use what's available
-  // Sort by tier ascending (1=GPU, 2=CPU, 3=Storage), so GPU workers are preferred
-  healthyWorkers.sort((a, b) => a.tier - b.tier);
+  // Smart load balancing with model awareness and specialization
+  const targetWorker = selectBestWorker(healthyWorkers, serviceName, servicePath);
   
-  const targetWorker = healthyWorkers[0]; // Use best available worker
-
   // Proxy the request to the worker's service-specific URL
   const targetUrl = `${targetWorker.effective_service_url}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
 
@@ -529,6 +643,89 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
       worker: targetWorker.worker_id
     }, corsHeaders, 502);
   }
+}
+
+/**
+ * Select best worker for a service request using intelligent routing
+ * 
+ * Strategy:
+ * 1. Prefer workers with model already loaded (avoid re-downloading)
+ * 2. Prefer workers specialized for this service
+ * 3. Prefer workers with lower current load
+ * 4. Prefer higher-tier workers (GPU > CPU > Storage)
+ * 5. Random selection among equals (load balancing)
+ */
+function selectBestWorker(healthyWorkers, serviceName, servicePath) {
+  // Detect which model/service is needed from the request path
+  const requiredModel = detectRequiredModel(servicePath);
+  
+  // Score each worker based on multiple factors
+  const scoredWorkers = healthyWorkers.map(worker => {
+    let score = 0;
+    
+    // Factor 1: Model loaded (highest priority - avoids re-download)
+    if (requiredModel && worker.loaded_models && worker.loaded_models.includes(requiredModel)) {
+      score += 100; // Major bonus for having model already
+    }
+    
+    // Factor 2: Worker specialization (worker declares preference for this service)
+    if (worker.specialization && worker.specialization.includes(serviceName)) {
+      score += 50; // Good bonus for specialization
+    }
+    
+    // Factor 3: Current load (prefer less loaded workers)
+    const loadPenalty = (worker.current_load || 0) * 30; // 0-30 point penalty
+    const activeRequestsPenalty = (worker.active_requests || 0) * 5; // 5 points per active request
+    score -= loadPenalty + activeRequestsPenalty;
+    
+    // Factor 4: GPU utilization (for GPU workers, prefer lower GPU usage)
+    if (worker.tier === 1 && worker.gpu_utilization) {
+      score -= worker.gpu_utilization * 20; // 0-20 point penalty for GPU load
+    }
+    
+    // Factor 5: Tier preference (GPU > CPU > Storage)
+    // Higher tier gets bonus since they're more capable
+    if (worker.tier === 1) score += 30; // GPU workers preferred
+    else if (worker.tier === 2) score += 20; // CPU workers second
+    else if (worker.tier === 3) score += 10; // Storage workers last
+    
+    // Factor 6: Service health status
+    if (worker.services_status && worker.services_status[serviceName] === 'healthy') {
+      score += 10; // Bonus for known healthy service
+    }
+    
+    // Factor 7: Random tiebreaker (for equal scores, distribute randomly)
+    score += Math.random() * 5;
+    
+    return { worker, score };
+  });
+  
+  // Sort by score descending (highest score wins)
+  scoredWorkers.sort((a, b) => b.score - a.score);
+  
+  // Return the best worker
+  return scoredWorkers[0].worker;
+}
+
+/**
+ * Detect which model is needed from the request path
+ */
+function detectRequiredModel(servicePath) {
+  // Map service paths to models
+  if (servicePath.includes('ocr') || servicePath.includes('vision')) {
+    return 'llama-vision'; // OCR needs vision model
+  }
+  if (servicePath.includes('embed')) {
+    return 'nomic-embed-text'; // Embedding endpoint
+  }
+  if (servicePath.includes('rag') || servicePath.includes('query')) {
+    return 'llama3.2'; // RAG needs LLM
+  }
+  if (servicePath.includes('vllm') || servicePath.includes('generate')) {
+    return 'llama3.2'; // vLLM generation
+  }
+  
+  return null; // Unknown service, no model preference
 }
 
 /**
