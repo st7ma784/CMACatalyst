@@ -408,13 +408,23 @@ function AIArchitectureGuide() {
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Current Deployment Architecture</h2>
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Hybrid Coordinator Architecture (Current)</h2>
       
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-6 mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="text-3xl">🚀</div>
+          <div>
+            <h3 className="text-lg font-bold text-blue-900">Zero KV Usage Architecture</h3>
+            <p className="text-sm text-blue-700">Hybrid design eliminates Cloudflare KV limits while maintaining edge performance</p>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-8">
         <div className="font-mono text-sm">
           <div className="text-center mb-6">
             <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg">
-              <div className="font-bold text-lg">🌐 Users</div>
+              <div className="font-bold text-lg">🌐 Users / Browsers</div>
             </div>
           </div>
           
@@ -424,9 +434,9 @@ function AIArchitectureGuide() {
 
           <div className="text-center mb-6">
             <div className="inline-block bg-blue-50 border-2 border-blue-300 px-6 py-4 rounded-lg">
-              <div className="font-bold text-blue-900 mb-1">Frontend</div>
+              <div className="font-bold text-blue-900 mb-1">Frontend (Next.js)</div>
               <div className="text-sm text-blue-700">https://rmatool.org.uk</div>
-              <div className="text-xs text-blue-600 mt-1">Cloudflare Pages (Global CDN)</div>
+              <div className="text-xs text-blue-600 mt-1">Cloudflare Pages (300+ Global Edge Locations)</div>
             </div>
           </div>
 
@@ -435,14 +445,49 @@ function AIArchitectureGuide() {
           </div>
 
           <div className="text-center mb-6">
-            <div className="inline-block bg-purple-50 border-2 border-purple-300 px-6 py-4 rounded-lg">
-              <div className="font-bold text-purple-900 mb-1">Coordinator API</div>
+            <div className="inline-block bg-purple-50 border-2 border-purple-300 px-6 py-4 rounded-lg shadow-md">
+              <div className="font-bold text-purple-900 mb-1">🌍 Edge Proxy</div>
               <div className="text-sm text-purple-700">https://api.rmatool.org.uk</div>
-              <div className="text-xs text-purple-600 mt-1">Cloudflare Workers (Edge Network)</div>
-              <div className="text-xs text-gray-500 mt-2">
-                • Authentication<br/>
-                • Worker Registry (KV Storage)<br/>
-                • Service Routing & Load Balancing
+              <div className="text-xs text-purple-600 mt-1">Cloudflare Worker (Stateless - NO KV!)</div>
+              <div className="text-xs text-gray-600 mt-2 bg-white rounded p-2">
+                <strong className="text-purple-800">Role:</strong><br/>
+                • CORS & Authentication<br/>
+                • Cache worker list (5-min TTL)<br/>
+                • Smart routing to workers<br/>
+                • DDoS protection<br/>
+                <strong className="text-green-700 mt-1 block">✅ Zero KV operations</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 max-w-3xl mx-auto mb-6">
+            <div className="text-center">
+              <div className="text-gray-400 text-2xl mb-2">↓</div>
+              <div className="text-xs text-gray-600">User requests</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-400 text-2xl mb-2">↓</div>
+              <div className="text-xs text-gray-600">Worker updates</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 max-w-3xl mx-auto mb-6">
+            <div className="bg-indigo-50 border-2 border-indigo-300 p-4 rounded-lg">
+              <div className="font-bold text-indigo-900 mb-2 text-center">⚡ Direct Proxy</div>
+              <div className="text-xs text-indigo-700 bg-white rounded p-2">
+                Edge worker uses cached<br/>
+                worker list to route directly<br/>
+                to service endpoints<br/>
+                <strong className="text-green-700 mt-1 block">No coordinator call needed</strong>
+              </div>
+            </div>
+            <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-lg">
+              <div className="font-bold text-orange-900 mb-2 text-center">🏠 Local Coordinator</div>
+              <div className="text-xs text-orange-700 bg-white rounded p-2">
+                Self-hosted Python service<br/>
+                In-memory worker registry<br/>
+                Unlimited heartbeats<br/>
+                <strong className="text-green-700 mt-1 block">$0 cost - No KV limits!</strong>
               </div>
             </div>
           </div>
@@ -451,11 +496,14 @@ function AIArchitectureGuide() {
             <div className="text-gray-400 text-2xl">↓</div>
           </div>
 
-          <div className="text-center mb-2 text-gray-600 text-sm">Routes requests to:</div>
+          <div className="text-center mb-2 text-gray-600 text-sm font-semibold">Distributed Worker Pool:</div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-4">
             <div className="bg-green-50 border-2 border-green-300 p-4 rounded-lg">
-              <div className="font-bold text-green-900 mb-2">💻 CPU Workers</div>
+              <div className="font-bold text-green-900 mb-2 flex items-center gap-2">
+                💻 <span>CPU Workers</span>
+              </div>
               <div className="text-xs text-green-700 space-y-1">
                 <div className="flex items-center justify-between bg-white p-2 rounded">
                   <span>Upload Service</span>
@@ -471,14 +519,16 @@ function AIArchitectureGuide() {
                 </div>
               </div>
               <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
-                <strong>Tier 2/3:</strong> 4+ CPU cores<br/>
-                <strong>Location:</strong> Docker containers anywhere<br/>
-                <strong>Access:</strong> Cloudflare Tunnels
+                <strong>Tier 2:</strong> CPU-intensive tasks<br/>
+                <strong>Requirements:</strong> 4+ cores, 8GB RAM<br/>
+                <strong>Connection:</strong> Cloudflare Tunnel
               </div>
             </div>
 
             <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-lg">
-              <div className="font-bold text-orange-900 mb-2">🚀 GPU Workers</div>
+              <div className="font-bold text-orange-900 mb-2 flex items-center gap-2">
+                🚀 <span>GPU Workers</span>
+              </div>
               <div className="text-xs text-orange-700 space-y-1">
                 <div className="flex items-center justify-between bg-white p-2 rounded">
                   <span>RAG Service</span>
@@ -494,33 +544,86 @@ function AIArchitectureGuide() {
                 </div>
               </div>
               <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
-                <strong>Tier 1:</strong> GPU + VRAM<br/>
-                <strong>Location:</strong> Docker containers anywhere<br/>
-                <strong>Access:</strong> Cloudflare Tunnels
+                <strong>Tier 1:</strong> AI model inference<br/>
+                <strong>Requirements:</strong> GPU, 8GB+ VRAM<br/>
+                <strong>Connection:</strong> Cloudflare Tunnel
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border-2 border-blue-300 p-4 rounded-lg">
+              <div className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                💾 <span>Storage Workers</span>
+              </div>
+              <div className="text-xs text-blue-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>ChromaDB</span>
+                  <span className="text-gray-500">:8000</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Redis Cache</span>
+                  <span className="text-gray-500">:6379</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>MinIO (S3)</span>
+                  <span className="text-gray-500">:9000</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 3:</strong> Data persistence<br/>
+                <strong>Requirements:</strong> SSD, network<br/>
+                <strong>Connection:</strong> Cloudflare Tunnel
               </div>
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-300 rounded-lg">
-            <div className="text-sm text-gray-700">
-              <strong className="text-gray-900">How it Works:</strong>
-              <ol className="list-decimal list-inside mt-2 space-y-1 text-xs">
-                <li>Workers register with coordinator via HTTPS, providing their tunnel URL</li>
-                <li>Coordinator tracks worker health via 30-second heartbeats</li>
-                <li>Frontend requests go to coordinator at api.rmatool.org.uk</li>
-                <li>Coordinator routes to healthy worker with lowest load</li>
-                <li>Worker processes request through its service containers</li>
-                <li>Response returns through Cloudflare Tunnel to user</li>
-              </ol>
+          <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-300 rounded-lg">
+            <div className="text-sm text-gray-800">
+              <strong className="text-gray-900 text-lg mb-2 block">🔄 How Hybrid Architecture Works:</strong>
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="bg-white p-3 rounded border border-gray-200">
+                  <p className="font-semibold text-indigo-900 mb-1">Service Requests (Fast Path):</p>
+                  <ol className="list-decimal list-inside text-xs space-y-1">
+                    <li>Edge worker checks in-memory cache</li>
+                    <li>Selects best worker based on load</li>
+                    <li>Proxies directly to worker service</li>
+                    <li>Returns response to user</li>
+                  </ol>
+                  <p className="text-xs text-green-700 mt-2 font-semibold">⚡ No coordinator call needed!</p>
+                </div>
+                <div className="bg-white p-3 rounded border border-gray-200">
+                  <p className="font-semibold text-orange-900 mb-1">Worker Updates (Background):</p>
+                  <ol className="list-decimal list-inside text-xs space-y-1">
+                    <li>Workers send heartbeat to local coordinator</li>
+                    <li>Coordinator updates in-memory registry</li>
+                    <li>Edge refreshes cache every 5 minutes</li>
+                    <li>No KV storage used anywhere</li>
+                  </ol>
+                  <p className="text-xs text-green-700 mt-2 font-semibold">✅ Unlimited heartbeats!</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-4 p-4 bg-blue-50 border border-blue-300 rounded-lg">
-            <div className="text-xs text-blue-900">
-              <strong>💰 Cost:</strong> $0/month<br/>
-              <strong>🌍 Global:</strong> Frontend and API on Cloudflare edge (300+ locations)<br/>
-              <strong>🔒 Secure:</strong> All traffic over HTTPS with TLS 1.3<br/>
-              <strong>📈 Scalable:</strong> Add workers anywhere with Docker - auto-registration
+          <div className="mt-4 p-4 bg-green-50 border-2 border-green-400 rounded-lg">
+            <div className="text-xs text-gray-900">
+              <strong className="text-lg text-green-900 block mb-2">💰 Cost Breakdown:</strong>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="font-semibold text-green-800">Cloudflare (Edge):</p>
+                  <p className="text-green-700">• Frontend: FREE (Pages)</p>
+                  <p className="text-green-700">• Edge Proxy: FREE (100k req/day)</p>
+                  <p className="text-green-700">• KV Storage: NOT USED ✅</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-green-800">Self-Hosted:</p>
+                  <p className="text-green-700">• Coordinator: $0 (reuse server)</p>
+                  <p className="text-green-700">• Workers: Your hardware</p>
+                  <p className="text-green-700">• Storage: Local disk</p>
+                </div>
+              </div>
+              <p className="mt-3 text-green-800 font-bold text-center">
+                🎉 Total Monthly Cost: $0 | Scaling Limit: Unlimited Workers
+              </p>
             </div>
           </div>
 
@@ -528,12 +631,12 @@ function AIArchitectureGuide() {
             <div className="flex items-start gap-3">
               <div className="text-3xl">🚀</div>
               <div>
-                <h3 className="text-lg font-bold text-green-900 mb-2">Want to Help?</h3>
+                <h3 className="text-lg font-bold text-green-900 mb-2">Want to Help? Run a Worker!</h3>
                 <p className="text-sm text-green-800 mb-3">
                   Our distributed architecture relies on donated compute resources. You can contribute by running a worker container on your machine - it takes just 2 commands!
                 </p>
                 <div className="bg-white rounded-lg p-3 mb-2">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">For CPU workers:</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">For CPU workers (4+ cores recommended):</p>
                   <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
                     docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest<br/>
                     docker run -d --name rma-cpu-worker --restart unless-stopped \<br/>
@@ -541,8 +644,8 @@ function AIArchitectureGuide() {
                     &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
                   </code>
                 </div>
-                <div className="bg-white rounded-lg p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">For GPU workers:</p>
+                <div className="bg-white rounded-lg p-3 mb-2">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">For GPU workers (NVIDIA GPU with 8GB+ VRAM):</p>
                   <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
                     docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest<br/>
                     docker run -d --name rma-gpu-worker --restart unless-stopped \<br/>
@@ -550,10 +653,23 @@ function AIArchitectureGuide() {
                     &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
                   </code>
                 </div>
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">For storage workers (provides vector DB & caching):</p>
+                  <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
+                    docker pull ghcr.io/st7ma784/cmacatalyst/storage-worker:latest<br/>
+                    docker run -d --name rma-storage-worker --restart unless-stopped \<br/>
+                    &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+                    &nbsp;&nbsp;-e ENABLE_CHROMADB=true -e ENABLE_REDIS=true \<br/>
+                    &nbsp;&nbsp;-v ./chroma-data:/chroma/data \<br/>
+                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/storage-worker:latest
+                  </code>
+                </div>
                 <p className="text-xs text-green-700 mt-3">
                   ✅ Workers automatically create secure Cloudflare Tunnels<br/>
                   ✅ Works behind firewalls - no port forwarding needed<br/>
-                  ✅ Auto-registers with coordinator at api.rmatool.org.uk
+                  ✅ Auto-registers with coordinator at api.rmatool.org.uk<br/>
+                  ✅ Load balanced automatically - multiple GPUs = parallel processing<br/>
+                  ✅ Specialization: Set WORKER_SPECIALIZATION=ocr or vllm for task affinity
                 </p>
               </div>
             </div>
