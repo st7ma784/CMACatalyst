@@ -1,5 +1,17 @@
 # 🚀 RMA-Demo Quick Start Guide
 
+**🎉 NEW: Zero-Cost Serverless Deployment!**  
+**Status**: ✅ Deploy in 5 minutes for $0/month  
+**Last Updated**: December 2025  
+
+See [ZERO_COST_DEPLOYMENT.md](ZERO_COST_DEPLOYMENT.md) for the new serverless architecture.
+
+---
+
+## Legacy Local Deployment (Old Method)
+
+The following is the original single-machine deployment. For distributed zero-cost deployment, use the guide above.
+
 **Status**: ✅ Ready for Production Deployment  
 **Last Updated**: 2024  
 **Target Audience**: DevOps Engineers, System Administrators

@@ -1,0 +1,64 @@
+version: '3.8'
+
+# Edge Coordinator Stack
+# Run this on any always-on machine to act as a distributed coordinator
+# Zero configuration needed - just run and it auto-registers at api.rmatool.org.uk
+
+services:
+  coordinator:
+    image: ghcr.io/st7ma784/cmacatalyst/coordinator:latest
+    container_name: edge-coordinator
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - edge-network
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: edge-tunnel
+    restart: unless-stopped
+    command: tunnel --url http://coordinator:8080 --no-autoupdate
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    networks:
+      - edge-network
+
+  registrar:
+    image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+    container_name: edge-registrar
+    restart: unless-stopped
+    environment:
+      - WORKER_TYPE=edge
+      - COORDINATOR_URL=https://api.rmatool.org.uk
+      - USE_TUNNEL=true
+    depends_on:
+      - tunnel
+    networks:
+      - edge-network
+
+networks:
+  edge-network:
+    driver: bridge
+
+# Usage:
+# docker-compose -f edge-coordinator.yml up -d
+#
+# This will:
+# 1. Start coordinator on port 8080
+# 2. Create Cloudflare Tunnel to coordinator
+# 3. Register tunnel at api.rmatool.org.uk
+# 4. Accept worker registrations from anywhere
+#
+# To stop:
+# docker-compose -f edge-coordinator.yml down

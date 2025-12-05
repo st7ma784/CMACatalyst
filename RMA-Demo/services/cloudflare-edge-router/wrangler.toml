@@ -1,0 +1,19 @@
+name = "rma-edge-router"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# Durable Objects binding
+[[durable_objects.bindings]]
+name = "COORDINATOR_REGISTRY"
+class_name = "CoordinatorRegistry"
+script_name = "rma-edge-router"
+
+# Migration to enable Durable Objects with SQLite (required for free tier)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CoordinatorRegistry"]
+
+# Custom domain (set this to your domain)
+# routes = [
+#   { pattern = "api.rmatool.org.uk/*", zone_name = "rmatool.org.uk" }
+# ]

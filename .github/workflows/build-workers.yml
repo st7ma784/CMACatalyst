@@ -7,6 +7,7 @@ on:
     paths:
       - 'RMA-Demo/worker-containers/universal-worker/**'
       - 'RMA-Demo/services/local-coordinator/**'
+      - 'RMA-Demo/edge-coordinator.yml'
       - '.github/workflows/build-workers.yml'
   workflow_dispatch:
 
@@ -215,7 +216,12 @@ jobs:
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "📖 **Documentation:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [Zero-Cost Deployment Guide](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/ZERO_COST_DEPLOYMENT.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Edge Federation Guide](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/EDGE_FEDERATION_GUIDE.md)" >> $GITHUB_STEP_SUMMARY
           echo "- [Dynamic Service Allocation Guide](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/DYNAMIC_SERVICE_ALLOCATION.md)" >> $GITHUB_STEP_SUMMARY
           echo "- [Tier 4 Architecture](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/TIER_4_ARCHITECTURE.md)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "💡 **Quick Start:** Use \`WORKER_TYPE=auto\` to let the worker auto-detect its capabilities!" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Quick Start:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Deploy edge router: \`./deploy-edge-router.sh\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Start coordinator: \`docker-compose -f edge-coordinator.yml up -d\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Start worker: \`docker run -e WORKER_TYPE=auto ghcr.io/${{ github.repository }}/universal-worker:latest\`" >> $GITHUB_STEP_SUMMARY

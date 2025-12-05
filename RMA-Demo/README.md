@@ -2,54 +2,72 @@
 
 A comprehensive distributed computing platform for AI workloads, featuring a democratized worker pool where anyone can contribute compute capacity.
 
+## 🎉 **NEW: Zero-Cost Serverless Deployment!**
+
+Run a globally distributed system with **$0/month** hosting costs:
+- ✅ Cloudflare Workers (free tier) for global edge routing
+- ✅ Durable Objects for coordinator registry (1K writes/day free)
+- ✅ Volunteer hardware for compute (GPU/CPU workers)
+- ✅ Auto-scaling edge coordinators
+- ✅ One-command deployment via Docker Compose
+
+**📖 See [ZERO_COST_DEPLOYMENT.md](./ZERO_COST_DEPLOYMENT.md) - Deploy in 5 minutes!**
+
 ## 🏗️ System Architecture
 
-The RMA system uses a **distributed architecture** that separates coordination (free-tier cloud) from computation (volunteer workers):
+The RMA system uses a **distributed edge-federated architecture** that separates routing (Cloudflare edge) from coordination (distributed edge coordinators) from computation (volunteer workers):
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Fly.io Free Tier (Coordinator + Dashboard)  $0/month  │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─────────────────┐      ┌──────────────────┐       │
-│  │  Coordinator    │◄────►│  Admin Dashboard │       │
-│  │  (FastAPI)      │      │  (React + Vite)  │       │
-│  └────────┬────────┘      └──────────────────┘       │
-│           │                                            │
-└───────────┼────────────────────────────────────────────┘
-            │ HTTPS (Public Internet)
-            │
-┌───────────┴──────────────────────────────────────────────┐
-│                 Distributed Workers                       │
-├───────────────────────────────────────────────────────────┤
-│                                                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐│
-│  │ GPU      │  │ GPU      │  │ CPU      │  │ CPU     ││
-│  │ Worker   │  │ Worker   │  │ Worker   │  │ Worker  ││
-│  │ Tier 1   │  │ Tier 1   │  │ Tier 2   │  │ Tier 2  ││
-│  │          │  │          │  │          │  │         ││
-│  │ vLLM     │  │ Vision   │  │ RAG      │  │ NER     ││
-│  │ Inference│  │ OCR      │  │ Service  │  │ Service ││
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘│
-│                                                           │
-│  Anyone can run a worker container to donate compute!    │
-└───────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Cloudflare Edge Router (FREE, Global)                     │
+│  api.rmatool.org.uk                                         │
+│  - Durable Objects (coordinator registry)                  │
+│  - Routes workers to nearest coordinator                   │
+│  - Zero hosting costs ✅                                    │
+└────────────┬───────────────────────────────────────────────┘
+             │ Routes to →
+             ├──────────────┬──────────────┬──────────────┐
+             │              │              │              │
+    ┌────────▼────┐  ┌──────▼─────┐ ┌─────▼──────┐ ┌────▼─────┐
+    │ Edge Coord  │  │ Edge Coord │ │ Edge Coord │ │   ...    │
+    │ (UK)        │  │ (US)       │ │ (EU)       │ │          │
+    │ Volunteer   │  │ Volunteer  │ │ Volunteer  │ │ Volunteer│
+    │ Hardware    │  │ Hardware   │ │ Hardware   │ │ Hardware │
+    └─────┬───────┘  └──────┬─────┘ └─────┬──────┘ └────┬─────┘
+          │                 │              │             │
+          └─────────────────┴──────────────┴─────────────┘
+                            │
+           ┌────────────────┴────────────────┐
+           │                                  │
+    ┌──────▼──────┐  ┌──────────┐  ┌────────▼────┐
+    │ GPU Workers │  │ Storage  │  │ CPU Workers │
+    │ (Tier 1)    │  │ (Tier 3) │  │ (Tier 2)    │
+    │             │  │          │  │             │
+    │ LLM, Vision │  │ ChromaDB │  │ RAG, NER    │
+    └─────────────┘  └──────────┘  └─────────────┘
 ```
 
-**📖 For detailed architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md)**
+**📖 For detailed architecture:**
+- [EDGE_FEDERATION_GUIDE.md](./EDGE_FEDERATION_GUIDE.md) - How edge federation works
+- [TIER_4_ARCHITECTURE.md](./TIER_4_ARCHITECTURE.md) - Edge worker coordination
+- [DYNAMIC_SERVICE_ALLOCATION.md](./DYNAMIC_SERVICE_ALLOCATION.md) - Service assignment
 
-## Why Distributed?
+## Why Distributed Edge Federation?
 
-### Before (Centralized)
+### Traditional Centralized
 - GPU server: **$730/month**
+- Single coordinator bottleneck
+- Geographic latency issues
 - Limited by single machine capacity
-- Expensive to scale
 
-### After (Distributed)  
-- Coordinator: **$0/month** (Fly.io free tier)
+### Our Distributed Model
+- Edge router: **$0/month** (Cloudflare free tier)
+- Coordinators: **$0** (volunteer hardware + Cloudflare tunnels)
 - Workers: **$0** (community donated)
-- **Total: $1/month** (99.9% cost reduction!)
-- Infinite scalability (add more workers anytime)
+- **Total: $0/month** (100% cost reduction!)
+- Infinite scalability (add coordinators + workers anytime)
+- Geographic distribution (low latency globally)
+- Auto-failover (coordinators share load)
 
 ---
 

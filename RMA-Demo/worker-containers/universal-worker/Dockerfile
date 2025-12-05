@@ -58,11 +58,16 @@ RUN pip3 install --no-cache-dir \
 COPY worker_agent.py .
 COPY service_launcher.py .
 
+# Copy coordinator service (for edge workers)
+# This will be copied from ../services/local-coordinator during build
+# Build command: docker build -f worker-containers/universal-worker/Dockerfile --build-context coordinator=services/local-coordinator .
+RUN mkdir -p /app/coordinator
+
 # Environment variables
-ENV COORDINATOR_URL="https://api.rmatool.org.uk"
+ENV COORDINATOR_URL="http://localhost:8080"
 ENV WORKER_ID=""
 ENV WORKER_TYPE="auto"
-ENV USE_TUNNEL="true"
+ENV USE_TUNNEL="false"
 
 # Auto-detect hardware and register with coordinator
 CMD ["python3", "worker_agent.py"]

@@ -1,0 +1,14 @@
+{
+  "name": "rma-edge-router",
+  "version": "1.0.0",
+  "description": "Cloudflare Edge Router for RMA distributed worker system",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

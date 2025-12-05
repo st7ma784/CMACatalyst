@@ -29,9 +29,9 @@ class UniversalWorkerAgent:
     """Agent that auto-detects capabilities and runs assigned services"""
     
     def __init__(self):
-        self.coordinator_url = os.getenv("COORDINATOR_URL", "https://api.rmatool.org.uk")
+        self.coordinator_url = os.getenv("COORDINATOR_URL", "http://localhost:8080")
         self.worker_id = os.getenv("WORKER_ID", f"worker-{socket.gethostname()}-{int(time.time())}")
-        self.worker_type = os.getenv("WORKER_TYPE", "auto")  # auto/gpu/cpu/storage
+        self.worker_type = os.getenv("WORKER_TYPE", "auto")  # auto/gpu/cpu/storage/edge
         self.use_tunnel = os.getenv("USE_TUNNEL", "true").lower() == "true"
         
         self.tunnel_process: Optional[subprocess.Popen] = None
@@ -265,15 +265,145 @@ class UniversalWorkerAgent:
         except requests.RequestException as e:
             logger.error(f"❌ Heartbeat failed: {e}")
     
+    def run_edge_worker(self):
+        """Run as edge coordinator - hosts the coordinator service locally"""
+        try:
+            logger.info("=" * 60)
+            logger.info("🌐 EDGE WORKER MODE - Running coordinator locally")
+            logger.info("=" * 60)
+            
+            # Edge workers don't run a local coordinator
+            # Instead, they register at api.rmatool.org.uk as an edge coordinator
+            # and api.rmatool.org.uk routes workers to them
+            
+            logger.info("ℹ️  Edge workers should run the coordinator service separately")
+            logger.info("   Start coordinator with:")
+            logger.info("   cd services/local-coordinator && python -m uvicorn app:app --host 0.0.0.0 --port 8080")
+            logger.info("")
+            
+            # Create tunnel for the coordinator
+            if self.use_tunnel:
+                logger.info("📡 Creating Cloudflare Tunnel for coordinator access...")
+                # Tunnel to port 8080 where coordinator should be running
+                process = subprocess.Popen(
+                    ["cloudflared", "tunnel", "--url", "http://localhost:8080", "--no-autoupdate"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                
+                self.tunnel_process = process
+                
+                # Wait for tunnel URL
+                for _ in range(30):
+                    line = process.stderr.readline()
+                    if "https://" in line and ".trycloudflare.com" in line:
+                        tunnel_url = line.split("https://")[1].split()[0]
+                        self.tunnel_url = f"https://{tunnel_url}"
+                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                        break
+                    time.sleep(1)
+                
+                if not self.tunnel_url:
+                    logger.error("❌ Failed to create tunnel")
+                    return
+            else:
+                public_ip = self.capabilities.get("public_ip", socket.gethostname())
+                self.tunnel_url = f"http://{public_ip}:8080"
+                logger.info(f"ℹ️  Direct access mode: {self.tunnel_url}")
+            
+            # Register as edge coordinator at api.rmatool.org.uk
+            if self.coordinator_url and self.coordinator_url != "http://localhost:8080":
+                logger.info(f"📝 Registering as edge coordinator at {self.coordinator_url}...")
+                registration_data = {
+                    "worker_id": self.worker_id,
+                    "worker_type": "edge",
+                    "tunnel_url": self.tunnel_url,
+                    "services": ["coordinator", "edge-proxy"],
+                    "capabilities": self.capabilities,
+                    "role": "edge_coordinator"
+                }
+                
+                try:
+                    response = requests.post(
+                        f"{self.coordinator_url}/api/edge/register",
+                        json=registration_data,
+                        timeout=10
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+                    logger.info("✅ Registered as edge coordinator")
+                    logger.info(f"   Role: {result.get('role', 'coordinator')}")
+                except requests.RequestException as e:
+                    logger.warning(f"⚠️  Failed to register at {self.coordinator_url}: {e}")
+                    logger.info("   Running as standalone coordinator")
+            
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("✅ EDGE COORDINATOR READY")
+            logger.info(f"   Tunnel URL: {self.tunnel_url}")
+            logger.info("   Other workers should set:")
+            logger.info(f"   COORDINATOR_URL={self.tunnel_url}")
+            logger.info("=" * 60)
+            logger.info("")
+            
+            # Keep tunnel alive
+            while True:
+                if self.tunnel_process and self.tunnel_process.poll() is not None:
+                    logger.error("❌ Tunnel process died")
+                    break
+                time.sleep(30)
+                
+        except KeyboardInterrupt:
+            logger.info("🛑 Shutting down edge coordinator...")
+            self.cleanup()
+        except Exception as e:
+            logger.error(f"❌ Fatal error in edge worker: {e}")
+            self.cleanup()
+            raise
+    
     def run(self):
         """Main worker loop"""
         try:
-            # Step 1: Create tunnel
+            # Special handling for edge workers
+            if self.capabilities.get("worker_type") == "edge":
+                logger.info("🌐 Detected as EDGE worker - will run coordinator locally")
+                logger.info("   Other workers should register with this coordinator at:")
+                logger.info(f"   http://{socket.gethostname()}:8080")
+                
+                # Edge workers run the coordinator service itself
+                # They don't register with an external coordinator
+                self.run_edge_worker()
+                return
+            
+            # For non-edge workers: register with coordinator
+            # Step 0: Check coordinator availability
+            logger.info(f"🔍 Checking coordinator availability at {self.coordinator_url}...")
+            try:
+                health_response = requests.get(f"{self.coordinator_url}/health", timeout=5)
+                if health_response.status_code == 200:
+                    logger.info("✅ Coordinator is reachable")
+                else:
+                    logger.error(f"❌ Coordinator returned status {health_response.status_code}")
+                    logger.error("   Make sure the coordinator is running:")
+                    logger.error(f"   cd RMA-Demo/services/local-coordinator && python -m uvicorn app:app --host 0.0.0.0 --port 8080")
+                    return
+            except requests.RequestException as e:
+                logger.error(f"❌ Cannot reach coordinator at {self.coordinator_url}: {e}")
+                logger.error("")
+                logger.error("   The coordinator must be running before starting workers.")
+                logger.error("   Start the coordinator with:")
+                logger.error(f"   cd RMA-Demo/services/local-coordinator && python -m uvicorn app:app --host 0.0.0.0 --port 8080")
+                logger.error("")
+                logger.error("   Or if using Docker, set COORDINATOR_URL to the correct address:")
+                logger.error("   docker run -e COORDINATOR_URL=http://host.docker.internal:8080 ...")
+                return
+            
+            # Step 1: Create tunnel (optional)
             if self.use_tunnel:
                 tunnel_url = self.create_tunnel()
                 if not tunnel_url:
-                    logger.error("❌ Failed to create tunnel, exiting")
-                    return
+                    logger.warning("⚠️  Failed to create tunnel, continuing without tunnel")
             
             # Step 2: Register and get service assignments
             registration_result = self.register_with_coordinator()
