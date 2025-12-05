@@ -57,7 +57,6 @@ RUN pip3 install --no-cache-dir \
 # Copy universal worker agent
 COPY worker_agent.py .
 COPY service_launcher.py .
-COPY services/ ./services/
 
 # Environment variables
 ENV COORDINATOR_URL="https://api.rmatool.org.uk"
