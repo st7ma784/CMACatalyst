@@ -1,0 +1,46 @@
+name: Deploy Edge Router to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'services/cloudflare-edge-router/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Edge Router
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'services/cloudflare-edge-router/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: services/cloudflare-edge-router
+        run: npm ci
+
+      - name: Deploy to Cloudflare Workers
+        working-directory: services/cloudflare-edge-router
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Deployment summary
+        run: |
+          echo "✅ Edge Router deployed to api.rmatool.org.uk"
+          echo "📡 Updated endpoints:"
+          echo "  - /api/admin/workers (proxied)"
+          echo "  - /api/admin/stats (proxied)"
+          echo "  - /api/dht/bootstrap"
+          echo "  - /api/edge/register"
