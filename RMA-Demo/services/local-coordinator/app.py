@@ -27,6 +27,31 @@ logger = logging.getLogger(__name__)
 workers: Dict[str, Dict[str, Any]] = {}
 services: Dict[str, List[str]] = {}  # service_name -> [worker_ids]
 
+# Service definitions and requirements
+SERVICE_CATALOG = {
+    # GPU Services (Tier 1)
+    "llm-inference": {"tier": 1, "requires": "gpu", "priority": 1, "port": 8105},
+    "vision-ocr": {"tier": 1, "requires": "gpu", "priority": 1, "port": 8104},
+    "rag-embeddings": {"tier": 1, "requires": "gpu", "priority": 2, "port": 8102},
+    
+    # CPU Services (Tier 2)
+    "ner-extraction": {"tier": 2, "requires": "cpu", "priority": 2, "port": 8108},
+    "document-processing": {"tier": 2, "requires": "cpu", "priority": 2, "port": 8103},
+    "notes-coa": {"tier": 2, "requires": "cpu", "priority": 3, "port": 8100},
+    
+    # Storage Services (Tier 3)
+    "chromadb": {"tier": 3, "requires": "storage", "priority": 1, "port": 8000},
+    "redis": {"tier": 3, "requires": "storage", "priority": 2, "port": 6379},
+    "postgres": {"tier": 3, "requires": "storage", "priority": 3, "port": 5432},
+    "minio": {"tier": 3, "requires": "storage", "priority": 4, "port": 9000},
+    "neo4j": {"tier": 3, "requires": "storage", "priority": 5, "port": 7474},
+    
+    # Edge/Coordination Services (Tier 4)
+    "coordinator": {"tier": 4, "requires": "edge", "priority": 1, "port": 8080},
+    "edge-proxy": {"tier": 4, "requires": "edge", "priority": 1, "port": 8787},
+    "load-balancer": {"tier": 4, "requires": "edge", "priority": 2, "port": 8090},
+}
+
 # Background task handle
 cleanup_task = None
 
@@ -115,44 +140,61 @@ async def health_check():
 
 @app.post("/api/worker/register")
 async def register_worker(registration: WorkerRegistration):
-    """Register a new worker"""
+    """Register a new worker and assign services based on gaps"""
     worker_id = registration.worker_id
+    
+    # Determine worker type from capabilities
+    capabilities = registration.capabilities
+    worker_type = determine_worker_type(capabilities)
+    tier = determine_tier(capabilities)
+    
+    # Analyze service gaps and assign services
+    assigned_services = assign_services_to_worker(worker_type, tier, capabilities)
     
     # Create worker record
     worker_data = {
         "worker_id": worker_id,
         "tunnel_url": registration.tunnel_url,
-        "capabilities": registration.capabilities,
+        "capabilities": capabilities,
+        "worker_type": worker_type,
+        "tier": tier,
+        "assigned_services": assigned_services,
         "services": registration.services or [],
         "containers": registration.containers or [],
         "registered_at": datetime.now().isoformat(),
         "last_heartbeat": datetime.now().isoformat(),
-        "status": "online"
+        "status": "online",
+        "tasks_completed": 0
     }
-    
-    # Determine tier from capabilities
-    worker_data["tier"] = determine_tier(registration.capabilities)
     
     # Store worker
     workers[worker_id] = worker_data
     
-    # Index services
-    service_list = registration.services or registration.containers or []
-    for service in service_list:
-        service_name = service.get("name")
-        if service_name:
-            if service_name not in services:
-                services[service_name] = []
-            if worker_id not in services[service_name]:
-                services[service_name].append(worker_id)
+    # Index assigned services
+    for service_name in assigned_services:
+        if service_name not in services:
+            services[service_name] = []
+        if worker_id not in services[service_name]:
+            services[service_name].append(worker_id)
     
-    logger.info(f"✅ Registered worker: {worker_id} (Tier {worker_data['tier']}) with {len(service_list)} services")
+    logger.info(f"✅ Registered {worker_type} worker: {worker_id} (Tier {tier})")
+    logger.info(f"   Assigned services: {', '.join(assigned_services)}")
     
     return {
         "status": "registered",
         "worker_id": worker_id,
-        "tier": worker_data["tier"],
-        "message": "Worker successfully registered"
+        "worker_type": worker_type,
+        "tier": tier,
+        "assigned_services": assigned_services,
+        "service_configs": [
+            {
+                "name": svc,
+                "port": SERVICE_CATALOG[svc]["port"],
+                "priority": SERVICE_CATALOG[svc]["priority"]
+            }
+            for svc in assigned_services
+        ],
+        "message": f"Worker registered with {len(assigned_services)} service(s)"
     }
 
 
@@ -269,6 +311,55 @@ async def list_services():
     }
 
 
+@app.get("/api/admin/gaps")
+async def analyze_service_gaps():
+    """Analyze which services need more workers"""
+    gaps = []
+    
+    for svc_name, svc_info in SERVICE_CATALOG.items():
+        current_workers = services.get(svc_name, [])
+        healthy_count = sum(
+            1 for wid in current_workers
+            if wid in workers and is_worker_healthy(workers[wid])
+        )
+        
+        # Determine if there's a gap
+        status = "ok"
+        if healthy_count == 0:
+            status = "critical"
+        elif healthy_count == 1:
+            status = "warning"
+        
+        gaps.append({
+            "service": svc_name,
+            "required_type": svc_info["requires"],
+            "priority": svc_info["priority"],
+            "current_workers": healthy_count,
+            "status": status,
+            "port": svc_info["port"]
+        })
+    
+    # Sort by status (critical first) then priority
+    gaps.sort(key=lambda x: (
+        0 if x["status"] == "critical" else (1 if x["status"] == "warning" else 2),
+        x["priority"]
+    ))
+    
+    critical = [g for g in gaps if g["status"] == "critical"]
+    warnings = [g for g in gaps if g["status"] == "warning"]
+    
+    return {
+        "gaps": gaps,
+        "critical_gaps": critical,
+        "warnings": warnings,
+        "summary": {
+            "total_services": len(SERVICE_CATALOG),
+            "covered": len([g for g in gaps if g["status"] == "ok"]),
+            "needs_attention": len(critical) + len(warnings)
+        }
+    }
+
+
 @app.post("/api/coordinator/broadcast-job")
 async def broadcast_job(job: BroadcastJob):
     """Broadcast a job to all capable workers"""
@@ -322,6 +413,18 @@ async def broadcast_job(job: BroadcastJob):
 
 # Helper functions
 
+def determine_worker_type(capabilities: Dict[str, Any]) -> str:
+    """Determine worker type from capabilities"""
+    if capabilities.get("has_gpu") or capabilities.get("worker_type") == "gpu":
+        return "gpu"
+    elif capabilities.get("has_edge") or capabilities.get("worker_type") == "edge" or capabilities.get("has_public_ip"):
+        return "edge"
+    elif capabilities.get("has_storage") or capabilities.get("worker_type") == "storage":
+        return "storage"
+    else:
+        return "cpu"
+
+
 def determine_tier(capabilities: Dict[str, Any]) -> int:
     """Determine worker tier based on capabilities"""
     # Tier 1: GPU workers (highest capability)
@@ -333,7 +436,86 @@ def determine_tier(capabilities: Dict[str, Any]) -> int:
         return 2
     
     # Tier 3: Storage/infrastructure workers
+    if capabilities.get("has_storage") or capabilities.get("worker_type") == "storage":
+        return 3
+    
+    # Tier 4: Edge/Coordination workers (good network, public IP, can host coordinator)
+    if capabilities.get("has_edge") or capabilities.get("worker_type") == "edge" or capabilities.get("has_public_ip"):
+        return 4
+    
+    # Default to storage tier if unclear
     return 3
+
+
+def assign_services_to_worker(worker_type: str, tier: int, capabilities: Dict[str, Any]) -> List[str]:
+    """
+    Dynamically assign services to worker based on current gaps
+    
+    Strategy:
+    1. Find all services matching worker's capability (gpu/cpu/storage)
+    2. Calculate coverage for each service (how many workers already provide it)
+    3. Prefer assigning services with lowest coverage (biggest gaps)
+    4. Assign multiple services if worker has capacity (unless enough workers exist)
+    5. Priority: critical services (priority 1) > nice-to-have (priority 5)
+    """
+    
+    # Get all services this worker CAN run
+    eligible_services = [
+        svc_name for svc_name, svc_info in SERVICE_CATALOG.items()
+        if svc_info["requires"] == worker_type
+    ]
+    
+    if not eligible_services:
+        logger.warning(f"No eligible services found for worker type: {worker_type}")
+        return []
+    
+    # Calculate service coverage (how many workers already provide each service)
+    service_coverage = {}
+    for svc_name in eligible_services:
+        current_workers = services.get(svc_name, [])
+        # Count only healthy workers
+        healthy_count = sum(
+            1 for wid in current_workers
+            if wid in workers and is_worker_healthy(workers[wid])
+        )
+        service_coverage[svc_name] = healthy_count
+    
+    # Sort services by:
+    # 1. Coverage (ascending - prefer gaps)
+    # 2. Priority (ascending - prefer critical services)
+    sorted_services = sorted(
+        eligible_services,
+        key=lambda svc: (
+            service_coverage.get(svc, 0),  # Fewest workers first
+            SERVICE_CATALOG[svc]["priority"]  # Higher priority (lower number) first
+        )
+    )
+    
+    # Decide how many services to assign
+    total_workers_in_tier = sum(
+        1 for w in workers.values()
+        if w.get("tier") == tier and is_worker_healthy(w)
+    )
+    
+    # If we have plenty of workers, specialize (1 service per worker)
+    # If we're short on workers, multi-task (assign multiple services)
+    if total_workers_in_tier >= len(eligible_services):
+        # Enough workers - specialize
+        max_services = 1
+    elif total_workers_in_tier >= len(eligible_services) / 2:
+        # Some workers - assign 2 services
+        max_services = 2
+    else:
+        # Very few workers - assign all critical services
+        max_services = min(3, len(eligible_services))
+    
+    assigned = sorted_services[:max_services]
+    
+    logger.info(f"   Service gaps for {worker_type}: {service_coverage}")
+    logger.info(f"   Workers in tier {tier}: {total_workers_in_tier + 1} (including this one)")
+    logger.info(f"   Assignment strategy: {max_services} service(s) per worker")
+    
+    return assigned
 
 
 def is_worker_healthy(worker: Dict[str, Any], now: datetime = None) -> bool:

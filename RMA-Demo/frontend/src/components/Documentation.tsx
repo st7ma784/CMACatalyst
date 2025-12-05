@@ -1567,6 +1567,251 @@ function SystemArchitectureGuide() {
         </div>
       </div>
 
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Tier 4: Edge & Coordination Workers</h2>
+
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-l-4 border-indigo-400 p-6 mb-6">
+        <div className="flex">
+          <Network className="h-5 w-5 text-indigo-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-indigo-800">Contributing Infrastructure Capacity</h3>
+            <p className="text-sm text-indigo-700">
+              Beyond GPU/CPU/Storage, machines with excellent network access (server rooms, data centers) can 
+              donate coordination capacity as <strong>Tier 4 workers</strong>. This eliminates Cloudflare KV costs 
+              entirely by hosting coordinators on contributed infrastructure.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-2 border-indigo-300 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-bold text-indigo-900 mb-3">🌍 What are Tier 4 Workers?</h3>
+        
+        <p className="text-sm text-gray-700 mb-4">
+          Tier 4 workers are machines with <strong>public IP addresses</strong> or <strong>low-latency network access</strong> (&lt;50ms) 
+          that can host infrastructure services like coordinators, edge proxies, and load balancers. These workers enable:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="bg-indigo-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-indigo-900 mb-2">💸 Cost Elimination</h4>
+            <div className="text-xs text-gray-700 space-y-1">
+              <div>• With 10 workers: <span className="line-through text-red-600">$5-10/month</span> → <span className="text-green-700 font-bold">$0/month</span></div>
+              <div>• Each worker = ~576 KV writes/day × 50 workers = 28,800/day</div>
+              <div>• Cloudflare KV free tier: Only 1,000 writes/day</div>
+              <div>• Solution: Host coordinators on Tier 4 workers instead!</div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-purple-900 mb-2">🗺️ Geographic Distribution</h4>
+            <div className="text-xs text-gray-700 space-y-1">
+              <div>• Multiple coordinators across US/EU/APAC regions</div>
+              <div>• Workers connect to nearest coordinator (lowest latency)</div>
+              <div>• Redundancy: If one coordinator fails, others take over</div>
+              <div>• Edge proxies provide global entry points</div>
+            </div>
+          </div>
+        </div>
+
+        <h4 className="font-semibold text-gray-900 mb-3 mt-4">Tier 4 Services:</h4>
+        
+        <div className="space-y-3">
+          <div className="bg-gray-50 border border-gray-200 rounded p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🎯</span>
+              <strong className="text-gray-900">Coordinator</strong>
+              <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Port 8080, Priority 1</span>
+            </div>
+            <p className="text-xs text-gray-700 ml-7">
+              In-memory worker registry • Service assignment • Health tracking • Gap detection
+            </p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🌐</span>
+              <strong className="text-gray-900">Edge Proxy</strong>
+              <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Port 8787, Priority 1</span>
+            </div>
+            <p className="text-xs text-gray-700 ml-7">
+              Routes traffic to coordinator • CORS handling • API authentication • Caching
+            </p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">⚖️</span>
+              <strong className="text-gray-900">Load Balancer</strong>
+              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">Port 8090, Priority 2</span>
+            </div>
+            <p className="text-xs text-gray-700 ml-7">
+              Round-robin distribution • Health checks • Failover handling • Traffic shaping
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-300 rounded-lg p-6 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">🖥️</div>
+          <div>
+            <h3 className="text-lg font-bold text-cyan-900 mb-2">How to Become a Tier 4 Worker</h3>
+            <p className="text-sm text-cyan-800 mb-3">
+              If you have a server in a data center, cloud VPS, or machine with a public IP in a server room, 
+              you can contribute coordination capacity!
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-2">Edge Detection Criteria:</h4>
+          <div className="text-sm text-gray-700 space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong>Public IP Address:</strong> Not in private ranges (10.x, 192.168.x, 172.16.x)
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-gray-500">
+              <span className="font-bold">OR</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong>Low Latency:</strong> &lt;50ms ping time to existing coordinator
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-2">Deployment Command:</h4>
+          <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
+            docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
+            docker run -d --name rma-edge-worker --restart unless-stopped \<br/>
+            &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+            &nbsp;&nbsp;-e WORKER_TYPE=auto \<br/>
+            &nbsp;&nbsp;-p 8080:8080 -p 8787:8787 -p 8090:8090 \<br/>
+            &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+          </code>
+          <p className="text-xs text-gray-600 mt-2">
+            💡 Set WORKER_TYPE=auto to let the worker auto-detect if it's edge-capable. 
+            It will automatically register as Tier 4 if conditions are met.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white border-2 border-gray-300 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-bold text-gray-900 mb-3">Dynamic Service Allocation</h3>
+        
+        <p className="text-sm text-gray-700 mb-4">
+          Workers don't know which services they'll run until registration. The coordinator uses a 
+          <strong> gap-filling algorithm</strong> to assign 1-3 services based on system needs:
+        </p>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-2">Algorithm Steps:</h4>
+          <ol className="text-sm text-gray-700 space-y-2 list-decimal list-inside">
+            <li>Worker registers with capabilities (GPU, CPU, storage, edge)</li>
+            <li>Coordinator determines worker tier (1=GPU, 2=CPU, 3=Storage, 4=Edge)</li>
+            <li>Calculate service coverage: How many healthy workers per service?</li>
+            <li>Sort services by coverage (gaps first) + priority</li>
+            <li>Assign 1 service if many workers, 2-3 if understaffed</li>
+            <li>Return assigned services + config to worker</li>
+            <li>Worker launches assigned services via service_launcher.py</li>
+          </ol>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-blue-50 p-3 rounded">
+            <h5 className="font-semibold text-blue-900 mb-1 text-sm">Example: First Edge Worker</h5>
+            <div className="text-xs text-gray-700 space-y-1">
+              <div>• 0 coordinators, 0 edge-proxies, 0 load-balancers</div>
+              <div>• All Tier 4 services are <span className="text-red-600 font-bold">critical gaps</span></div>
+              <div>• Worker gets: <strong>coordinator + edge-proxy</strong></div>
+              <div>• Priority 1 services first (coordinator, proxy)</div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 p-3 rounded">
+            <h5 className="font-semibold text-green-900 mb-1 text-sm">Example: 10th Edge Worker</h5>
+            <div className="text-xs text-gray-700 space-y-1">
+              <div>• 5 coordinators, 3 edge-proxies, 1 load-balancer</div>
+              <div>• Load-balancer has <span className="text-orange-600 font-bold">lowest coverage</span></div>
+              <div>• Worker gets: <strong>load-balancer only</strong></div>
+              <div>• System has enough coordinators/proxies</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="text-3xl">🎉</div>
+          <div>
+            <h3 className="text-lg font-bold text-green-900">Benefits of Tier 4 Architecture</h3>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">Zero Infrastructure Costs</strong>
+                <p className="text-xs text-gray-700">Eliminate Cloudflare KV charges completely</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">Unlimited Scaling</strong>
+                <p className="text-xs text-gray-700">No 1,000 writes/day limit - support 1000+ workers</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">Geographic Distribution</strong>
+                <p className="text-xs text-gray-700">Coordinators in US/EU/APAC for low latency everywhere</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">High Availability</strong>
+                <p className="text-xs text-gray-700">Multiple coordinators = no single point of failure</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">Truly Distributed</strong>
+                <p className="text-xs text-gray-700">Community-owned infrastructure, not cloud-dependent</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 font-bold text-lg">✓</span>
+              <div>
+                <strong className="text-gray-900 text-sm">Smart Resource Use</strong>
+                <p className="text-xs text-gray-700">Servers donate coordination, GPUs donate compute</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-white border border-green-300 rounded">
+          <p className="text-xs text-gray-900">
+            <strong className="text-green-800">Cost Impact:</strong> With 50 workers, traditional KV approach would cost 
+            ~$15-20/month. With Tier 4, <span className="text-green-700 font-bold text-lg">$0/month</span> forever. 
+            This is the power of distributed, community-driven infrastructure! 🚀
+          </p>
+        </div>
+      </div>
+
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Deployment Comparison</h2>
 
       <div className="bg-white border-2 border-gray-300 rounded-lg overflow-hidden mb-6">

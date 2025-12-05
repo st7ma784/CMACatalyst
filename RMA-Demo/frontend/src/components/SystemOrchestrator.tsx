@@ -17,7 +17,8 @@ import {
   Users,
   Trophy,
   Medal,
-  Award
+  Award,
+  Network
 } from 'lucide-react'
 
 const COORDINATOR_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rmatool.org.uk'
@@ -46,16 +47,19 @@ interface SystemStats {
     '1': number
     '2': number
     '3': number
+    '4': number
   }
   workers_by_tier?: {
     gpu_workers: number
     service_workers: number
     data_workers: number
+    edge_workers: number
   }
   average_load_by_tier?: {
     gpu_workers: number
     service_workers: number
     data_workers: number
+    edge_workers: number
   }
   total_tasks_completed?: number
 }
@@ -85,10 +89,10 @@ export default function SystemOrchestrator() {
   const getWorkersByTier = (tier: number): number => {
     if (!stats) return 0
     if (stats.by_tier) {
-      return stats.by_tier[tier.toString() as '1' | '2' | '3'] || 0
+      return stats.by_tier[tier.toString() as '1' | '2' | '3' | '4'] || 0
     }
     if (stats.workers_by_tier) {
-      const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : 'data_workers'
+      const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : tier === 3 ? 'data_workers' : 'edge_workers'
       return stats.workers_by_tier[key] || 0
     }
     return 0
@@ -96,7 +100,7 @@ export default function SystemOrchestrator() {
 
   const getAverageLoad = (tier: number): number => {
     if (!stats?.average_load_by_tier) return 0
-    const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : 'data_workers'
+    const key = tier === 1 ? 'gpu_workers' : tier === 2 ? 'service_workers' : tier === 3 ? 'data_workers' : 'edge_workers'
     return stats.average_load_by_tier[key] || 0
   }
 
@@ -187,6 +191,8 @@ export default function SystemOrchestrator() {
         return <Server className="h-4 w-4" />
       case 3:
         return <Database className="h-4 w-4" />
+      case 4:
+        return <Network className="h-4 w-4" />
       default:
         return null
     }
@@ -200,6 +206,8 @@ export default function SystemOrchestrator() {
         return 'Service Worker'
       case 3:
         return 'Data Worker'
+      case 4:
+        return 'Edge Worker'
       default:
         return 'Unknown'
     }
@@ -332,7 +340,7 @@ export default function SystemOrchestrator() {
       </div>
 
       {/* Worker Tier Distribution */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -422,6 +430,37 @@ export default function SystemOrchestrator() {
                     getAverageLoad(3)
                   )}`}
                   style={{ width: `${(getAverageLoad(3) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <Network className="h-5 w-5 text-indigo-600" />
+              <CardTitle className="text-sm font-medium">Tier 4: Edge Workers</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-indigo-600">
+              {getWorkersByTier(4)}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">Coordinator, Proxy, LB</p>
+            <div className="mt-3">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-600">Average Load</span>
+                <span className="font-semibold">
+                  {(getAverageLoad(4) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${getLoadBarColor(
+                    getAverageLoad(4)
+                  )}`}
+                  style={{ width: `${(getAverageLoad(4) * 100)}%` }}
                 />
               </div>
             </div>
@@ -581,7 +620,8 @@ export default function SystemOrchestrator() {
                   const uptimeHours = (now - registeredTime) / (1000 * 60 * 60)
                   
                   // Calculate contribution score (weighted by tier)
-                  const tierWeight = worker.tier === 1 ? 3 : worker.tier === 2 ? 2 : 1
+                  // Tier 1 (GPU) = 3x, Tier 4 (Edge) = 2.5x, Tier 2 (CPU) = 2x, Tier 3 (Storage) = 1x
+                  const tierWeight = worker.tier === 1 ? 3 : worker.tier === 4 ? 2.5 : worker.tier === 2 ? 2 : 1
                   const contributionScore = (worker.tasks_completed || 0) * tierWeight + uptimeHours
                   
                   return {
