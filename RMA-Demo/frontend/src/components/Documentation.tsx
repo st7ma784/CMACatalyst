@@ -642,45 +642,45 @@ function AIArchitectureGuide() {
             <div className="flex items-start gap-3">
               <div className="text-3xl">🚀</div>
               <div>
-                <h3 className="text-lg font-bold text-green-900 mb-2">Want to Help? Run a Worker!</h3>
+                <h3 className="text-lg font-bold text-green-900 mb-2">Want to Help? Run a Universal Worker!</h3>
                 <p className="text-sm text-green-800 mb-3">
-                  Our distributed architecture relies on donated compute resources. You can contribute by running a worker container on your machine - it takes just 2 commands!
+                  Our distributed architecture relies on donated compute resources. You can contribute by running a universal worker container that auto-detects your hardware!
                 </p>
                 <div className="bg-white rounded-lg p-3 mb-2">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">For CPU workers (4+ cores recommended):</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">🤖 Auto-Detection (Recommended):</p>
                   <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
-                    docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest<br/>
-                    docker run -d --name rma-cpu-worker --restart unless-stopped \<br/>
-                    &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
-                  </code>
-                </div>
-                <div className="bg-white rounded-lg p-3 mb-2">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">For GPU workers (NVIDIA GPU with 8GB+ VRAM):</p>
-                  <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
-                    docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest<br/>
-                    docker run -d --name rma-gpu-worker --restart unless-stopped \<br/>
+                    docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
+                    docker run -d --name rma-worker --restart unless-stopped \<br/>
                     &nbsp;&nbsp;--gpus all -e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+                    &nbsp;&nbsp;-e WORKER_TYPE=auto \<br/>
+                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
                   </code>
+                  <p className="text-xs text-gray-600 mt-2">
+                    ✨ Auto-detects GPU → assigns AI workloads (vLLM, vision models)<br/>
+                    ✨ No GPU → assigns CPU workloads (RAG, NER, document processing)<br/>
+                    ✨ Auto-creates Cloudflare Tunnel for NAT traversal
+                  </p>
                 </div>
                 <div className="bg-white rounded-lg p-3">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">For storage workers (provides vector DB & caching):</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">💾 Storage Worker (for data services):</p>
                   <code className="text-xs bg-gray-900 text-green-400 p-2 rounded block overflow-x-auto">
-                    docker pull ghcr.io/st7ma784/cmacatalyst/storage-worker:latest<br/>
-                    docker run -d --name rma-storage-worker --restart unless-stopped \<br/>
+                    docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
+                    docker run -d --name rma-storage --restart unless-stopped \<br/>
                     &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-                    &nbsp;&nbsp;-e ENABLE_CHROMADB=true -e ENABLE_REDIS=true \<br/>
-                    &nbsp;&nbsp;-v ./chroma-data:/chroma/data \<br/>
-                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/storage-worker:latest
+                    &nbsp;&nbsp;-e WORKER_TYPE=storage \<br/>
+                    &nbsp;&nbsp;-v ./chroma-data:/chroma/chroma \<br/>
+                    &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
                   </code>
+                  <p className="text-xs text-gray-600 mt-2">
+                    💡 Coordinator assigns ChromaDB, Redis, or PostgreSQL based on system needs
+                  </p>
                 </div>
                 <p className="text-xs text-green-700 mt-3">
-                  ✅ Workers automatically create secure Cloudflare Tunnels<br/>
-                  ✅ Works behind firewalls - no port forwarding needed<br/>
-                  ✅ Auto-registers with coordinator at api.rmatool.org.uk<br/>
-                  ✅ Load balanced automatically - multiple GPUs = parallel processing<br/>
-                  ✅ Specialization: Set WORKER_SPECIALIZATION=ocr or vllm for task affinity
+                  ✅ DHT-based P2P service discovery - 99.95% reduction in coordinator load<br/>
+                  ✅ Automatic Cloudflare Tunnels - works behind firewalls<br/>
+                  ✅ Auto-registers with edge router at api.rmatool.org.uk<br/>
+                  ✅ Load balanced automatically via DHT ring<br/>
+                  ✅ Supports 2000+ heterogeneous workers on donated compute
                 </p>
               </div>
             </div>
@@ -1275,10 +1275,10 @@ function SystemArchitectureGuide() {
             <li className="flex items-start gap-2">
               <span className="text-green-600 font-bold">✓</span>
               <div>
-                <strong className="text-gray-900">At least 1 Worker (CPU or GPU)</strong>
-                <p className="text-gray-700">Provides one service type • Basic functionality</p>
+                <strong className="text-gray-900">At least 1 Universal Worker</strong>
+                <p className="text-gray-700">Auto-detects hardware • Coordinator assigns services</p>
                 <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
-                  docker run -d --gpus all ghcr.io/st7ma784/cmacatalyst/gpu-worker
+                  docker run -d --gpus all -e WORKER_TYPE=auto ghcr.io/st7ma784/cmacatalyst/universal-worker
                 </code>
               </div>
             </li>

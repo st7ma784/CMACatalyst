@@ -173,6 +173,43 @@ export default {
       return coordsResp;
     }
 
+    // Admin endpoints - proxy to first available coordinator
+    if (path.startsWith('/api/admin/')) {
+      // Get available coordinators
+      const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
+      const coordsResp = await registry.fetch(coordinatorsReq);
+      const coordinators = await coordsResp.json();
+
+      if (coordinators.length === 0) {
+        return new Response(JSON.stringify({
+          error: 'No coordinators available',
+          message: 'Please start an edge coordinator first'
+        }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Proxy to first coordinator
+      const coordinator = coordinators[0];
+      try {
+        const proxyResponse = await fetch(`${coordinator.tunnel_url}${path}`, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body
+        });
+        return proxyResponse;
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: 'Coordinator request failed',
+          message: error.message
+        }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response('Not Found', { status: 404 });
   }
 };
