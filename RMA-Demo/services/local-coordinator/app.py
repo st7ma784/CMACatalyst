@@ -452,11 +452,18 @@ def assign_services_to_worker(worker_type: str, tier: int, capabilities: Dict[st
     Dynamically assign services to worker based on current gaps
     
     Strategy:
-    1. Find all services matching worker's capability (gpu/cpu/storage)
+    1. Find all services matching worker's capability (gpu/cpu/storage/edge)
     2. Calculate coverage for each service (how many workers already provide it)
     3. Prefer assigning services with lowest coverage (biggest gaps)
     4. Assign multiple services if worker has capacity (unless enough workers exist)
     5. Priority: critical services (priority 1) > nice-to-have (priority 5)
+    
+    Worker flexibility vs specialization:
+    - Workers are flexible: Any worker CAN run ANY service in its tier
+    - GPU (Tier 1): Prefer 1 service/worker - model loading is expensive (5-10GB VRAM, 30-60s)
+    - CPU (Tier 2): Can handle 2-3 services - minimal overhead switching between them
+    - Storage (Tier 3): Can run multiple databases simultaneously - no model concerns
+    - Edge (Tier 4): Can run coordinator + proxy together - stateless routing services
     """
     
     # Get all services this worker CAN run

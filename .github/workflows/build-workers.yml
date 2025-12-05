@@ -5,9 +5,8 @@ on:
     branches:
       - master
     paths:
-      - 'RMA-Demo/worker-containers/cpu-worker/**'
-      - 'RMA-Demo/worker-containers/gpu-worker/**'
-      - 'RMA-Demo/worker-containers/chromadb/**'
+      - 'RMA-Demo/worker-containers/universal-worker/**'
+      - 'RMA-Demo/services/local-coordinator/**'
       - '.github/workflows/build-workers.yml'
   workflow_dispatch:
 
@@ -15,7 +14,7 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  build-cpu-worker:
+  build-universal-worker:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,74 +38,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker
           tags: |
             type=raw,value=latest
             type=sha,prefix={{branch}}-
             type=ref,event=branch
 
-      - name: Build and push CPU worker
+      - name: Build and push Universal Worker
         uses: docker/build-push-action@v5
         with:
-          context: RMA-Demo/worker-containers/cpu-worker
-          file: RMA-Demo/worker-containers/cpu-worker/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-
-      - name: Generate deployment instructions
-        run: |
-          echo "## 🚀 CPU Worker Deployed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Pull and run the CPU worker:" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker:latest" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name rma-cpu-worker \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/cpu-worker:latest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  build-gpu-worker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker
-          tags: |
-            type=raw,value=latest
-            type=sha,prefix={{branch}}-
-            type=ref,event=branch
-
-      - name: Build and push GPU worker
-        uses: docker/build-push-action@v5
-        with:
-          context: RMA-Demo/worker-containers/gpu-worker
-          file: RMA-Demo/worker-containers/gpu-worker/Dockerfile
+          context: RMA-Demo/worker-containers/universal-worker
+          file: RMA-Demo/worker-containers/universal-worker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -116,21 +58,59 @@ jobs:
 
       - name: Generate deployment instructions
         run: |
-          echo "## 🚀 GPU Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Universal Worker Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Pull and run the GPU worker:" >> $GITHUB_STEP_SUMMARY
+          echo "The universal worker supports **ALL 14 services** across **4 tiers**!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Auto-detection (Recommended):" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Worker auto-detects hardware capabilities" >> $GITHUB_STEP_SUMMARY
           echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name rma-gpu-worker \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name rma-worker \\" >> $GITHUB_STEP_SUMMARY
           echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
           echo "  --gpus all \\" >> $GITHUB_STEP_SUMMARY
           echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/gpu-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "  -e WORKER_TYPE=auto \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GPU Worker (Tier 1):" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --gpus all \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e WORKER_TYPE=gpu \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### CPU Worker (Tier 2):" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e WORKER_TYPE=cpu \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Storage Worker (Tier 3):" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -v ./chroma-data:/chroma/chroma \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e WORKER_TYPE=storage \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Edge Worker (Tier 4):" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -p 8080:8080 -p 8787:8787 -p 8090:8090 \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e WORKER_TYPE=edge \\" >> $GITHUB_STEP_SUMMARY
+          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/universal-worker:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  build-chromadb-worker:
+  build-coordinator:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -154,17 +134,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/coordinator
           tags: |
             type=raw,value=latest
             type=sha,prefix={{branch}}-
             type=ref,event=branch
 
-      - name: Build and push Storage worker
+      - name: Build and push Coordinator
         uses: docker/build-push-action@v5
         with:
-          context: RMA-Demo/worker-containers/chromadb
-          file: RMA-Demo/worker-containers/chromadb/Dockerfile
+          context: RMA-Demo/services/local-coordinator
+          file: RMA-Demo/services/local-coordinator/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -174,45 +154,68 @@ jobs:
 
       - name: Generate deployment instructions
         run: |
-          echo "## 🚀 Storage Worker Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Local Coordinator Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Pull and run the storage worker (ChromaDB, Redis, PostgreSQL, MinIO, Neo4j):" >> $GITHUB_STEP_SUMMARY
+          echo "Pull and run the coordinator:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ env.REGISTRY }}/${{ github.repository }}/coordinator:latest" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# Basic (ChromaDB only)" >> $GITHUB_STEP_SUMMARY
           echo "docker run -d \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --name rma-storage-worker \\" >> $GITHUB_STEP_SUMMARY
+          echo "  --name rma-coordinator \\" >> $GITHUB_STEP_SUMMARY
           echo "  --restart unless-stopped \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -v chromadb_data:/chroma/chroma \\" >> $GITHUB_STEP_SUMMARY
-          echo "  -e COORDINATOR_URL=https://api.rmatool.org.uk \\" >> $GITHUB_STEP_SUMMARY
-          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/storage-worker:latest" >> $GITHUB_STEP_SUMMARY
+          echo "  -p 8080:8080 \\" >> $GITHUB_STEP_SUMMARY
+          echo "  ${{ env.REGISTRY }}/${{ github.repository }}/coordinator:latest" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
   notify-success:
-    needs: [build-cpu-worker, build-gpu-worker, build-chromadb-worker]
+    needs: [build-universal-worker, build-coordinator]
     if: success()
     runs-on: ubuntu-latest
     steps:
       - name: Deployment summary
         run: |
-          echo "## ✅ Worker Containers Published" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ All Containers Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All worker containers are now available:" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌟 Universal Worker (NEW!)" >> $GITHUB_STEP_SUMMARY
+          echo "\`ghcr.io/${{ github.repository }}/universal-worker:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Tier 1: GPU Workers" >> $GITHUB_STEP_SUMMARY
-          echo "- 🎮 **GPU Worker**: \`ghcr.io/${{ github.repository }}/gpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - Services: LLM, RAG, embeddings, OCR, vision" >> $GITHUB_STEP_SUMMARY
-          echo "  - Can handle GPU + CPU + processing tasks" >> $GITHUB_STEP_SUMMARY
+          echo "**Supports all 14 microservices across 4 tiers:**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Tier 2: CPU Workers" >> $GITHUB_STEP_SUMMARY
-          echo "- 🖥️  **CPU Worker**: \`ghcr.io/${{ github.repository }}/cpu-worker:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - Services: Processing, computation" >> $GITHUB_STEP_SUMMARY
-          echo "  - Can handle CPU + processing tasks" >> $GITHUB_STEP_SUMMARY
+          echo "#### Tier 1 (GPU) - 3 services:" >> $GITHUB_STEP_SUMMARY
+          echo "- llm-inference (vLLM, Llama 3.2)" >> $GITHUB_STEP_SUMMARY
+          echo "- vision-ocr (LLaVA)" >> $GITHUB_STEP_SUMMARY
+          echo "- rag-embeddings (sentence-transformers)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Tier 3: Storage/Infrastructure" >> $GITHUB_STEP_SUMMARY
-          echo "- 💾 **Storage Worker**: \`ghcr.io/${{ github.repository }}/storage-worker:latest\`" >> $GITHUB_STEP_SUMMARY
-          echo "  - Services: ChromaDB, Redis, PostgreSQL, MinIO, Neo4j" >> $GITHUB_STEP_SUMMARY
-          echo "  - Handles persistence, caching, databases" >> $GITHUB_STEP_SUMMARY
+          echo "#### Tier 2 (CPU) - 3 services:" >> $GITHUB_STEP_SUMMARY
+          echo "- ner-extraction (spaCy)" >> $GITHUB_STEP_SUMMARY
+          echo "- document-processing (PyPDF2, docx)" >> $GITHUB_STEP_SUMMARY
+          echo "- notes-coa (advisor notes)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📖 See [Worker Deployment Guide](https://github.com/${{ github.repository }}/blob/master/docs/deployment/worker-deployment.md)" >> $GITHUB_STEP_SUMMARY
+          echo "#### Tier 3 (Storage) - 5 services:" >> $GITHUB_STEP_SUMMARY
+          echo "- chromadb (vector DB)" >> $GITHUB_STEP_SUMMARY
+          echo "- redis (cache)" >> $GITHUB_STEP_SUMMARY
+          echo "- postgres (relational DB)" >> $GITHUB_STEP_SUMMARY
+          echo "- minio (S3 storage)" >> $GITHUB_STEP_SUMMARY
+          echo "- neo4j (graph DB)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Tier 4 (Edge) - 3 services:" >> $GITHUB_STEP_SUMMARY
+          echo "- coordinator (worker registry)" >> $GITHUB_STEP_SUMMARY
+          echo "- edge-proxy (routing)" >> $GITHUB_STEP_SUMMARY
+          echo "- load-balancer (traffic distribution)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Local Coordinator" >> $GITHUB_STEP_SUMMARY
+          echo "\`ghcr.io/${{ github.repository }}/coordinator:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Features:**" >> $GITHUB_STEP_SUMMARY
+          echo "- In-memory worker registry (no KV limits!)" >> $GITHUB_STEP_SUMMARY
+          echo "- Dynamic service assignment based on gaps" >> $GITHUB_STEP_SUMMARY
+          echo "- Health tracking with 30s heartbeats" >> $GITHUB_STEP_SUMMARY
+          echo "- Admin API for monitoring" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📖 **Documentation:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [Dynamic Service Allocation Guide](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/DYNAMIC_SERVICE_ALLOCATION.md)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Tier 4 Architecture](https://github.com/${{ github.repository }}/blob/master/RMA-Demo/TIER_4_ARCHITECTURE.md)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Quick Start:** Use \`WORKER_TYPE=auto\` to let the worker auto-detect its capabilities!" >> $GITHUB_STEP_SUMMARY

@@ -159,13 +159,16 @@ Coordinator thinks:
   - GPU services have 0 coverage (big gap!)
   - Priority 1 services: llm-inference, vision-ocr
   - Assign both (multi-task since we have no workers)
+  - ⚠️ Worker CAN switch models, but we'll avoid it when possible
 
 Assigned: ["llm-inference", "vision-ocr"]
 ```
 
 **Worker launches:**
-- Port 8105: LLM inference (Llama)
-- Port 8104: Vision OCR (LLaVA)
+- Port 8105: LLM inference (Llama 3.2 - 7B model)
+- Port 8104: Vision OCR (LLaVA - 7B multimodal model)
+
+**Note:** This worker can technically run RAG embeddings too, but we'll assign that to the next GPU worker to avoid unloading Llama/LLaVA models unnecessarily.
 
 ### Scenario 2: Second GPU Worker
 
@@ -181,12 +184,15 @@ Coordinator thinks:
   - vision-ocr: 1 worker ✓
   - rag-embeddings: 0 workers ✗ (GAP!)
   - Assign rag-embeddings (specialized, only 1 service)
+  - ✅ Specialization = no model switching needed!
 
 Assigned: ["rag-embeddings"]
 ```
 
 **Worker launches:**
-- Port 8102: RAG embeddings
+- Port 8102: RAG embeddings (sentence-transformers - 400MB model)
+
+**Why specialization?** This worker loads ONLY the embedding model. If it had to also run LLM inference, it would need to swap between a 400MB model and a 7GB model constantly - expensive!
 
 ### Scenario 3: Third GPU Worker
 
@@ -219,9 +225,16 @@ Coordinator thinks:
   - All CPU services need coverage
   - Priority order: ner-extraction, document-processing, notes-coa
   - Assign top 2 services (multi-task)
+  - ✅ CPU can multi-task easily (no model loading overhead)
 
 Assigned: ["ner-extraction", "document-processing"]
 ```
+
+**Worker launches:**
+- Port 8108: NER extraction (spaCy - lightweight, loads in <1s)
+- Port 8103: Document processing (PyPDF2, docx - no models)
+
+**Why multi-task?** CPU services don't load heavy models. Switching between NER and document parsing is instant - just different Python libraries. Multi-tasking is efficient here!
 
 ### Scenario 5: First Storage Worker
 

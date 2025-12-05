@@ -1704,10 +1704,51 @@ function SystemArchitectureGuide() {
       <div className="bg-white border-2 border-gray-300 rounded-lg p-6 mb-6">
         <h3 className="text-lg font-bold text-gray-900 mb-3">Dynamic Service Allocation</h3>
         
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+          <p className="text-sm text-blue-900">
+            <strong>💡 Key Principle:</strong> Workers are <strong>flexible</strong> - they can run ANY service their 
+            hardware supports. The coordinator assigns services <strong>strategically</strong> based on gaps and efficiency.
+          </p>
+        </div>
+
         <p className="text-sm text-gray-700 mb-4">
           Workers don't know which services they'll run until registration. The coordinator uses a 
           <strong> gap-filling algorithm</strong> to assign 1-3 services based on system needs:
         </p>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Why Specialization Matters (Differently by Tier):</h4>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-purple-600">Tier 1 (GPU):</span>
+              <div className="text-gray-700">
+                <strong>Strongly prefer 1 service/worker.</strong> Model loading is expensive (5-10GB VRAM, 30-60s). 
+                A GPU worker CAN switch between LLaVA and Llama, but it's costly. Specialization avoids this.
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-blue-600">Tier 2 (CPU):</span>
+              <div className="text-gray-700">
+                <strong>Can multi-task 2-3 services easily.</strong> Switching between NER extraction and document 
+                processing is instant (&lt;1s) - just different Python libraries, no heavy models.
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-green-600">Tier 3 (Storage):</span>
+              <div className="text-gray-700">
+                <strong>Can run multiple databases together.</strong> ChromaDB + Redis on same machine is fine - 
+                no model loading, just memory allocation.
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold text-indigo-600">Tier 4 (Edge):</span>
+              <div className="text-gray-700">
+                <strong>Coordinator + proxy run simultaneously.</strong> Both are stateless routing services - 
+                no resource conflicts.
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
           <h4 className="font-semibold text-gray-900 mb-2">Algorithm Steps:</h4>

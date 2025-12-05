@@ -85,6 +85,14 @@ def detect_edge_capability():
 
 ## Service Assignment for Edge Workers
 
+**Key principle: Workers are flexible, assignment is strategic**
+
+Every worker CAN run any service within its capability tier, but the coordinator assigns services strategically to optimize for:
+- **GPU (Tier 1)**: Prefer 1 service per worker - model loading is expensive (5-10GB VRAM, 30-60s swap time)
+- **CPU (Tier 2)**: Can multi-task 2-3 services - minimal overhead switching between them
+- **Storage (Tier 3)**: Can run multiple databases simultaneously - no model loading concerns
+- **Edge (Tier 4)**: Can run coordinator + proxy together - stateless routing services
+
 When an edge worker registers:
 
 ```
@@ -94,6 +102,9 @@ Coordinator analyzes:
   - load-balancer: 0 workers (nice to have)
 
 Assigns: ["coordinator", "edge-proxy"]  # Top 2 priority
+
+Note: This worker COULD also run the load-balancer, but we'll
+assign that to the next edge worker to distribute load evenly.
 ```
 
 ## Example Deployment: Server Room

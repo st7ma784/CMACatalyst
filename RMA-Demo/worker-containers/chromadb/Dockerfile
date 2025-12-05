@@ -9,7 +9,7 @@ FROM chromadb/chroma:0.4.24
 WORKDIR /app
 
 # Install Python dependencies for coordinator integration
-RUN pip install --no-cache-dir requests python-dotenv
+RUN pip install --no-cache-dir requests python-dotenv uvicorn fastapi
 
 # Install cloudflared for automatic tunnel creation
 RUN apt-get update && apt-get install -y wget && \
@@ -41,5 +41,9 @@ VOLUME /chroma/chroma
 # Expose ChromaDB port (add more if enabling other services)
 EXPOSE 8000
 
-# Start worker agent (registers with coordinator) and ChromaDB
-CMD python worker_agent.py & exec chroma run --host 0.0.0.0 --port ${CHROMADB_PORT}
+# Override base image entrypoint that tries to run 'chroma' command
+ENTRYPOINT []
+
+# Start worker agent (registers with coordinator) and ChromaDB using uvicorn
+# ChromaDB doesn't have a 'chroma' command - it's a Python package with FastAPI app
+CMD python worker_agent.py & exec uvicorn chromadb.app:app --host 0.0.0.0 --port ${CHROMADB_PORT}
