@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import DHTTopologyGraph from './DHTTopologyGraph'
 import {
   RefreshCw,
   Server,
@@ -18,7 +20,8 @@ import {
   Trophy,
   Medal,
   Award,
-  Network
+  Network,
+  Globe
 } from 'lucide-react'
 
 const COORDINATOR_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rmatool.org.uk'
@@ -77,13 +80,47 @@ interface SystemHealth {
   }
 }
 
+interface DHTTopologyData {
+  nodes: Array<{
+    id: string
+    node_id: string
+    node_type: 'coordinator' | 'worker'
+    tunnel_url?: string
+    dht_port?: number
+    location?: string
+    status?: 'healthy' | 'degraded' | 'offline'
+    services?: string[]
+    load?: number
+    last_seen?: number
+    capabilities?: {
+      gpu_type?: string
+      cpu_cores?: number
+      ram?: string
+    }
+  }>
+  connections: Array<{
+    source_id: string
+    target_id: string
+    type: string
+  }>
+  stats?: {
+    total_nodes: number
+    coordinator_count: number
+    worker_count: number
+    healthy_count: number
+  }
+}
+
 export default function SystemOrchestrator() {
   const [workers, setWorkers] = useState<Worker[]>([])
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [health, setHealth] = useState<SystemHealth | null>(null)
+  const [dhtTopology, setDhtTopology] = useState<DHTTopologyData | null>(null)
+  const [dhtEnabled, setDhtEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [activeView, setActiveView] = useState('workers')
 
   // Helper functions to handle both old and new API response formats
   const getWorkersByTier = (tier: number): number => {
@@ -106,9 +143,10 @@ export default function SystemOrchestrator() {
 
   const fetchSystemData = async () => {
     try {
-      const [workersRes, statsRes] = await Promise.all([
+      const [workersRes, statsRes, dhtStatsRes] = await Promise.all([
         fetch(`${COORDINATOR_URL}/api/admin/workers`),
-        fetch(`${COORDINATOR_URL}/api/admin/stats`)
+        fetch(`${COORDINATOR_URL}/api/admin/stats`),
+        fetch(`${COORDINATOR_URL}/api/dht/stats`).catch(() => null)
       ])
 
       if (!workersRes.ok || !statsRes.ok) {
@@ -117,6 +155,12 @@ export default function SystemOrchestrator() {
 
       const workersData = await workersRes.json()
       const statsData = await statsRes.json()
+
+      // Check if DHT is enabled
+      if (dhtStatsRes && dhtStatsRes.ok) {
+        const dhtStatsData = await dhtStatsRes.json()
+        setDhtEnabled(dhtStatsData.dht_enabled || false)
+      }
 
       // API returns array directly
       const workersArray = Array.isArray(workersData) ? workersData : []
@@ -151,11 +195,31 @@ export default function SystemOrchestrator() {
     }
   }
 
+  const fetchDHTTopology = async () => {
+    try {
+      const topologyRes = await fetch(`${COORDINATOR_URL}/api/dht/topology`)
+      if (topologyRes.ok) {
+        const topologyData = await topologyRes.json()
+        setDhtTopology(topologyData)
+      }
+    } catch (err) {
+      console.error('Failed to fetch DHT topology:', err)
+    }
+  }
+
   useEffect(() => {
     fetchSystemData()
     const interval = setInterval(fetchSystemData, 10000) // Refresh every 10 seconds
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (dhtEnabled && activeView === 'topology') {
+      fetchDHTTopology()
+      const interval = setInterval(fetchDHTTopology, 5000) // Refresh every 5 seconds
+      return () => clearInterval(interval)
+    }
+  }, [dhtEnabled, activeView])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -256,6 +320,12 @@ export default function SystemOrchestrator() {
           <p className="text-sm text-gray-600 mt-1">
             Distributed worker pool monitoring and management
           </p>
+          {dhtEnabled && (
+            <Badge className="mt-2 bg-blue-500 text-white">
+              <Globe className="h-3 w-3 mr-1" />
+              DHT Enabled
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">
@@ -267,6 +337,21 @@ export default function SystemOrchestrator() {
           </Button>
         </div>
       </div>
+
+      {/* View Tabs */}
+      <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="workers" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Worker Pool
+          </TabsTrigger>
+          <TabsTrigger value="topology" className="flex items-center gap-2" disabled={!dhtEnabled}>
+            <Globe className="h-4 w-4" />
+            DHT Topology {!dhtEnabled && '(Disabled)'}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="workers" className="space-y-6 mt-6">
 
       {/* System Health Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -734,6 +819,53 @@ export default function SystemOrchestrator() {
           </div>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="topology" className="space-y-6 mt-6">
+          {dhtTopology && dhtTopology.nodes.length > 0 ? (
+            <DHTTopologyGraph topologyData={dhtTopology} />
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <Globe className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                    DHT Topology Not Available
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {dhtEnabled
+                      ? 'Waiting for DHT nodes to connect...'
+                      : 'DHT is not enabled on this coordinator'}
+                  </p>
+                  {dhtEnabled && (
+                    <Button onClick={fetchDHTTopology} variant="outline" size="sm">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* DHT Information */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Globe className="h-5 w-5 text-indigo-600 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-indigo-900 mb-1">Distributed Hash Table (DHT)</h4>
+                <p className="text-sm text-indigo-700">
+                  Workers use DHT for peer-to-peer service discovery, reducing coordinator load by 99.95%.
+                  Each node can discover and communicate directly with other nodes without central routing.
+                </p>
+                <p className="text-xs text-indigo-600 mt-2">
+                  Protocol: Kademlia • Port: 8468/UDP • Bootstrap: {COORDINATOR_URL}/api/dht/bootstrap
+                </p>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

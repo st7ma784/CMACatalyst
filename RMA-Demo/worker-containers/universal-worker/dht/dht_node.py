@@ -4,6 +4,7 @@ Handles joining DHT ring, storing/retrieving data, and routing
 """
 
 import asyncio
+import json
 import logging
 from typing import Dict, List, Optional
 from kademlia.network import Server
@@ -78,7 +79,9 @@ class DHTNode:
             True if successful
         """
         try:
-            await self.server.set(key, value)
+            # Serialize dict to JSON string (Kademlia requires primitive types)
+            json_value = json.dumps(value)
+            await self.server.set(key, json_value)
             logger.debug(f"DHT SET: {key}")
             return True
         except Exception as e:
@@ -98,6 +101,9 @@ class DHTNode:
         try:
             value = await self.server.get(key)
             if value:
+                # Deserialize JSON string back to dict
+                if isinstance(value, str):
+                    value = json.loads(value)
                 logger.debug(f"DHT GET: {key} → found")
             else:
                 logger.debug(f"DHT GET: {key} → not found")
