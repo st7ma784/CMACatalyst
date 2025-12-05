@@ -14,7 +14,10 @@ import {
   AlertTriangle,
   XCircle,
   TrendingUp,
-  Users
+  Users,
+  Trophy,
+  Medal,
+  Award
 } from 'lucide-react'
 
 const COORDINATOR_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rmatool.org.uk'
@@ -537,6 +540,139 @@ export default function SystemOrchestrator() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Worker Leaderboard */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-500" />
+                Worker Leaderboard
+              </CardTitle>
+              <CardDescription>
+                Top contributors by donated compute resources
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : workers.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No workers available</p>
+              <p className="text-sm mt-2">Deploy a worker to contribute compute resources!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {workers
+                .map(worker => {
+                  // Calculate uptime in hours
+                  const registeredTime = new Date(worker.registered_at).getTime()
+                  const now = Date.now()
+                  const uptimeHours = (now - registeredTime) / (1000 * 60 * 60)
+                  
+                  // Calculate contribution score (weighted by tier)
+                  const tierWeight = worker.tier === 1 ? 3 : worker.tier === 2 ? 2 : 1
+                  const contributionScore = (worker.tasks_completed || 0) * tierWeight + uptimeHours
+                  
+                  return {
+                    ...worker,
+                    uptimeHours,
+                    contributionScore
+                  }
+                })
+                .sort((a, b) => b.contributionScore - a.contributionScore)
+                .slice(0, 10) // Top 10
+                .map((worker, index) => {
+                  const isTop3 = index < 3
+                  const rankBadge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`
+                  
+                  return (
+                    <div
+                      key={worker.worker_id}
+                      className={`flex items-center justify-between p-4 rounded-lg border-2 transition-all ${
+                        isTop3
+                          ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-sm'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="text-2xl font-bold min-w-[3rem] text-center">
+                          {rankBadge}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <code className="text-sm font-semibold bg-white px-2 py-1 rounded border">
+                              {worker.worker_id}
+                            </code>
+                            <div className="flex items-center gap-1">
+                              {getTierIcon(worker.tier)}
+                              <span className="text-xs text-gray-600">{getTierLabel(worker.tier)}</span>
+                            </div>
+                            <Badge className={getStatusBadgeColor(worker.status)}>
+                              {worker.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 text-xs text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <Activity className="h-3 w-3" />
+                              <span>{worker.tasks_completed || 0} tasks</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              <span>{worker.uptimeHours.toFixed(1)}h uptime</span>
+                            </div>
+                            {worker.capabilities?.gpu_type && (
+                              <div className="flex items-center gap-1">
+                                <Cpu className="h-3 w-3" />
+                                <span>{worker.capabilities.gpu_type}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right ml-4">
+                        <div className="text-lg font-bold text-gray-900">
+                          {worker.contributionScore.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-gray-500">contribution pts</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              
+              {workers.length > 10 && (
+                <div className="text-center pt-2">
+                  <p className="text-xs text-gray-500">
+                    Showing top 10 of {workers.length} workers
+                  </p>
+                </div>
+              )}
+              
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Award className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <div className="text-xs text-blue-800">
+                    <strong>Contribution Score Formula:</strong> (Tasks × Tier Weight) + Uptime Hours
+                    <br />
+                    <span className="text-blue-600">
+                      Tier Weights: GPU (3x) • CPU (2x) • Storage (1x)
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

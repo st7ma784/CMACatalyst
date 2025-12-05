@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database, Code, Workflow } from 'lucide-react'
+import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database, Code, Workflow, Network } from 'lucide-react'
 import ManualsViewer from './ManualsViewer'
 
-type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'api-reference' | 'n8n-workflows'
+type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'system-architecture' | 'api-reference' | 'n8n-workflows'
 
 export default function Documentation() {
   const [activeSection, setActiveSection] = useState<DocSection>('usage')
@@ -47,6 +47,17 @@ export default function Documentation() {
           >
             <HelpCircle className="h-5 w-5" />
             AI & Privacy
+          </button>
+          <button
+            onClick={() => setActiveSection('system-architecture')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'system-architecture'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Network className="h-5 w-5" />
+            System Architecture
           </button>
           <button
             onClick={() => setActiveSection('deployment')}
@@ -122,6 +133,7 @@ export default function Documentation() {
         {activeSection === 'manuals' && <ManualsViewer />}
         {activeSection === 'usage' && <UsageGuide />}
         {activeSection === 'ai-architecture' && <AIArchitectureGuide />}
+        {activeSection === 'system-architecture' && <SystemArchitectureGuide />}
         {activeSection === 'deployment' && <DeploymentGuide />}
         {activeSection === 'aws' && <AWSGuide />}
         {activeSection === 'domain' && <DomainGuide />}
@@ -498,7 +510,6 @@ function AIArchitectureGuide() {
 
           <div className="text-center mb-2 text-gray-600 text-sm font-semibold">Distributed Worker Pool:</div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-4">
             <div className="bg-green-50 border-2 border-green-300 p-4 rounded-lg">
               <div className="font-bold text-green-900 mb-2 flex items-center gap-2">
@@ -1036,6 +1047,582 @@ function AIArchitectureGuide() {
           Even though the system is designed for privacy, follow your organization's data protection 
           policies. Don't include unnecessary personal details in notes or queries. Use client IDs 
           instead of names where possible. Regularly backup data and maintain access logs for compliance.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function SystemArchitectureGuide() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">System Architecture & Deployment</h1>
+
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <Network className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Distributed Architecture Overview</h3>
+            <p className="text-sm text-blue-700">
+              RMA Dashboard uses a hybrid edge + self-hosted architecture that eliminates cloud costs while 
+              maintaining global edge performance. Workers can be deployed anywhere with donated compute resources.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Hybrid Coordinator Architecture</h2>
+      
+      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="text-3xl">🚀</div>
+          <div>
+            <h3 className="text-lg font-bold text-green-900">Zero KV Usage, Unlimited Scaling</h3>
+            <p className="text-sm text-green-700">Edge proxy + local coordinator eliminates Cloudflare KV limits</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border-2 border-gray-200 rounded-lg p-6 mb-8">
+        <div className="font-mono text-sm">
+          <div className="text-center mb-6">
+            <div className="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-lg shadow-lg">
+              <div className="font-bold text-lg">🌐 Users / Browsers</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-6">
+            <div className="inline-block bg-blue-50 border-2 border-blue-300 px-6 py-4 rounded-lg">
+              <div className="font-bold text-blue-900 mb-1">Frontend (Next.js)</div>
+              <div className="text-sm text-blue-700">https://rmatool.org.uk</div>
+              <div className="text-xs text-blue-600 mt-1">Cloudflare Pages (300+ Global Edge Locations)</div>
+            </div>
+          </div>
+
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-6">
+            <div className="inline-block bg-purple-50 border-2 border-purple-300 px-6 py-4 rounded-lg shadow-md">
+              <div className="font-bold text-purple-900 mb-1">🌍 Edge Proxy</div>
+              <div className="text-sm text-purple-700">https://api.rmatool.org.uk</div>
+              <div className="text-xs text-purple-600 mt-1">Cloudflare Worker (Stateless - NO KV!)</div>
+              <div className="text-xs text-gray-600 mt-2 bg-white rounded p-2">
+                <strong className="text-purple-800">Role:</strong><br/>
+                • CORS & Authentication<br/>
+                • Cache worker list (5-min TTL)<br/>
+                • Smart routing to workers<br/>
+                • DDoS protection<br/>
+                <strong className="text-green-700 mt-1 block">✅ Zero KV operations</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 max-w-3xl mx-auto mb-6">
+            <div className="text-center">
+              <div className="text-gray-400 text-2xl mb-2">↓</div>
+              <div className="text-xs text-gray-600">User requests</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-400 text-2xl mb-2">↓</div>
+              <div className="text-xs text-gray-600">Worker updates</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 max-w-3xl mx-auto mb-6">
+            <div className="bg-indigo-50 border-2 border-indigo-300 p-4 rounded-lg">
+              <div className="font-bold text-indigo-900 mb-2 text-center">⚡ Direct Proxy</div>
+              <div className="text-xs text-indigo-700 bg-white rounded p-2">
+                Edge worker uses cached<br/>
+                worker list to route directly<br/>
+                to service endpoints<br/>
+                <strong className="text-green-700 mt-1 block">No coordinator call needed</strong>
+              </div>
+            </div>
+            <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-lg">
+              <div className="font-bold text-orange-900 mb-2 text-center">🏠 Local Coordinator</div>
+              <div className="text-xs text-orange-700 bg-white rounded p-2">
+                Self-hosted Python service<br/>
+                In-memory worker registry<br/>
+                Unlimited heartbeats<br/>
+                <strong className="text-green-700 mt-1 block">$0 cost - No KV limits!</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center mb-4">
+            <div className="text-gray-400 text-2xl">↓</div>
+          </div>
+
+          <div className="text-center mb-2 text-gray-600 text-sm font-semibold">Distributed Worker Pool:</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto mt-4">
+            <div className="bg-green-50 border-2 border-green-300 p-4 rounded-lg">
+              <div className="font-bold text-green-900 mb-2 flex items-center gap-2">
+                💻 <span>CPU Workers</span>
+              </div>
+              <div className="text-xs text-green-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Upload Service</span>
+                  <span className="text-gray-500">:8103</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Notes Service</span>
+                  <span className="text-gray-500">:8100</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>NER Service</span>
+                  <span className="text-gray-500">:8108</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 2:</strong> CPU-intensive tasks<br/>
+                <strong>Requirements:</strong> 4+ cores, 8GB RAM
+              </div>
+            </div>
+
+            <div className="bg-orange-50 border-2 border-orange-300 p-4 rounded-lg">
+              <div className="font-bold text-orange-900 mb-2 flex items-center gap-2">
+                🚀 <span>GPU Workers</span>
+              </div>
+              <div className="text-xs text-orange-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>RAG Service</span>
+                  <span className="text-gray-500">:8102</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Vision AI (LLaVA)</span>
+                  <span className="text-gray-500">:8104</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Text AI (Llama)</span>
+                  <span className="text-gray-500">:8105</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 1:</strong> AI model inference<br/>
+                <strong>Requirements:</strong> GPU, 8GB+ VRAM
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border-2 border-blue-300 p-4 rounded-lg">
+              <div className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                💾 <span>Storage Workers</span>
+              </div>
+              <div className="text-xs text-blue-700 space-y-1">
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>ChromaDB</span>
+                  <span className="text-gray-500">:8000</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>Redis Cache</span>
+                  <span className="text-gray-500">:6379</span>
+                </div>
+                <div className="flex items-center justify-between bg-white p-2 rounded">
+                  <span>MinIO (S3)</span>
+                  <span className="text-gray-500">:9000</span>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2 pt-2 border-t">
+                <strong>Tier 3:</strong> Data persistence<br/>
+                <strong>Requirements:</strong> SSD, network
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Minimum Viable Product (MVP)</h2>
+
+      <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-bold text-blue-900 mb-3">Get Started in ~30 Minutes</h3>
+        <p className="text-sm text-blue-800 mb-4">
+          The smallest deployment that provides core functionality. Perfect for testing or personal use.
+        </p>
+
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Critical Services (Required):</h4>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Local Coordinator</strong>
+                <p className="text-gray-700">Worker registry • In-memory storage • 50MB RAM</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                  docker run -d -p 8080:8080 ghcr.io/st7ma784/cmacatalyst/coordinator
+                </code>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Frontend</strong>
+                <p className="text-gray-700">User interface • Deployed to Cloudflare Pages • Free</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Edge Proxy</strong>
+                <p className="text-gray-700">Cloudflare Worker • Routing & caching • Free tier</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">At least 1 Worker (CPU or GPU)</strong>
+                <p className="text-gray-700">Provides one service type • Basic functionality</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                  docker run -d --gpus all ghcr.io/st7ma784/cmacatalyst/gpu-worker
+                </code>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Recommended Additions:</h4>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 font-bold">+</span>
+              <div>
+                <strong className="text-gray-900">Storage Worker (ChromaDB)</strong>
+                <p className="text-gray-700">Enables RAG "Ask the Manuals" functionality</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 font-bold">+</span>
+              <div>
+                <strong className="text-gray-900">Cloudflare Tunnel</strong>
+                <p className="text-gray-700">Exposes workers to the internet securely (no port forwarding)</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded">
+          <p className="text-sm text-green-900">
+            <strong>💰 Total MVP Cost:</strong> $0/month • <strong>⏱️ Setup Time:</strong> ~30 minutes • <strong>📊 Resources:</strong> 1 server/machine
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Stable Production Deployment</h2>
+
+      <div className="bg-green-50 border-2 border-green-300 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-bold text-green-900 mb-3">High Availability & Redundancy</h3>
+        <p className="text-sm text-green-800 mb-4">
+          Recommended setup for production use with multiple advisors, redundancy, and monitoring.
+        </p>
+
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Core Infrastructure:</h4>
+          <ul className="space-y-3 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Local Coordinator with Monitoring</strong>
+                <p className="text-gray-700">Health checks • Prometheus metrics • Grafana dashboards</p>
+                <div className="mt-1 text-xs text-gray-600">
+                  Deploy with docker-compose for integrated monitoring stack
+                </div>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">2+ GPU Workers (Specialized)</strong>
+                <p className="text-gray-700">Dedicated OCR worker • Dedicated vLLM worker • Load balanced</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                  # Worker 1: OCR specialist<br/>
+                  docker run -d --gpus all -e WORKER_SPECIALIZATION=ocr gpu-worker<br/>
+                  # Worker 2: vLLM specialist<br/>
+                  docker run -d --gpus all -e WORKER_SPECIALIZATION=vllm gpu-worker
+                </code>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">1+ CPU Workers (Fallback)</strong>
+                <p className="text-gray-700">Handles non-GPU tasks • Provides redundancy if GPUs overloaded</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Storage Worker with Persistence</strong>
+                <p className="text-gray-700">ChromaDB + Redis • Volume-mounted data • Regular backups</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                  docker run -d -v ./chroma:/chroma/data storage-worker
+                </code>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Networking & Security:</h4>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Cloudflare Tunnel</strong>
+                <p className="text-gray-700">Zero-trust access • Auto TLS • No exposed ports</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gray-600 font-bold">OR</span>
+              <div>
+                <strong className="text-gray-900">Reverse Proxy (nginx/Traefik)</strong>
+                <p className="text-gray-700">Self-managed SSL with Let's Encrypt • CORS configuration</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Observability Stack:</h4>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Prometheus</strong>
+                <p className="text-gray-700">Scrapes /metrics from coordinator • Stores time-series data</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Grafana</strong>
+                <p className="text-gray-700">Visualizes worker status, load, uptime • Pre-built dashboards</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Health Check Monitoring</strong>
+                <p className="text-gray-700">Coordinator /health endpoint • Worker heartbeat tracking</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="bg-white rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-3">Backup & Recovery:</h4>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">ChromaDB Volume Backups</strong>
+                <p className="text-gray-700">Daily snapshots of vector database • Enables quick recovery</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-600 font-bold">✓</span>
+              <div>
+                <strong className="text-gray-900">Configuration as Code</strong>
+                <p className="text-gray-700">docker-compose.yml in git • Easy redeployment</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 font-bold">○</span>
+              <div>
+                <strong className="text-gray-900">Coordinator State (Optional)</strong>
+                <p className="text-gray-700">Can add SQLite persistence if needed (current: in-memory only)</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded">
+          <p className="text-sm text-green-900">
+            <strong>💰 Total Production Cost:</strong> $0/month (self-hosted) • <strong>📈 Scalability:</strong> Unlimited workers • <strong>🔒 Availability:</strong> High (redundant workers)
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Worker Deployment Commands</h2>
+
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg p-6 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">🚀</div>
+          <div>
+            <h3 className="text-lg font-bold text-purple-900 mb-2">Want to Help? Run a Worker!</h3>
+            <p className="text-sm text-purple-800 mb-3">
+              Our distributed architecture relies on donated compute resources. You can contribute by running 
+              a worker container on your machine - it takes just 2 commands!
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg p-4 border-2 border-green-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">💻</span>
+              <h4 className="text-sm font-semibold text-gray-900">CPU Worker</h4>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">4+ cores recommended</span>
+            </div>
+            <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
+              docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest<br/>
+              docker run -d --name rma-cpu-worker --restart unless-stopped \<br/>
+              &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+            </code>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 border-2 border-orange-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🚀</span>
+              <h4 className="text-sm font-semibold text-gray-900">GPU Worker</h4>
+              <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">NVIDIA GPU, 8GB+ VRAM</span>
+            </div>
+            <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
+              docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest<br/>
+              docker run -d --name rma-gpu-worker --restart unless-stopped \<br/>
+              &nbsp;&nbsp;--gpus all -e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+              &nbsp;&nbsp;-e WORKER_SPECIALIZATION=ocr \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+            </code>
+            <p className="text-xs text-gray-600 mt-2">
+              💡 Tip: Set WORKER_SPECIALIZATION to 'ocr' or 'vllm' for task affinity in multi-GPU setups
+            </p>
+          </div>
+
+          <div className="bg-white rounded-lg p-4 border-2 border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">💾</span>
+              <h4 className="text-sm font-semibold text-gray-900">Storage Worker</h4>
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">SSD recommended</span>
+            </div>
+            <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
+              docker pull ghcr.io/st7ma784/cmacatalyst/storage-worker:latest<br/>
+              docker run -d --name rma-storage-worker --restart unless-stopped \<br/>
+              &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+              &nbsp;&nbsp;-e ENABLE_CHROMADB=true -e ENABLE_REDIS=true \<br/>
+              &nbsp;&nbsp;-v ./chroma-data:/chroma/data \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/storage-worker:latest
+            </code>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-green-50 border border-green-300 rounded">
+          <p className="text-xs text-green-900 space-y-1">
+            <strong className="block mb-2">✅ Worker Features:</strong>
+            • Workers automatically create secure Cloudflare Tunnels<br/>
+            • Works behind firewalls - no port forwarding needed<br/>
+            • Auto-registers with coordinator at api.rmatool.org.uk<br/>
+            • Load balanced automatically - multiple GPUs = parallel processing<br/>
+            • Heartbeat every 30s keeps coordinator updated on availability
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Architecture Benefits</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-green-50 border border-green-300 rounded-lg p-4">
+          <h3 className="font-semibold text-green-900 mb-2">💰 Cost Efficiency</h3>
+          <ul className="text-sm text-green-800 space-y-1">
+            <li>• Zero Cloudflare KV usage (no $5/mo charges)</li>
+            <li>• Free edge proxy (100k requests/day)</li>
+            <li>• Reuse existing hardware for coordinator</li>
+            <li>• No per-worker fees or scaling limits</li>
+          </ul>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-300 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">⚡ Performance</h3>
+          <ul className="text-sm text-blue-800 space-y-1">
+            <li>• Edge caching (5-min TTL) for fast routing</li>
+            <li>• In-memory lookups (&lt;3ms coordinator)</li>
+            <li>• Smart load balancing across workers</li>
+            <li>• Parallel processing with multiple GPUs</li>
+          </ul>
+        </div>
+
+        <div className="bg-purple-50 border border-purple-300 rounded-lg p-4">
+          <h3 className="font-semibold text-purple-900 mb-2">🔒 Security & Privacy</h3>
+          <ul className="text-sm text-purple-800 space-y-1">
+            <li>• All data stays on your infrastructure</li>
+            <li>• Cloudflare Tunnel: Zero-trust networking</li>
+            <li>• No exposed ports to internet</li>
+            <li>• GDPR-compliant data processing</li>
+          </ul>
+        </div>
+
+        <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
+          <h3 className="font-semibold text-orange-900 mb-2">📈 Scalability</h3>
+          <ul className="text-sm text-orange-800 space-y-1">
+            <li>• Unlimited workers (no KV limit)</li>
+            <li>• Horizontal scaling: Add more GPUs</li>
+            <li>• Worker specialization for efficiency</li>
+            <li>• Automatic failover and redundancy</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Deployment Comparison</h2>
+
+      <div className="bg-white border-2 border-gray-300 rounded-lg overflow-hidden mb-6">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="text-left py-3 px-4 font-semibold">Feature</th>
+              <th className="text-left py-3 px-4 font-semibold">MVP</th>
+              <th className="text-left py-3 px-4 font-semibold">Production</th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Setup Time</td>
+              <td className="py-2 px-4">~30 minutes</td>
+              <td className="py-2 px-4">~2 hours</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Cost</td>
+              <td className="py-2 px-4">$0/month</td>
+              <td className="py-2 px-4">$0/month</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Workers</td>
+              <td className="py-2 px-4">1 (CPU or GPU)</td>
+              <td className="py-2 px-4">3+ (specialized)</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Redundancy</td>
+              <td className="py-2 px-4">None</td>
+              <td className="py-2 px-4">Multiple workers</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Monitoring</td>
+              <td className="py-2 px-4">Basic (logs)</td>
+              <td className="py-2 px-4">Prometheus + Grafana</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Backups</td>
+              <td className="py-2 px-4">Manual</td>
+              <td className="py-2 px-4">Automated (volume snapshots)</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-2 px-4">Use Case</td>
+              <td className="py-2 px-4">Testing, personal</td>
+              <td className="py-2 px-4">Multi-user, production</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+        <h3 className="text-sm font-medium text-blue-800 mb-2">📚 Next Steps</h3>
+        <p className="text-sm text-blue-700">
+          Ready to deploy? Check the <strong>Local Deployment</strong> tab for step-by-step instructions,
+          or visit the <strong>AWS Deployment</strong> tab for cloud hosting options.
         </p>
       </div>
     </div>
