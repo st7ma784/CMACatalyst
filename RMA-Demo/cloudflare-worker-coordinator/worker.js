@@ -4,6 +4,11 @@
  * Deployed via GitHub Actions
  */
 
+// In-memory cache to reduce KV reads (resets per cold start)
+const workerCache = new Map();
+const serviceCacheExpiry = new Map();
+const CACHE_TTL = 30000; // 30 seconds
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -257,33 +262,40 @@ async function handleHeartbeat(request, env, corsHeaders) {
   const lastHeartbeatTime = new Date(worker.last_heartbeat);
   const currentTime = new Date(now);
   
-  // Only write to KV if:
-  // 1. Status changed, OR
-  // 2. More than 5 minutes since last write (reduces writes by 10x)
-  const shouldWrite = 
-    worker.status !== (data.status || 'healthy') ||
-    (currentTime - lastHeartbeatTime) > 5 * 60 * 1000;
-
-  // Always update in-memory data
+  // Update worker data
   worker.last_heartbeat = now;
   worker.status = data.status || 'healthy';
   worker.current_load = data.current_load || 0;
   worker.available_memory = data.available_memory;
-  
-  // NEW: Track loaded models and active requests
   worker.loaded_models = data.loaded_models || [];
   worker.active_requests = data.active_requests || 0;
   worker.gpu_utilization = data.gpu_utilization || 0;
   worker.services_status = data.services_status || {};
   
-  // NEW: Track worker specialization (which services it primarily handles)
   if (data.specialization) {
     worker.specialization = data.specialization;
   }
 
+  // Write to KV only if significant change:
+  // 1. Status changed, OR
+  // 2. Load changed by >20%, OR
+  // 3. Models changed, OR
+  // 4. More than 5 minutes since last write
+  const oldData = JSON.parse(workerData);
+  const shouldWrite = 
+    worker.status !== oldData.status ||
+    Math.abs(worker.current_load - (oldData.current_load || 0)) > 0.2 ||
+    JSON.stringify(worker.loaded_models) !== JSON.stringify(oldData.loaded_models || []) ||
+    (currentTime - lastHeartbeatTime) > 5 * 60 * 1000;
+
+  // Update cache immediately (reduces subsequent KV reads)
+  workerCache.set(workerKey, { data: worker, timestamp: Date.now() });
+
   // Only persist to KV when necessary
   if (shouldWrite) {
     await env.WORKERS.put(workerKey, JSON.stringify(worker));
+    // Invalidate service cache since worker data changed
+    serviceCacheExpiry.clear();
   }
 
   return jsonResponse({ status: 'ok' }, corsHeaders);
@@ -539,21 +551,45 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
   
   const workerIds = JSON.parse(workersJson);
   
+  // Check if we have cached worker list for this service
+  const cacheKey = `service_workers:${serviceName}`;
+  const cached = serviceCacheExpiry.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    // Use cached workers (avoids KV reads entirely)
+    const targetWorker = selectBestWorker(cached.workers, serviceName, servicePath);
+    return await proxyToWorker(targetWorker, servicePath, request, corsHeaders);
+  }
+  
   // Find healthy workers that provide this service
   const healthyWorkers = [];
   const staleWorkers = [];
   const now = new Date();
   
+  // Batch read worker data (check cache first)
   for (const workerId of workerIds) {
-    const workerData = await env.WORKERS.get(`worker:${workerId}`);
+    const workerKey = `worker:${workerId}`;
     
-    if (!workerData) {
-      // Worker deleted but still in service index
-      staleWorkers.push(workerId);
-      continue;
+    // Try cache first
+    let worker = null;
+    const cachedWorker = workerCache.get(workerKey);
+    if (cachedWorker && (Date.now() - cachedWorker.timestamp) < CACHE_TTL) {
+      worker = cachedWorker.data;
+    } else {
+      // Cache miss - read from KV
+      const workerData = await env.WORKERS.get(workerKey);
+      if (!workerData) {
+        // Worker deleted but still in service index
+        staleWorkers.push(workerId);
+        continue;
+      }
+      
+      worker = JSON.parse(workerData);
+      // Cache for future requests
+      workerCache.set(workerKey, { data: worker, timestamp: Date.now() });
     }
     
-    const worker = JSON.parse(workerData);
+    // Now we have worker data (from cache or KV)
     const lastHeartbeat = new Date(worker.last_heartbeat);
     const ageSeconds = (now - lastHeartbeat) / 1000;
     
@@ -600,11 +636,25 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
     }, corsHeaders, 503);
   }
 
+  // Cache the healthy workers list for this service (30s TTL)
+  serviceCacheExpiry.set(cacheKey, { 
+    workers: healthyWorkers, 
+    timestamp: Date.now() 
+  });
+
   // Smart load balancing with model awareness and specialization
   const targetWorker = selectBestWorker(healthyWorkers, serviceName, servicePath);
   
-  // Proxy the request to the worker's service-specific URL
-  const targetUrl = `${targetWorker.effective_service_url}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
+  return await proxyToWorker(targetWorker, servicePath, request, corsHeaders, serviceName, healthyWorkers);
+}
+
+/**
+ * Proxy request to selected worker
+ */
+async function proxyToWorker(targetWorker, servicePath, request, corsHeaders, serviceName = null, healthyWorkers = []) {
+  // Use effective_service_url if available (from service manifest)
+  const serviceUrl = targetWorker.effective_service_url || targetWorker.tunnel_url;
+  const targetUrl = `${serviceUrl}${servicePath}${request.url.includes('?') ? '?' + request.url.split('?')[1] : ''}`;
 
   try {
     const proxyRequest = new Request(targetUrl, {
@@ -640,7 +690,7 @@ async function handleServiceProxy(path, request, env, corsHeaders) {
       error: 'Service proxy failed',
       message: error.message,
       service: serviceName,
-      worker: targetWorker.worker_id
+      worker: targetWorker?.worker_id
     }, corsHeaders, 502);
   }
 }
