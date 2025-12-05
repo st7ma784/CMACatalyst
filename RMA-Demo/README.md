@@ -1,50 +1,84 @@
 # RMA-Demo: Distributed AI System
 
-A comprehensive distributed computing platform for AI workloads, featuring a democratized worker pool where anyone can contribute compute capacity.
+A zero-cost, globally distributed computing platform for AI workloads, featuring federated workers across volunteer hardware coordinated through Cloudflare's edge infrastructure.
 
-## 🎉 **NEW: Zero-Cost Serverless Deployment!**
+## 🎉 **Zero-Cost Distributed Architecture ($0/month)**
 
-Run a globally distributed system with **$0/month** hosting costs:
-- ✅ Cloudflare Workers (free tier) for global edge routing
-- ✅ Durable Objects for coordinator registry (1K writes/day free)
-- ✅ Volunteer hardware for compute (GPU/CPU workers)
-- ✅ Auto-scaling edge coordinators
-- ✅ One-command deployment via Docker Compose
+Run a production-grade distributed system with **no hosting costs**:
+- ✅ **Edge Router**: Cloudflare Workers (100K requests/day free)
+- ✅ **State Storage**: Durable Objects with SQLite (1M reads, 1K writes/day free)
+- ✅ **Tunnels**: Cloudflare Named Tunnels (unlimited bandwidth, free)
+- ✅ **Coordinators**: Self-hosted on volunteer hardware (Docker Compose)
+- ✅ **Workers**: Auto-detecting GPU/CPU/Storage workers (Docker)
+- ✅ **Frontend**: Cloudflare Pages (free static hosting)
 
-**📖 See [ZERO_COST_DEPLOYMENT.md](./ZERO_COST_DEPLOYMENT.md) - Deploy in 5 minutes!**
+**Result**: Globally distributed, fault-tolerant, infinitely scalable - **$0/month**
+
+**📖 Quick Start**: [ZERO_COST_DEPLOYMENT.md](./ZERO_COST_DEPLOYMENT.md) - Deploy in 5 minutes!  
+**📖 Architecture**: [DISTRIBUTED_ARCHITECTURE_SPEC.md](./DISTRIBUTED_ARCHITECTURE_SPEC.md) - Complete technical specification
+
+---
 
 ## 🏗️ System Architecture
 
-The RMA system uses a **distributed edge-federated architecture** that separates routing (Cloudflare edge) from coordination (distributed edge coordinators) from computation (volunteer workers):
+The RMA system uses a **3-layer distributed architecture** that separates routing, coordination, and computation:
 
+### Layer 1: Edge Routing (Cloudflare Global Network)
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Cloudflare Edge Router (FREE, Global)                     │
-│  api.rmatool.org.uk                                         │
-│  - Durable Objects (coordinator registry)                  │
-│  - Routes workers to nearest coordinator                   │
-│  - Zero hosting costs ✅                                    │
-└────────────┬───────────────────────────────────────────────┘
-             │ Routes to →
-             ├──────────────┬──────────────┬──────────────┐
-             │              │              │              │
-    ┌────────▼────┐  ┌──────▼─────┐ ┌─────▼──────┐ ┌────▼─────┐
-    │ Edge Coord  │  │ Edge Coord │ │ Edge Coord │ │   ...    │
-    │ (UK)        │  │ (US)       │ │ (EU)       │ │          │
-    │ Volunteer   │  │ Volunteer  │ │ Volunteer  │ │ Volunteer│
-    │ Hardware    │  │ Hardware   │ │ Hardware   │ │ Hardware │
-    └─────┬───────┘  └──────┬─────┘ └─────┬──────┘ └────┬─────┘
-          │                 │              │             │
-          └─────────────────┴──────────────┴─────────────┘
-                            │
-           ┌────────────────┴────────────────┐
-           │                                  │
-    ┌──────▼──────┐  ┌──────────┐  ┌────────▼────┐
-    │ GPU Workers │  │ Storage  │  │ CPU Workers │
-    │ (Tier 1)    │  │ (Tier 3) │  │ (Tier 2)    │
-    │             │  │          │  │             │
-    │ LLM, Vision │  │ ChromaDB │  │ RAG, NER    │
-    └─────────────┘  └──────────┘  └─────────────┘
+│  Edge Router: api.rmatool.org.uk                            │
+│  (Cloudflare Worker with Durable Objects)                   │
+│                                                              │
+│  • Routes requests to available edge coordinators           │
+│  • Stores coordinator registry (SQLite-backed)              │
+│  • Auto-expires stale coordinators (5 min timeout)          │
+│  • Deployed globally across 300+ datacenters                │
+│                                                              │
+│  FREE TIER: 100K requests/day, 1M DO reads, 1K DO writes    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Layer 2: Edge Coordination (Distributed Volunteer Hardware)
+```
+    ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+    │ Edge Coordinator │  │ Edge Coordinator │  │ Edge Coordinator │
+    │  edge-1.rma...   │  │  edge-2.rma...   │  │  edge-N.rma...   │
+    ├──────────────────┤  ├──────────────────┤  ├──────────────────┤
+    │ • Worker registry│  │ • Worker registry│  │ • Worker registry│
+    │ • Service routing│  │ • Service routing│  │ • Service routing│
+    │ • Health checks  │  │ • Health checks  │  │ • Health checks  │
+    │                  │  │                  │  │                  │
+    │ FastAPI + Docker │  │ FastAPI + Docker │  │ FastAPI + Docker │
+    │ Named Tunnel     │  │ Named Tunnel     │  │ Named Tunnel     │
+    └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
+             │                     │                      │
+```
+
+### Layer 3: Worker Execution (Auto-Detecting Capabilities)
+```
+    ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐
+    │ GPU Worker │  │ GPU Worker │  │Storage Wkr │  │ CPU Worker │
+    ├────────────┤  ├────────────┤  ├────────────┤  ├────────────┤
+    │ Services:  │  │ Services:  │  │ Services:  │  │ Services:  │
+    │ • OCR      │  │ • OCR      │  │ • Storage  │  │ • Convert  │
+    │ • AI Model │  │ • Enhance  │  │ • Cache    │  │ • Extract  │
+    │            │  │            │  │            │  │            │
+    │ NVIDIA GPU │  │ AMD GPU    │  │ 1TB+ Disk  │  │ Multi-core │
+    │ Auto-detect│  │ Auto-detect│  │ Auto-detect│  │ Auto-detect│
+    └────────────┘  └────────────┘  └────────────┘  └────────────┘
+```
+
+### Request Flow
+```
+User Upload (rmatool.org.uk)
+         ↓
+Edge Router (api.rmatool.org.uk)
+         ↓ [Select coordinator from Durable Object registry]
+Edge Coordinator (edge-1.rmatool.org.uk via Named Tunnel)
+         ↓ [Find worker with required service]
+Universal Worker (GPU/CPU/Storage via Tunnel)
+         ↓ [Execute service, return result]
+User receives result
 ```
 
 **📖 For detailed architecture:**

@@ -1,0 +1,5 @@
+tunnel: 6aa671e5-077a-471d-9aa6-7b83972c8c97
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - service: http://coordinator:8080

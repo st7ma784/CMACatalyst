@@ -15,6 +15,16 @@ import asyncio
 import logging
 import os
 import json
+import socket
+import requests
+
+# Import DHT coordinator
+try:
+    from dht_coordinator import CoordinatorDHT
+    DHT_AVAILABLE = True
+except ImportError:
+    DHT_AVAILABLE = False
+    logging.warning("DHT coordinator not available")
 
 # Configure logging
 logging.basicConfig(
@@ -54,23 +64,84 @@ SERVICE_CATALOG = {
 
 # Background task handle
 cleanup_task = None
+dht_coordinator = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
+    global cleanup_task, dht_coordinator
+
     # Startup
     logger.info("🚀 Local Coordinator starting up...")
-    global cleanup_task
+
+    # Start DHT if enabled
+    dht_enabled = DHT_AVAILABLE and os.getenv("DHT_ENABLED", "true").lower() == "true"
+    if dht_enabled:
+        try:
+            logger.info("🔗 Starting DHT node...")
+            coordinator_id = os.getenv("COORDINATOR_ID", f"coordinator-{socket.gethostname()}")
+            dht_port = int(os.getenv("DHT_PORT", "8468"))
+
+            dht_coordinator = CoordinatorDHT(coordinator_id, dht_port)
+
+            # Start DHT node (no bootstrap for first coordinator, others can bootstrap from edge router)
+            await dht_coordinator.start()
+
+            # Register with edge router if tunnel URL is set
+            tunnel_url = os.getenv("TUNNEL_URL")
+            if tunnel_url:
+                logger.info(f"📝 Registering coordinator with edge router: {tunnel_url}")
+                try:
+                    edge_router_url = os.getenv("EDGE_ROUTER_URL", "https://api.rmatool.org.uk")
+                    response = requests.post(
+                        f"{edge_router_url}/api/edge/register",
+                        json={
+                            "worker_id": coordinator_id,
+                            "tunnel_url": tunnel_url,
+                            "dht_port": dht_port,
+                            "capabilities": {
+                                "location": os.getenv("LOCATION", "unknown"),
+                                "dht_port": dht_port
+                            }
+                        },
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        logger.info("✅ Registered with edge router")
+                    else:
+                        logger.warning(f"Edge router registration returned {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"Failed to register with edge router: {e}")
+
+                # Register in DHT
+                await dht_coordinator.register_coordinator(
+                    tunnel_url=tunnel_url,
+                    location=os.getenv("LOCATION", "unknown")
+                )
+
+            logger.info("✅ DHT node started")
+        except Exception as e:
+            logger.error(f"Failed to start DHT: {e}")
+            dht_coordinator = None
+    else:
+        logger.info("ℹ️  DHT disabled")
+
     cleanup_task = asyncio.create_task(cleanup_stale_workers())
     logger.info("✅ Coordinator ready - listening for worker registrations")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("🛑 Coordinator shutting down...")
     if cleanup_task:
         cleanup_task.cancel()
+
+    # Stop DHT
+    if dht_coordinator:
+        logger.info("🔗 Stopping DHT node...")
+        await dht_coordinator.stop()
+
     logger.info("👋 Coordinator stopped")
 
 
@@ -572,12 +643,78 @@ async def cleanup_stale_workers():
             logger.error(f"Error in cleanup task: {e}")
 
 
+# DHT Endpoints
+
+@app.get("/api/dht/topology")
+async def get_dht_topology():
+    """Get DHT network topology for frontend visualization"""
+    if not dht_coordinator:
+        return {
+            "dht_enabled": False,
+            "message": "DHT not available on this coordinator"
+        }
+
+    try:
+        topology = await dht_coordinator.get_topology()
+
+        # Add local workers to topology
+        for worker_id, worker in workers.items():
+            if is_worker_healthy(worker):
+                topology["nodes"].append({
+                    "id": worker_id,
+                    "type": "worker",
+                    "worker_type": worker.get("worker_type", "unknown"),
+                    "services": worker.get("assigned_services", []),
+                    "tunnel_url": worker.get("tunnel_url"),
+                    "capabilities": worker.get("capabilities", {})
+                })
+
+                # Add edge from worker to coordinator (simplified topology)
+                topology["edges"].append({
+                    "from": worker_id,
+                    "to": os.getenv("COORDINATOR_ID", socket.gethostname()),
+                    "type": "registered_with"
+                })
+
+        return topology
+
+    except Exception as e:
+        logger.error(f"Error getting DHT topology: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/dht/stats")
+async def get_dht_stats():
+    """Get DHT statistics"""
+    if not dht_coordinator:
+        return {
+            "dht_enabled": False
+        }
+
+    try:
+        node_count = await dht_coordinator.node.get_node_count()
+        coordinators = await dht_coordinator.find_coordinators()
+
+        return {
+            "dht_enabled": True,
+            "node_count": node_count,
+            "coordinator_count": len(coordinators),
+            "coordinators": coordinators,
+            "local_workers": len(workers),
+            "healthy_workers": len([w for w in workers.values() if is_worker_healthy(w)])
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting DHT stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Metrics endpoint (optional)
 @app.get("/metrics")
 async def metrics():
     """Prometheus-compatible metrics"""
     active = len([w for w in workers.values() if is_worker_healthy(w)])
-    
+
     metrics_text = f"""# HELP coordinator_workers_total Total registered workers
 # TYPE coordinator_workers_total gauge
 coordinator_workers_total {len(workers)}
@@ -590,7 +727,7 @@ coordinator_workers_active {active}
 # TYPE coordinator_services_total gauge
 coordinator_services_total {len(services)}
 """
-    
+
     return JSONResponse(content=metrics_text, media_type="text/plain")
 
 

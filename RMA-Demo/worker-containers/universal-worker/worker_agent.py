@@ -14,9 +14,18 @@ import requests
 import subprocess
 import logging
 import json
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
+
+# Import DHT client
+try:
+    from dht.dht_client import DHTClient
+    DHT_AVAILABLE = True
+except ImportError:
+    DHT_AVAILABLE = False
+    logging.warning("DHT module not available - running in coordinator-only mode")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,18 +42,26 @@ class UniversalWorkerAgent:
         self.worker_id = os.getenv("WORKER_ID", f"worker-{socket.gethostname()}-{int(time.time())}")
         self.worker_type = os.getenv("WORKER_TYPE", "auto")  # auto/gpu/cpu/storage/edge
         self.use_tunnel = os.getenv("USE_TUNNEL", "true").lower() == "true"
-        
+
         self.tunnel_process: Optional[subprocess.Popen] = None
-        self.tunnel_url: Optional[str] = None
+        self.tunnel_url: Optional[str] = os.getenv("TUNNEL_URL")  # Pre-configured tunnel URL (for named tunnels)
         self.service_processes: Dict[str, subprocess.Popen] = {}
         self.assigned_services: List[str] = []
-        
+
+        # DHT client (optional - falls back to coordinator)
+        self.dht_enabled = DHT_AVAILABLE and os.getenv("DHT_ENABLED", "true").lower() == "true"
+        self.dht_client: Optional[DHTClient] = None
+
+        if self.dht_enabled and DHT_AVAILABLE:
+            self.dht_client = DHTClient(self.worker_id)
+
         # Auto-detect hardware capabilities
         self.capabilities = self.detect_capabilities()
-        
+
         logger.info(f"🚀 Universal Worker Agent initialized")
         logger.info(f"Worker ID: {self.worker_id}")
         logger.info(f"Worker Type: {self.worker_type}")
+        logger.info(f"DHT Enabled: {self.dht_enabled}")
         logger.info(f"Capabilities: {json.dumps(self.capabilities, indent=2)}")
         logger.info(f"Coordinator: {self.coordinator_url}")
     
@@ -264,7 +281,92 @@ class UniversalWorkerAgent:
             
         except requests.RequestException as e:
             logger.error(f"❌ Heartbeat failed: {e}")
-    
+
+    async def initialize_dht(self):
+        """Initialize DHT connection"""
+        if not self.dht_enabled or not self.dht_client:
+            logger.info("DHT disabled, using coordinator only")
+            return
+
+        try:
+            # Connect to DHT via edge router bootstrap
+            await self.dht_client.connect(self.coordinator_url)
+
+            # Register worker in DHT
+            await self.dht_client.register_worker(
+                tunnel_url=self.tunnel_url or f"http://{socket.gethostname()}:8000",
+                services=self.assigned_services,
+                capabilities=self.capabilities
+            )
+
+            logger.info("✅ DHT initialized and worker registered")
+
+        except Exception as e:
+            logger.warning(f"DHT initialization failed: {e}")
+            logger.info("Continuing with coordinator-only mode")
+            self.dht_enabled = False
+
+    async def find_service_worker_dht(self, service_type: str) -> Optional[str]:
+        """
+        Find worker for service using DHT
+
+        Returns:
+            Worker tunnel URL or None
+        """
+        if not self.dht_enabled:
+            return None
+
+        try:
+            worker_info = await self.dht_client.find_worker_for_service(service_type)
+            if worker_info:
+                return worker_info["tunnel_url"]
+            return None
+
+        except Exception as e:
+            logger.error(f"DHT service lookup failed: {e}")
+            return None
+
+    def find_service_worker(self, service_type: str) -> Optional[str]:
+        """
+        Find worker for service (DHT first, fallback to coordinator)
+
+        This method can be used by services to find other workers.
+        """
+        # Try DHT first
+        if self.dht_enabled:
+            try:
+                # Run async DHT lookup
+                loop = asyncio.new_event_loop()
+                worker_url = loop.run_until_complete(
+                    self.find_service_worker_dht(service_type)
+                )
+                loop.close()
+
+                if worker_url:
+                    logger.info(f"Found worker via DHT: {service_type}")
+                    return worker_url
+
+            except Exception as e:
+                logger.warning(f"DHT lookup failed, falling back to coordinator: {e}")
+
+        # Fallback to coordinator
+        logger.info(f"Using coordinator to find: {service_type}")
+        return self.find_service_worker_coordinator(service_type)
+
+    def find_service_worker_coordinator(self, service_type: str) -> Optional[str]:
+        """Original coordinator-based lookup (fallback)"""
+        try:
+            response = requests.get(
+                f"{self.coordinator_url}/api/worker/find/{service_type}",
+                timeout=5
+            )
+            response.raise_for_status()
+            result = response.json()
+            return result.get("worker_url")
+        except requests.RequestException as e:
+            logger.error(f"Coordinator lookup failed: {e}")
+            return None
+
     def run_edge_worker(self):
         """Run as edge coordinator - hosts the coordinator service locally"""
         try:
@@ -281,8 +383,8 @@ class UniversalWorkerAgent:
             logger.info("   cd services/local-coordinator && python -m uvicorn app:app --host 0.0.0.0 --port 8080")
             logger.info("")
             
-            # Create tunnel for the coordinator
-            if self.use_tunnel:
+            # Create tunnel for the coordinator (if not already configured)
+            if self.use_tunnel and not self.tunnel_url:
                 logger.info("📡 Creating Cloudflare Tunnel for coordinator access...")
                 # Tunnel to port 8080 where coordinator should be running
                 process = subprocess.Popen(
@@ -307,7 +409,8 @@ class UniversalWorkerAgent:
                 if not self.tunnel_url:
                     logger.error("❌ Failed to create tunnel")
                     return
-            else:
+            elif not self.tunnel_url:
+                # No tunnel URL configured, use direct access
                 public_ip = self.capabilities.get("public_ip", socket.gethostname())
                 self.tunnel_url = f"http://{public_ip}:8080"
                 logger.info(f"ℹ️  Direct access mode: {self.tunnel_url}")
@@ -408,13 +511,20 @@ class UniversalWorkerAgent:
             # Step 2: Register and get service assignments
             registration_result = self.register_with_coordinator()
             service_configs = registration_result.get("service_configs", [])
-            
-            # Step 3: Launch assigned services
+
+            # Step 3: Initialize DHT (after registration so we know our assigned services)
+            if self.dht_enabled:
+                logger.info("🔗 Initializing DHT connection...")
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self.initialize_dht())
+                loop.close()
+
+            # Step 4: Launch assigned services
             for service_config in service_configs:
                 service_name = service_config["name"]
                 self.launch_service(service_name, service_config)
-            
-            # Step 4: Heartbeat loop
+
+            # Step 5: Heartbeat loop
             logger.info("💓 Starting heartbeat loop...")
             while True:
                 time.sleep(30)  # Heartbeat every 30 seconds
@@ -431,7 +541,18 @@ class UniversalWorkerAgent:
     def cleanup(self):
         """Clean up resources"""
         logger.info("🧹 Cleaning up...")
-        
+
+        # Disconnect from DHT
+        if self.dht_enabled and self.dht_client:
+            logger.info("   Disconnecting from DHT...")
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self.dht_client.disconnect())
+                loop.close()
+                logger.info("✅ Disconnected from DHT")
+            except Exception as e:
+                logger.warning(f"DHT disconnect failed: {e}")
+
         # Stop all service processes
         for svc_name, process in self.service_processes.items():
             if process.poll() is None:
@@ -441,7 +562,7 @@ class UniversalWorkerAgent:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
                     process.kill()
-        
+
         # Stop tunnel
         if self.tunnel_process and self.tunnel_process.poll() is None:
             logger.info("   Stopping tunnel...")
@@ -450,7 +571,7 @@ class UniversalWorkerAgent:
                 self.tunnel_process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self.tunnel_process.kill()
-        
+
         # Unregister from coordinator
         try:
             requests.delete(

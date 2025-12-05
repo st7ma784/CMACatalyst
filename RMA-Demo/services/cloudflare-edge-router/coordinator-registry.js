@@ -39,6 +39,7 @@ export class CoordinatorRegistry {
           worker_id: data.worker_id,
           tunnel_url: data.tunnel_url,
           location: data.capabilities?.location || 'unknown',
+          dht_port: data.dht_port || data.capabilities?.dht_port || 8468,
           registered_at: Date.now(),
           last_seen: Date.now()
         };
@@ -48,6 +49,7 @@ export class CoordinatorRegistry {
           worker_id: data.worker_id,
           tunnel_url: data.tunnel_url,
           location: data.capabilities?.location || 'unknown',
+          dht_port: data.dht_port || data.capabilities?.dht_port || 8468,
           registered_at: Date.now(),
           last_seen: Date.now()
         });

@@ -19,18 +19,43 @@ export default {
 
     // Edge coordinator registration
     if (path === '/api/edge/register' && request.method === 'POST') {
-      const data = await request.json();
-      
-      if (data.worker_type === 'edge' && data.role === 'edge_coordinator') {
-        // Register this coordinator
-        const response = await registry.fetch(request);
-        return response;
+      try {
+        const data = await request.json();
+        
+        // Accept either format: {url, location} or {worker_type, role, tunnel_url}
+        if (data.url || data.tunnel_url) {
+          // Forward to Durable Object to store the registration
+          const registerReq = new Request('http://internal/api/edge/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              worker_id: data.worker_id || `edge-${Date.now()}`,
+              tunnel_url: data.url || data.tunnel_url,
+              capabilities: {
+                location: data.location || 'unknown'
+              }
+            })
+          });
+          const response = await registry.fetch(registerReq);
+          return response;
+        }
+        
+        return new Response(JSON.stringify({ 
+          error: 'Invalid edge registration',
+          required: 'Must provide "url" or "tunnel_url" field'
+        }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        return new Response(JSON.stringify({ 
+          error: 'Registration failed',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
-      
-      return new Response(JSON.stringify({ error: 'Invalid edge registration' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
     }
 
     // Worker registration - route to best coordinator
@@ -84,6 +109,46 @@ export default {
       });
 
       return serviceResponse;
+    }
+
+    // DHT Bootstrap endpoint
+    if (path === '/api/dht/bootstrap' && request.method === 'GET') {
+      try {
+        // Get all healthy coordinators
+        const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
+        const coordsResp = await registry.fetch(coordinatorsReq);
+        const coordinators = await coordsResp.json();
+
+        // Filter to DHT-enabled coordinators (have dht_port)
+        const dhtSeeds = coordinators
+          .filter(c => c.dht_port)
+          .map(c => ({
+            node_id: c.worker_id,
+            tunnel_url: c.tunnel_url,
+            dht_port: c.dht_port || 8468,
+            location: c.location || 'unknown'
+          }));
+
+        return new Response(JSON.stringify({
+          seeds: dhtSeeds,
+          ttl: 300,  // Cache for 5 minutes
+          count: dhtSeeds.length
+        }), {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=300'
+          }
+        });
+
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: 'DHT bootstrap failed',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Health check

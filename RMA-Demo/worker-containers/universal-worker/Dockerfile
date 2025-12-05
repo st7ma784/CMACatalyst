@@ -23,40 +23,14 @@ RUN ARCH=$(dpkg --print-architecture) && \
     && dpkg -i cloudflared-linux-${ARCH}.deb \
     && rm cloudflared-linux-${ARCH}.deb
 
-# Install common Python dependencies
-RUN pip3 install --no-cache-dir \
-    fastapi \
-    uvicorn \
-    requests \
-    python-dotenv \
-    pydantic \
-    aiohttp
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Install GPU libraries (optional, only used if GPU detected)
-RUN pip3 install --no-cache-dir \
-    torch \
-    transformers \
-    accelerate \
-    bitsandbytes
-
-# Install storage libraries
-RUN pip3 install --no-cache-dir \
-    chromadb \
-    redis \
-    psycopg2-binary \
-    minio \
-    neo4j
-
-# Install CPU service libraries
-RUN pip3 install --no-cache-dir \
-    spacy \
-    pytesseract \
-    pillow \
-    pypdf2
-
-# Copy universal worker agent
+# Copy universal worker agent and DHT modules
 COPY worker_agent.py .
 COPY service_launcher.py .
+COPY dht/ ./dht/
 
 # Copy coordinator service (for edge workers)
 # This will be copied from ../services/local-coordinator during build
