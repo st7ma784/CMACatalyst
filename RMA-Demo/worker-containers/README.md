@@ -1,44 +1,92 @@
 # RMA Worker Containers
 
-Worker-compatible containers for the RMA distributed system.
+Worker containers for the RMA distributed system with **universal worker architecture**.
 
-## Overview
+## ⭐ Universal Worker (Recommended)
 
-Each container includes:
-1. **Original service code** (vLLM, RAG, etc.)
-2. **Coordinator integration** (task pulling, reporting)
-3. **Health monitoring** (self-reporting status)
+A single container that can run **any of the 14 microservices** across all 4 tiers based on coordinator assignment.
 
-## Building Containers
-
-### Build All Containers
+### Quick Start
 
 ```bash
-# From RMA-Demo directory
-cd worker-containers
+# Pull from GitHub Container Registry
+docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 
-# Build vLLM worker
-docker build -t ghcr.io/rma/vllm-worker:latest vllm/
-
-# Build RAG worker
-docker build -t ghcr.io/rma/rag-worker:latest rag/
-
-# Build other workers
-docker build -t ghcr.io/rma/notes-worker:latest notes/
-docker build -t ghcr.io/rma/ner-worker:latest ner/
-# ... etc
+# Auto-detection (recommended)
+docker run -d --gpus all \
+  -e WORKER_TYPE=auto \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 ```
 
-### Push to Registry
+### Supported Services (14 total)
+
+**Tier 1 (GPU) - 3 services:**
+- `llm-inference`: vLLM with Llama 3.2 (port 8105)
+- `vision-ocr`: LLaVA multimodal (port 8104)
+- `rag-embeddings`: sentence-transformers (port 8102)
+
+**Tier 2 (CPU) - 3 services:**
+- `ner-extraction`: spaCy NER (port 8108)
+- `document-processing`: PDF/DOCX parsing (port 8103)
+- `notes-coa`: Advisor notes (port 8100)
+
+**Tier 3 (Storage) - 5 services:**
+- `chromadb`: Vector database (port 8000)
+- `redis`: Cache (port 6379)
+- `postgres`: Relational DB (port 5432)
+- `minio`: S3 storage (port 9000)
+- `neo4j`: Graph DB (port 7474)
+
+**Tier 4 (Edge) - 3 services:**
+- `coordinator`: Worker registry (port 8080)
+- `edge-proxy`: Routing layer (port 8787)
+- `load-balancer`: Traffic distribution (port 8090)
+
+### Worker Types
 
 ```bash
-# Login to GitHub Container Registry
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+# GPU Worker (Tier 1)
+docker run -d --gpus all \
+  -e WORKER_TYPE=gpu \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 
-# Push containers
-docker push ghcr.io/rma/vllm-worker:latest
-docker push ghcr.io/rma/rag-worker:latest
-# ... etc
+# CPU Worker (Tier 2)
+docker run -d \
+  -e WORKER_TYPE=cpu \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Storage Worker (Tier 3)
+docker run -d \
+  -v ./chroma-data:/chroma/chroma \
+  -e WORKER_TYPE=storage \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Edge Worker (Tier 4)
+docker run -d \
+  -p 8080:8080 -p 8787:8787 -p 8090:8090 \
+  -e WORKER_TYPE=edge \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+```
+
+## Building from Source
+
+### Build Universal Worker
+
+```bash
+cd RMA-Demo/worker-containers/universal-worker
+docker build -t ghcr.io/st7ma784/cmacatalyst/universal-worker:latest .
+```
+
+### Build Coordinator
+
+```bash
+cd RMA-Demo/services/local-coordinator
+docker build -t ghcr.io/st7ma784/cmacatalyst/coordinator:latest .
 ```
 
 ## Container Structure
@@ -53,95 +101,122 @@ worker-container/
 
 ## Environment Variables
 
-All worker containers accept:
+**Universal Worker:**
+- `WORKER_TYPE` - Worker tier: `auto`, `gpu`, `cpu`, `storage`, `edge`
 - `COORDINATOR_URL` - Coordinator endpoint (e.g., https://api.rmatool.org.uk)
-- `WORKER_ID` - Unique worker identifier (set by worker agent)
+- `WORKER_ID` - Unique identifier (auto-generated if not set)
 
-Plus service-specific variables:
-- vLLM: `MODEL_NAME`, `GPU_MEMORY_UTILIZATION`, `MAX_MODEL_LEN`
-- RAG: `OLLAMA_URL`, `CHROMADB_HOST`, `CHROMADB_PORT`
-- NER: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
+**Auto-Detection (WORKER_TYPE=auto):**
+Priority: GPU → Edge → Storage → CPU
 
-## Creating New Worker Containers
+**Service-specific variables:**
+- GPU services: `MODEL_NAME`, `GPU_MEMORY_UTILIZATION`, `MAX_MODEL_LEN`
+- Storage services: `CHROMADB_HOST`, `CHROMADB_PORT`, `NEO4J_URI`, `REDIS_HOST`
+- Edge services: `LOAD_BALANCER_PORT`, `EDGE_PROXY_PORT`
 
-To convert an existing service to a worker container:
+## Deployment Best Practices
 
-1. **Copy existing Dockerfile as base**
+1. **Use Auto-Detection for Mixed Hardware**
    ```bash
-   cp ../../services/your-service/Dockerfile ./your-service/Dockerfile
+   docker run -d --gpus all \
+     -e WORKER_TYPE=auto \
+     -e COORDINATOR_URL=https://api.rmatool.org.uk \
+     ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
    ```
 
-2. **Add coordinator integration dependency**
-   ```dockerfile
-   RUN pip install --no-cache-dir requests
-   ```
+2. **Specify Worker Type for Dedicated Nodes**
+   - GPU nodes: `WORKER_TYPE=gpu` (CUDA + cuDNN required)
+   - CPU nodes: `WORKER_TYPE=cpu` (no GPU needed)
+   - Storage nodes: `WORKER_TYPE=storage` (requires persistent volumes)
+   - Edge nodes: `WORKER_TYPE=edge` (exposed ports for load balancer)
 
-3. **Copy coordinator integration script**
-   ```dockerfile
-   COPY ../vllm/coordinator_integration.py ./coordinator_integration.py
-   ```
-
-4. **Add coordinator environment variables**
-   ```dockerfile
-   ENV COORDINATOR_URL=""
-   ENV WORKER_ID=""
-   ```
-
-5. **Update CMD to run coordinator integration**
-   ```dockerfile
-   CMD python coordinator_integration.py & python app.py
-   ```
-
-6. **Build and test**
+3. **Volume Mounts for Storage Workers**
    ```bash
-   docker build -t ghcr.io/rma/your-service-worker:latest your-service/
-   docker run --rm -e COORDINATOR_URL=http://localhost:8080 -e WORKER_ID=test \
-       ghcr.io/rma/your-service-worker:latest
+   docker run -d \
+     -v ./chroma-data:/chroma/chroma \
+     -v ./postgres-data:/var/lib/postgresql/data \
+     -e WORKER_TYPE=storage \
+     ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+   ```
+
+4. **Resource Limits**
+   ```bash
+   docker run -d --gpus all \
+     --memory=16g --cpus=4 \
+     -e WORKER_TYPE=gpu \
+     ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
    ```
 
 ## Testing Locally
 
-### Test Single Container
+### Test Single Universal Worker
 
 ```bash
 # Start coordinator
-cd ../coordinator-service
+cd RMA-Demo/services/local-coordinator
 python -m uvicorn app.main:app --port 8080 &
 
-# Run worker container
-docker run --rm \
+# Test auto-detection
+docker run --rm --gpus all \
     -e COORDINATOR_URL=http://host.docker.internal:8080 \
-    -e WORKER_ID=test-worker \
-    -p 8000:8000 \
-    ghcr.io/rma/vllm-worker:latest
+    -e WORKER_TYPE=auto \
+    ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Check registered services
+curl http://localhost:8080/api/admin/workers
 ```
 
-### Test Full System
+### Test Full System with Multiple Workers
 
 ```bash
 # Start coordinator
-cd ../coordinator-service
+cd RMA-Demo/services/local-coordinator
 docker-compose up -d
 
-# Start worker agent (auto-pulls and starts containers)
-cd ../worker-agent
-python worker_agent.py --coordinator http://localhost:8080
+# Start GPU worker
+docker run -d --gpus all \
+    -e WORKER_TYPE=gpu \
+    -e COORDINATOR_URL=http://localhost:8080 \
+    ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Start CPU worker
+docker run -d \
+    -e WORKER_TYPE=cpu \
+    -e COORDINATOR_URL=http://localhost:8080 \
+    ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Start storage worker
+docker run -d \
+    -v ./chroma-data:/chroma/chroma \
+    -e WORKER_TYPE=storage \
+    -e COORDINATOR_URL=http://localhost:8080 \
+    ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 ```
 
-## Container Registry
+## Published Containers
 
-Containers are published to GitHub Container Registry (ghcr.io):
-- `ghcr.io/rma/vllm-worker:latest`
-- `ghcr.io/rma/ollama-vision-worker:latest`
-- `ghcr.io/rma/rag-worker:latest`
-- `ghcr.io/rma/notes-worker:latest`
-- `ghcr.io/rma/ner-worker:latest`
-- `ghcr.io/rma/doc-processor-worker:latest`
-- `ghcr.io/rma/ocr-worker:latest`
-- `ghcr.io/rma/postgres-worker:latest` (uses official postgres:16-alpine)
-- `ghcr.io/rma/neo4j-worker:latest` (uses official neo4j:5.15)
-- `ghcr.io/rma/redis-worker:latest` (uses official redis:7-alpine)
-- `ghcr.io/rma/chromadb-worker:latest` (uses official chromadb image)
+Containers are automatically built via GitHub Actions and published to:
+
+**Universal Worker:**
+- `ghcr.io/st7ma784/cmacatalyst/universal-worker:latest`
+  - Single container supporting all 14 microservices
+  - Auto-detects hardware capabilities
+  - Dynamically assigned services by coordinator
+
+**Coordinator:**
+- `ghcr.io/st7ma784/cmacatalyst/coordinator:latest`
+  - In-memory worker registry (no KV limits)
+  - Dynamic service assignment based on gaps
+  - Health tracking with 30s heartbeats
+
+### Legacy Containers (Deprecated)
+
+The following individual worker containers are **deprecated** in favor of the universal worker:
+- ~~cpu-worker~~ → Use `universal-worker` with `WORKER_TYPE=cpu`
+- ~~gpu-worker~~ → Use `universal-worker` with `WORKER_TYPE=gpu`
+- ~~storage-worker~~ → Use `universal-worker` with `WORKER_TYPE=storage`
+
+See [chromadb/README.md](chromadb/README.md) for migration details.
 
 ## GPU Support
 
@@ -162,19 +237,35 @@ docker logs <container-name>
 # Run in interactive mode
 docker run --rm -it \
     -e COORDINATOR_URL=http://localhost:8080 \
-    -e WORKER_ID=test \
-    ghcr.io/rma/your-worker:latest /bin/bash
+    -e WORKER_TYPE=auto \
+    ghcr.io/st7ma784/cmacatalyst/universal-worker:latest /bin/bash
+
+# Check which services were detected
+docker logs <container-name> | grep "Detected"
+```
+
+### Worker Not Registering with Coordinator
+
+```bash
+# Test coordinator connectivity from container
+docker exec <container-name> curl http://coordinator:8080/health
+
+# Check worker registration
+curl http://localhost:8080/api/admin/workers
+
+# Verify COORDINATOR_URL is correct
+docker inspect <container-name> | grep COORDINATOR_URL
 ```
 
 ### Can't Connect to Coordinator
 
 ```bash
-# Test from inside container
-docker exec <container-name> curl http://coordinator:8080/health
-
-# Check network
+# Check network connectivity
 docker network ls
 docker network inspect rma-network
+
+# Test from host
+curl http://localhost:8080/health
 ```
 
 ### GPU Not Detected
@@ -189,17 +280,33 @@ nvidia-ctk --version
 
 ## Production Considerations
 
-1. **Image Size**: Multi-stage builds to reduce size
-2. **Security**: Non-root users, minimal base images
-3. **Logging**: Structured logging to stdout/stderr
-4. **Health Checks**: Dockerfile HEALTHCHECK directives
-5. **Versioning**: Semantic versioning (v1.0.0, v1.1.0, etc.)
+1. **Worker Type Strategy**
+   - Auto-detection: Best for heterogeneous fleets
+   - Fixed types: Better for dedicated node pools
+   - Storage workers: Require persistent volumes with backups
 
-## Next Steps
+2. **Resource Allocation**
+   - GPU workers: 8GB+ VRAM, 16GB+ RAM recommended
+   - CPU workers: 4+ cores, 8GB+ RAM recommended
+   - Storage workers: Fast SSD storage for databases
 
-1. Build all worker containers
-2. Push to container registry
-3. Update coordinator to return correct image names
-4. Test with worker agent
-5. Deploy coordinator to production
-6. Distribute worker agent to contributors
+3. **High Availability**
+   - Run multiple workers per tier
+   - Coordinator handles failover automatically
+   - Storage workers need replication (PostgreSQL streaming, Redis sentinel)
+
+4. **Monitoring**
+   - Coordinator exposes `/api/admin/workers` endpoint
+   - Worker heartbeats every 30s
+   - Check service assignment gaps regularly
+
+5. **Security**
+   - Non-root users in containers
+   - Network policies to isolate tiers
+   - Secrets management for database credentials
+
+## Documentation
+
+- [Dynamic Service Allocation Guide](../DYNAMIC_SERVICE_ALLOCATION.md)
+- [Tier 4 Architecture](../TIER_4_ARCHITECTURE.md)
+- [Deployment Guide](../docs/UPDATED_DEPLOYMENT_GUIDE.md)

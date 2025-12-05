@@ -235,33 +235,41 @@ This architecture ensures the CMA Case Management System can scale efficiently w
 
 Our distributed architecture relies on donated compute resources. You can contribute by running a worker container on your machine:
 
-**For CPU workers:**
+**Auto-Detection (Recommended):**
 ```bash
-# Pull the latest CPU worker image
-docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+# Pull the universal worker image
+docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 
-# Run the worker
+# Run with auto-detection
+docker run -d \
+  --name rma-worker \
+  --restart unless-stopped \
+  --gpus all \
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \
+  -e WORKER_TYPE=auto \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+```
+
+**Or specify worker type manually:**
+```bash
+# CPU worker (no GPU required)
 docker run -d \
   --name rma-cpu-worker \
   --restart unless-stopped \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
-  ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
-```
+  -e WORKER_TYPE=cpu \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 
-**For GPU workers** (requires NVIDIA GPU):
-```bash
-# Pull the latest GPU worker image
-docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
-
-# Run the worker
+# GPU worker (requires NVIDIA GPU with 8GB+ VRAM)
 docker run -d \
   --name rma-gpu-worker \
   --restart unless-stopped \
   --gpus all \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
-  ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+  -e WORKER_TYPE=gpu \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 ```
 
-Workers automatically create secure Cloudflare Tunnels and work behind firewalls. No port forwarding needed!
+Workers automatically register with the coordinator and are dynamically assigned services. No port forwarding needed!
 
 📖 See the full [Worker Deployment Guide](../deployment/worker-deployment.md) for more options and troubleshooting.

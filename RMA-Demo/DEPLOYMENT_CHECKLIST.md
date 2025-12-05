@@ -228,10 +228,11 @@ curl https://api.rmatool.org.uk/api/admin/stats
 **Cause:** Local coordinator has no workers in registry yet
 **Solution:** 
 ```bash
-# Register at least one test worker
+# Register a test worker (auto-detects capabilities)
 docker run -d --name test-worker \
   -e COORDINATOR_URL=https://api.rmatool.org.uk \
-  ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+  -e WORKER_TYPE=auto \
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
 ```
 
 ### Issue 2: Contribution Scores All Zero

@@ -1337,12 +1337,12 @@ function SystemArchitectureGuide() {
               <span className="text-green-600 font-bold">✓</span>
               <div>
                 <strong className="text-gray-900">2+ GPU Workers (Specialized)</strong>
-                <p className="text-gray-700">Dedicated OCR worker • Dedicated vLLM worker • Load balanced</p>
+                <p className="text-gray-700">Coordinator assigns different services • Load balanced automatically</p>
                 <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
-                  # Worker 1: OCR specialist<br/>
-                  docker run -d --gpus all -e WORKER_SPECIALIZATION=ocr gpu-worker<br/>
-                  # Worker 2: vLLM specialist<br/>
-                  docker run -d --gpus all -e WORKER_SPECIALIZATION=vllm gpu-worker
+                  # Worker 1: Gets llm-inference + vision-ocr<br/>
+                  docker run -d --gpus all -e WORKER_TYPE=gpu universal-worker<br/>
+                  # Worker 2: Gets rag-embeddings (specialized)<br/>
+                  docker run -d --gpus all -e WORKER_TYPE=gpu universal-worker
                 </code>
               </div>
             </li>
@@ -1351,6 +1351,9 @@ function SystemArchitectureGuide() {
               <div>
                 <strong className="text-gray-900">1+ CPU Workers (Fallback)</strong>
                 <p className="text-gray-700">Handles non-GPU tasks • Provides redundancy if GPUs overloaded</p>
+                <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
+                  docker run -d -e WORKER_TYPE=cpu ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+                </code>
               </div>
             </li>
             <li className="flex items-start gap-2">
@@ -1359,7 +1362,7 @@ function SystemArchitectureGuide() {
                 <strong className="text-gray-900">Storage Worker with Persistence</strong>
                 <p className="text-gray-700">ChromaDB + Redis • Volume-mounted data • Regular backups</p>
                 <code className="text-xs bg-gray-100 px-2 py-1 rounded block mt-1">
-                  docker run -d -v ./chroma:/chroma/data storage-worker
+                  docker run -d -v ./chroma:/chroma/chroma -e WORKER_TYPE=storage universal-worker
                 </code>
               </div>
             </li>
@@ -1462,6 +1465,25 @@ function SystemArchitectureGuide() {
         </div>
 
         <div className="space-y-4">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">🤖</span>
+              <h4 className="text-sm font-semibold text-indigo-900">Auto-Detection (Recommended)</h4>
+              <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">Let the worker decide!</span>
+            </div>
+            <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
+              docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
+              docker run -d --name rma-worker --restart unless-stopped \<br/>
+              &nbsp;&nbsp;--gpus all \<br/>
+              &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
+              &nbsp;&nbsp;-e WORKER_TYPE=auto \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+            </code>
+            <p className="text-xs text-indigo-900 mt-2">
+              ✨ Worker auto-detects: GPU → Edge → Storage → CPU and registers with appropriate tier
+            </p>
+          </div>
+
           <div className="bg-white rounded-lg p-4 border-2 border-green-200">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">💻</span>
@@ -1469,10 +1491,11 @@ function SystemArchitectureGuide() {
               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">4+ cores recommended</span>
             </div>
             <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
-              docker pull ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest<br/>
+              docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
               docker run -d --name rma-cpu-worker --restart unless-stopped \<br/>
               &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/cpu-worker:latest
+              &nbsp;&nbsp;-e WORKER_TYPE=cpu \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
             </code>
           </div>
 
@@ -1483,14 +1506,14 @@ function SystemArchitectureGuide() {
               <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">NVIDIA GPU, 8GB+ VRAM</span>
             </div>
             <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
-              docker pull ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest<br/>
+              docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
               docker run -d --name rma-gpu-worker --restart unless-stopped \<br/>
               &nbsp;&nbsp;--gpus all -e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-              &nbsp;&nbsp;-e WORKER_SPECIALIZATION=ocr \<br/>
-              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/gpu-worker:latest
+              &nbsp;&nbsp;-e WORKER_TYPE=gpu \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
             </code>
             <p className="text-xs text-gray-600 mt-2">
-              💡 Tip: Set WORKER_SPECIALIZATION to 'ocr' or 'vllm' for task affinity in multi-GPU setups
+              💡 Tip: Use WORKER_TYPE=auto to let the worker auto-detect GPU capability
             </p>
           </div>
 
@@ -1501,13 +1524,16 @@ function SystemArchitectureGuide() {
               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">SSD recommended</span>
             </div>
             <code className="text-xs bg-gray-900 text-green-400 p-3 rounded block overflow-x-auto">
-              docker pull ghcr.io/st7ma784/cmacatalyst/storage-worker:latest<br/>
+              docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest<br/>
               docker run -d --name rma-storage-worker --restart unless-stopped \<br/>
               &nbsp;&nbsp;-e COORDINATOR_URL=https://api.rmatool.org.uk \<br/>
-              &nbsp;&nbsp;-e ENABLE_CHROMADB=true -e ENABLE_REDIS=true \<br/>
-              &nbsp;&nbsp;-v ./chroma-data:/chroma/data \<br/>
-              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/storage-worker:latest
+              &nbsp;&nbsp;-e WORKER_TYPE=storage \<br/>
+              &nbsp;&nbsp;-v ./chroma-data:/chroma/chroma \<br/>
+              &nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
             </code>
+            <p className="text-xs text-gray-600 mt-2">
+              💡 Coordinator assigns ChromaDB, Redis, or PostgreSQL based on gaps
+            </p>
           </div>
         </div>
 
