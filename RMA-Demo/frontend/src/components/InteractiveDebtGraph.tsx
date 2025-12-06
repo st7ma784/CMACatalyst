@@ -175,15 +175,25 @@ export default function InteractiveDebtGraph({ clientData }: { clientData?: Clie
     const entities = Object.values(graph.entities)
     const relations = Object.values(graph.relations)
 
+    // Ensure all entities have positions before proceeding
+    const hasAllPositions = entities.every(entity => positions[entity.id])
+    if (!hasAllPositions) {
+      console.warn('Not all entities have positions, skipping force layout')
+      return
+    }
+
     // Simple force simulation
     for (let iteration = 0; iteration < 10; iteration++) {
       entities.forEach(entity => {
+        // Check if position exists
+        if (!positions[entity.id]) return
+
         let fx = 0
         let fy = 0
 
         // Repulsion between nodes
         entities.forEach(other => {
-          if (entity.id === other.id) return
+          if (entity.id === other.id || !positions[other.id]) return
           const dx = positions[other.id].x - positions[entity.id].x
           const dy = positions[other.id].y - positions[entity.id].y
           const dist = Math.sqrt(dx * dx + dy * dy) || 1
@@ -196,7 +206,7 @@ export default function InteractiveDebtGraph({ clientData }: { clientData?: Clie
         relations.forEach(rel => {
           if (rel.source_entity_id === entity.id) {
             const target = positions[rel.target_entity_id]
-            if (target) {
+            if (target && positions[entity.id]) {
               const dx = target.x - positions[entity.id].x
               const dy = target.y - positions[entity.id].y
               const dist = Math.sqrt(dx * dx + dy * dy) || 1
@@ -207,7 +217,7 @@ export default function InteractiveDebtGraph({ clientData }: { clientData?: Clie
           }
           if (rel.target_entity_id === entity.id) {
             const source = positions[rel.source_entity_id]
-            if (source) {
+            if (source && positions[entity.id]) {
               const dx = source.x - positions[entity.id].x
               const dy = source.y - positions[entity.id].y
               const dist = Math.sqrt(dx * dx + dy * dy) || 1
@@ -218,13 +228,15 @@ export default function InteractiveDebtGraph({ clientData }: { clientData?: Clie
           }
         })
 
-        // Apply forces with damping
-        positions[entity.id].x += fx * 0.5
-        positions[entity.id].y += fy * 0.5
+        // Apply forces with damping (only if position exists)
+        if (positions[entity.id]) {
+          positions[entity.id].x += fx * 0.5
+          positions[entity.id].y += fy * 0.5
 
-        // Keep in bounds
-        positions[entity.id].x = Math.max(50, Math.min(1150, positions[entity.id].x))
-        positions[entity.id].y = Math.max(50, Math.min(750, positions[entity.id].y))
+          // Keep in bounds
+          positions[entity.id].x = Math.max(50, Math.min(1150, positions[entity.id].x))
+          positions[entity.id].y = Math.max(50, Math.min(750, positions[entity.id].y))
+        }
       })
     }
 
@@ -610,17 +622,26 @@ export default function InteractiveDebtGraph({ clientData }: { clientData?: Clie
     fetchGraph()
   }, [])
 
+  // Initialize layout when graph loads
+  useEffect(() => {
+    if (graph && Object.keys(nodePositions).length === 0) {
+      initializeLayout()
+    }
+  }, [graph, nodePositions, initializeLayout])
+
   // Render when positions change
   useEffect(() => {
-    renderGraph()
+    if (Object.keys(nodePositions).length > 0) {
+      renderGraph()
+    }
   }, [graph, nodePositions, selectedNode, highlightedPath])
 
-  // Apply force layout periodically
+  // Apply force layout periodically (only if positions are initialized)
   useEffect(() => {
-    if (!autoLayout) return
+    if (!autoLayout || Object.keys(nodePositions).length === 0) return
     const interval = setInterval(applyForceLayout, 100)
     return () => clearInterval(interval)
-  }, [autoLayout, applyForceLayout])
+  }, [autoLayout, applyForceLayout, nodePositions])
 
   return (
     <div className={`${fullScreen ? 'fixed inset-0 z-50 bg-white' : ''}`}>
