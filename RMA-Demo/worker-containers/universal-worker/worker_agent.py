@@ -170,42 +170,61 @@ class UniversalWorkerAgent:
             logger.info("⏭️  Tunnel disabled, using direct connection")
             return None
         
+        # Check if cloudflared is installed
+        try:
+            result = subprocess.run(["which", "cloudflared"], capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.error("❌ cloudflared not found in PATH")
+                logger.error("   Install with: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && dpkg -i cloudflared-linux-amd64.deb")
+                return None
+            logger.info(f"✅ Found cloudflared at: {result.stdout.strip()}")
+        except Exception as e:
+            logger.error(f"❌ Failed to check for cloudflared: {e}")
+            return None
+        
         logger.info("🌐 Creating Cloudflare Tunnel...")
         
         try:
-            # Start cloudflared tunnel
+            # Start cloudflared tunnel with unbuffered output
             process = subprocess.Popen(
                 ["cloudflared", "tunnel", "--url", "http://localhost:8000", "--no-autoupdate"],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                bufsize=1,  # Line buffered
+                universal_newlines=True
             )
             
             self.tunnel_process = process
             
             # Wait for tunnel URL in output
-            for _ in range(30):  # 30 second timeout
-                line = process.stderr.readline()
-                if "https://" in line and ".trycloudflare.com" in line:
-                    # Log the actual line for debugging
-                    logger.debug(f"Cloudflared output: {line.strip()}")
-                    # Extract URL - match subdomain.trycloudflare.com (not api.trycloudflare.com)
-                    import re
-                    # Look for pattern like https://abc-xyz-123.trycloudflare.com
-                    match = re.search(r'https://([a-z0-9]+-[a-z0-9]+-[a-z0-9]+)\.trycloudflare\.com', line)
-                    if match:
-                        self.tunnel_url = match.group(0)
-                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
-                        return self.tunnel_url
-                    # Fallback to any subdomain except 'api'
-                    match = re.search(r'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                    if match:
-                        self.tunnel_url = match.group(0)
-                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
-                        return self.tunnel_url
+            import re
+            for i in range(30):  # 30 second timeout
+                line = process.stdout.readline()
+                if line:
+                    line = line.strip()
+                    logger.info(f"[cloudflared] {line}")
+                    
+                    if "trycloudflare.com" in line:
+                        # Try multiple patterns
+                        match = re.search(r'https://([a-z0-9]+-[a-z0-9]+-[a-z0-9]+)\.trycloudflare\.com', line)
+                        if not match:
+                            match = re.search(r'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                        if match:
+                            self.tunnel_url = match.group(0)
+                            logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                            return self.tunnel_url
+                
+                # Check if process died
+                if process.poll() is not None:
+                    logger.error(f"❌ cloudflared process exited with code {process.returncode}")
+                    break
+                    
                 time.sleep(1)
             
             logger.error("❌ Failed to get tunnel URL")
+            logger.error("   Cloudflared may not be outputting tunnel URL")
+            logger.error("   Check if cloudflared is installed and working")
             return None
             
         except Exception as e:
