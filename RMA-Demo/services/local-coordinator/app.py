@@ -194,15 +194,14 @@ class BroadcastJob(BaseModel):
 
 # API Endpoints
 
-@app.api_route("/service/{service_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-@app.api_route("/api/service/{service_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-async def proxy_to_service(service_name: str, request: Request):
+@app.api_route("/service/{service}/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def proxy_to_service(service: str, path: str, request: Request):
     """
     Proxy requests to specific services running on workers
     
     Examples:
-      /service/rag/api/graph/123 → forwards /api/graph/123 to a worker with 'rag' service
-      /api/service/upload/files → forwards /files to a worker with 'upload' service
+      /service/rag/api/graph/123 → forwards /api/graph/123 to a worker with 'rag-embeddings' service
+      /service/upload/files → forwards /files to a worker with 'document-processing' service
     """
     # Handle CORS preflight
     if request.method == "OPTIONS":
@@ -216,13 +215,10 @@ async def proxy_to_service(service_name: str, request: Request):
             }
         )
     
-    # Extract service name and remaining path
-    # service_name could be like "rag/api/graph/123" so we need to extract just "rag"
-    parts = service_name.split("/", 1)
-    actual_service = parts[0]
-    remaining_path = "/" + parts[1] if len(parts) > 1 else ""
+    # Build the remaining path (path already includes leading /)
+    remaining_path = "/" + path if not path.startswith("/") else path
     
-    logger.info(f"Service proxy: {actual_service} → {remaining_path}")
+    logger.info(f"Service proxy: {service} → {remaining_path}")
     
     # Map service names to our internal service registry
     service_mapping = {
@@ -234,7 +230,7 @@ async def proxy_to_service(service_name: str, request: Request):
         "llm": "llm-inference"
     }
     
-    internal_service_name = service_mapping.get(actual_service, actual_service)
+    internal_service_name = service_mapping.get(service, service)
     
     # Find a worker offering this service
     if internal_service_name not in services or not services[internal_service_name]:
@@ -243,8 +239,8 @@ async def proxy_to_service(service_name: str, request: Request):
             status_code=503,
             content={
                 "error": "Service not available",
-                "service": actual_service,
-                "message": f"No workers currently provide the '{actual_service}' service"
+                "service": service,
+                "message": f"No workers currently provide the '{service}' service"
             },
             headers={"Access-Control-Allow-Origin": "*"}
         )
@@ -259,7 +255,7 @@ async def proxy_to_service(service_name: str, request: Request):
             status_code=503,
             content={
                 "error": "Service temporarily unavailable",
-                "service": actual_service
+                "service": service
             },
             headers={"Access-Control-Allow-Origin": "*"}
         )
