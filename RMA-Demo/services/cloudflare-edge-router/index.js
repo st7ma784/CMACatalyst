@@ -60,33 +60,56 @@ export default {
 
     // Worker registration - route to best coordinator
     if (path === '/api/worker/register' && request.method === 'POST') {
-      // Get available coordinators
-      const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
-      const coordsResp = await registry.fetch(coordinatorsReq);
-      const coordinators = await coordsResp.json();
+      try {
+        // Get available coordinators
+        const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
+        const coordsResp = await registry.fetch(coordinatorsReq);
+        const coordinators = await coordsResp.json();
 
-      if (coordinators.length === 0) {
+        if (coordinators.length === 0) {
+          return new Response(JSON.stringify({ 
+            error: 'No coordinators available',
+            message: 'Please start an edge coordinator first using: docker-compose -f edge-coordinator.yml up -d'
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Select best coordinator (round-robin for now)
+        const coordinator = coordinators[Math.floor(Math.random() * coordinators.length)];
+
+        // Forward registration to coordinator
+        const workerData = await request.json();
+        
+        // Add timeout and better error handling
+        const coordResponse = await fetch(`${coordinator.tunnel_url}/api/worker/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workerData),
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+
+        // Return the response with proper status
+        return new Response(await coordResponse.text(), {
+          status: coordResponse.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+        
+      } catch (error) {
+        console.error('Worker registration forwarding failed:', error);
         return new Response(JSON.stringify({ 
-          error: 'No coordinators available',
-          message: 'Please start an edge coordinator first using: docker-compose -f edge-coordinator.yml up -d'
+          error: 'Failed to forward registration to coordinator',
+          message: error.message,
+          coordinator: coordinators[0]?.tunnel_url
         }), {
           status: 503,
           headers: { 'Content-Type': 'application/json' }
         });
       }
-
-      // Select best coordinator (round-robin for now)
-      const coordinator = coordinators[Math.floor(Math.random() * coordinators.length)];
-
-      // Forward registration to coordinator
-      const workerData = await request.json();
-      const coordResponse = await fetch(`${coordinator.tunnel_url}/api/worker/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(workerData)
-      });
-
-      return coordResponse;
     }
 
     // Service requests - route to appropriate worker
