@@ -6,7 +6,7 @@ Eliminates Cloudflare KV limits with in-memory storage
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
@@ -17,6 +17,7 @@ import os
 import json
 import socket
 import requests
+import httpx
 
 # Import DHT coordinator
 try:
@@ -192,6 +193,122 @@ class BroadcastJob(BaseModel):
 
 
 # API Endpoints
+
+@app.api_route("/service/{service_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+@app.api_route("/api/service/{service_name:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+async def proxy_to_service(service_name: str, request: Request):
+    """
+    Proxy requests to specific services running on workers
+    
+    Examples:
+      /service/rag/api/graph/123 → forwards /api/graph/123 to a worker with 'rag' service
+      /api/service/upload/files → forwards /files to a worker with 'upload' service
+    """
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content={},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Max-Age": "86400"
+            }
+        )
+    
+    # Extract service name and remaining path
+    # service_name could be like "rag/api/graph/123" so we need to extract just "rag"
+    parts = service_name.split("/", 1)
+    actual_service = parts[0]
+    remaining_path = "/" + parts[1] if len(parts) > 1 else ""
+    
+    logger.info(f"Service proxy: {actual_service} → {remaining_path}")
+    
+    # Map service names to our internal service registry
+    service_mapping = {
+        "rag": "rag-embeddings",
+        "upload": "document-processing",
+        "notes": "notes-coa",
+        "ner": "ner-extraction",
+        "ocr": "vision-ocr",
+        "llm": "llm-inference"
+    }
+    
+    internal_service_name = service_mapping.get(actual_service, actual_service)
+    
+    # Find a worker offering this service
+    if internal_service_name not in services or not services[internal_service_name]:
+        logger.warning(f"No workers available for service: {internal_service_name}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Service not available",
+                "service": actual_service,
+                "message": f"No workers currently provide the '{actual_service}' service"
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    
+    # Select a healthy worker (simple round-robin for now)
+    worker_id = services[internal_service_name][0]
+    worker = workers.get(worker_id)
+    
+    if not worker or not is_worker_healthy(worker):
+        logger.warning(f"Worker {worker_id} for service {internal_service_name} is unhealthy")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "Service temporarily unavailable",
+                "service": actual_service
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+    
+    # Forward the request to the worker
+    try:
+        worker_url = worker["tunnel_url"].rstrip("/")
+        target_url = f"{worker_url}{remaining_path}"
+        
+        logger.info(f"Proxying to worker: {target_url}")
+        
+        # Get request body if present
+        body = None
+        if request.method in ["POST", "PUT"]:
+            body = await request.body()
+        
+        # Forward request
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=dict(request.headers),
+                content=body
+            )
+            
+            # Return response with CORS headers
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers={
+                    "Content-Type": response.headers.get("content-type", "application/json"),
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+                }
+            )
+            
+    except Exception as e:
+        logger.error(f"Service proxy error: {e}")
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": "Service proxy error",
+                "message": str(e)
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+
 
 @app.get("/health")
 async def health_check():
