@@ -34,9 +34,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# In-memory storage
+# Storage
 workers: Dict[str, Dict[str, Any]] = {}
 services: Dict[str, List[str]] = {}  # service_name -> [worker_ids]
+
+# Persistence
+WORKER_STATE_FILE = os.getenv("WORKER_STATE_FILE", "/tmp/coordinator_workers.json")
+
+def save_worker_state():
+    """Save worker state to disk"""
+    try:
+        state = {
+            "workers": workers,
+            "services": services,
+            "timestamp": datetime.now().isoformat()
+        }
+        with open(WORKER_STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+        logger.debug(f"💾 Saved {len(workers)} workers to disk")
+    except Exception as e:
+        logger.warning(f"Failed to save worker state: {e}")
+
+def load_worker_state():
+    """Load worker state from disk"""
+    global workers, services
+    try:
+        if os.path.exists(WORKER_STATE_FILE):
+            with open(WORKER_STATE_FILE, 'r') as f:
+                state = json.load(f)
+                workers = state.get("workers", {})
+                services = state.get("services", {})
+                logger.info(f"📂 Restored {len(workers)} workers from disk")
+                
+                # Mark all as potentially stale (will be updated on next heartbeat)
+                for worker_id, worker in workers.items():
+                    worker["status"] = "reconnecting"
+    except Exception as e:
+        logger.warning(f"Failed to load worker state: {e}")
+        workers = {}
+        services = {}
 
 # Service definitions and requirements
 SERVICE_CATALOG = {
@@ -75,6 +111,9 @@ async def lifespan(app: FastAPI):
 
     # Startup
     logger.info("🚀 Local Coordinator starting up...")
+    
+    # Load persisted worker state
+    load_worker_state()
 
     # Start DHT if enabled
     dht_enabled = DHT_AVAILABLE and os.getenv("DHT_ENABLED", "true").lower() == "true"
@@ -135,6 +174,10 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("🛑 Coordinator shutting down...")
+    
+    # Save worker state before shutdown
+    save_worker_state()
+    
     if cleanup_task:
         cleanup_task.cancel()
 
@@ -372,6 +415,9 @@ async def register_worker(registration: WorkerRegistration):
             services[service_name] = []
         if worker_id not in services[service_name]:
             services[service_name].append(worker_id)
+    
+    # Persist to disk
+    save_worker_state()
     
     logger.info(f"✅ Registered {worker_type} worker: {worker_id} (Tier {tier})")
     logger.info(f"   Assigned services: {', '.join(assigned_services)}")

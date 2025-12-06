@@ -1,10 +1,10 @@
 version: '3.8'
 
-# Edge Coordinator Stack
-# Run this on any always-on machine to act as a distributed coordinator
-# Zero configuration needed - just run and it auto-registers at api.rmatool.org.uk
+# Unified Edge Infrastructure
+# Coordinator + Tunnel + Workers all in one stack with proper networking
 
 services:
+  # Core coordinator service
   coordinator:
     image: ghcr.io/st7ma784/cmacatalyst/coordinator:latest
     container_name: edge-coordinator
@@ -18,9 +18,9 @@ services:
       - DHT_PORT=8468
       - DHT_ENABLED=true
       - NODE_ENV=production
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
+      - WORKER_STATE_FILE=/data/coordinator_workers.json
+    volumes:
+      - coordinator-data:/data  # Persist worker registry
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
       interval: 30s
@@ -30,10 +30,11 @@ services:
     networks:
       - edge-network
 
+  # Cloudflare tunnel for coordinator access
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: edge-tunnel
-    restart: always  # Always restart on disconnect
+    restart: always  # Always restart on failure
     command: tunnel --config /etc/cloudflared/config.yml run
     volumes:
       - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
@@ -42,6 +43,7 @@ services:
     networks:
       - edge-network
 
+  # Edge registrar (registers coordinator with edge router)
   registrar:
     image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
     container_name: edge-registrar
@@ -54,18 +56,42 @@ services:
     networks:
       - edge-network
 
+  # GPU Worker (optional - comment out if no GPU)
+  gpu-worker:
+    image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+    container_name: gpu-worker-1
+    restart: unless-stopped
+    environment:
+      # Connect to LOCAL coordinator, not edge router
+      - COORDINATOR_URL=http://coordinator:8080
+      - USE_TUNNEL=true
+      - WORKER_TYPE=gpu  # Force GPU worker type
+      - LLM_MODEL=microsoft/Phi-3-mini-4k-instruct
+      # GPU settings
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - gpu-models:/models
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    networks:
+      - edge-network
+
+volumes:
+  coordinator-data:
+    driver: local
+  gpu-models:
+    driver: local
+
 networks:
   edge-network:
     driver: bridge
-
-# Usage:
-# docker-compose -f edge-coordinator.yml up -d
-#
-# This will:
-# 1. Start coordinator on port 8080
-# 2. Create Cloudflare Tunnel to coordinator
-# 3. Register tunnel at api.rmatool.org.uk
-# 4. Accept worker registrations from anywhere
-#
-# To stop:
-# docker-compose -f edge-coordinator.yml down

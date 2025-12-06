@@ -99,8 +99,8 @@ def launch_llm_service(port: int, capabilities: Dict[str, Any]) -> Optional[subp
         logger.error("Consider using CPU-based alternatives like Ollama")
         return None
 
-    # Model configuration
-    model_name = os.getenv("LLM_MODEL", "meta-llama/Llama-2-7b-chat-hf")
+    # Model configuration - use open model by default
+    model_name = os.getenv("LLM_MODEL", "microsoft/Phi-3-mini-4k-instruct")
     logger.info(f"Loading model: {model_name}")
     logger.info(f"GPU: {capabilities.get('gpu_type')} with {gpu_memory}")
 

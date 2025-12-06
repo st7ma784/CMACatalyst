@@ -21,8 +21,8 @@ services:
       - gpu_worker_logs:/var/log
 
     environment:
-      # Coordinator
-      - COORDINATOR_URL=https://api.rmatool.org.uk
+      # Coordinator (local edge coordinator, not edge router)
+      - COORDINATOR_URL=http://edge-coordinator:8080
 
       # GPU configuration
       - NVIDIA_VISIBLE_DEVICES=all
@@ -34,6 +34,7 @@ services:
       - USE_TUNNEL=true
       - SERVICE_PORT=8000
       - SERVICE_NAME=vllm-service
+      - LLM_MODEL=microsoft/Phi-3-mini-4k-instruct
 
       # Model cache locations (shared across containers via volume mount)
       - MODEL_CACHE_DIR=/models
@@ -50,6 +51,7 @@ services:
 
     networks:
       - rma-network
+      - rma-demo_edge-network
 
     # GPU resource allocation
     deploy:
@@ -81,7 +83,7 @@ services:
       - ocr_worker_logs:/var/log
 
     environment:
-      - COORDINATOR_URL=https://api.rmatool.org.uk
+      - COORDINATOR_URL=http://edge-coordinator:8080
       - NVIDIA_VISIBLE_DEVICES=all
       - MIN_GPU_MEMORY_GB=8
       - WORKER_TYPE=ocr  # OCR-specific worker type
@@ -95,6 +97,7 @@ services:
 
     networks:
       - rma-network
+      - rma-demo_edge-network
 
     deploy:
       resources:
@@ -121,3 +124,6 @@ networks:
   rma-network:
     external: true
     name: rma-network
+  rma-demo_edge-network:
+    external: true
+    name: rma-demo_edge-network
