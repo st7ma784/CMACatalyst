@@ -378,13 +378,47 @@ class UniversalWorkerAgent:
             logger.error(f"❌ Tunnel creation failed: {e}")
             return None
     
+    def resolve_tunnel_to_ip(self, tunnel_url: str) -> str:
+        """
+        Resolve tunnel hostname to IP address for coordinator access.
+        Worker can resolve .cfargotunnel.com via cloudflared, but coordinator may not.
+        """
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(tunnel_url)
+            hostname = parsed.hostname
+            
+            if hostname and '.cfargotunnel.com' in hostname:
+                # Try to resolve via socket (works with cloudflared running)
+                try:
+                    ip = socket.gethostbyname(hostname)
+                    resolved_url = f"{parsed.scheme}://{ip}"
+                    if parsed.port:
+                        resolved_url += f":{parsed.port}"
+                    logger.info(f"✅ Resolved tunnel {hostname} → {ip}")
+                    return resolved_url
+                except socket.gaierror:
+                    logger.warning(f"⚠️  Could not resolve {hostname}, using original URL")
+                    return tunnel_url
+            else:
+                # Not a tunnel URL, return as-is
+                return tunnel_url
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Tunnel resolution error: {e}, using original URL")
+            return tunnel_url
+
     def register_with_coordinator(self) -> Dict[str, Any]:
         """Register worker and receive service assignments"""
         logger.info("📝 Registering with coordinator...")
         
+        # Get tunnel URL and try to resolve to IP
+        tunnel_url = self.tunnel_url or f"http://{socket.gethostname()}:8000"
+        resolved_url = self.resolve_tunnel_to_ip(tunnel_url)
+        
         registration_data = {
             "worker_id": self.worker_id,
-            "tunnel_url": self.tunnel_url or f"http://{socket.gethostname()}:8000",
+            "tunnel_url": resolved_url,
             "capabilities": self.capabilities
         }
         

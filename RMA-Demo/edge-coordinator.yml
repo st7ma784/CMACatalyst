@@ -18,6 +18,9 @@ services:
       - DHT_PORT=8468
       - DHT_ENABLED=true
       - NODE_ENV=production
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
       interval: 30s
