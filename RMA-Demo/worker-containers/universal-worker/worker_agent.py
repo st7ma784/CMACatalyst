@@ -187,7 +187,7 @@ class UniversalWorkerAgent:
         try:
             # Start cloudflared tunnel with unbuffered output
             process = subprocess.Popen(
-                ["cloudflared", "tunnel", "--url", "http://localhost:8000", "--no-autoupdate"],
+                ["cloudflared", "tunnel", "--url", "http://localhost:8000", "--no-autoupdate", "--metrics", "localhost:9090"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
@@ -199,32 +199,49 @@ class UniversalWorkerAgent:
             
             # Wait for tunnel URL in output
             import re
-            for i in range(30):  # 30 second timeout
+            tunnel_found = False
+            for i in range(60):  # Increased to 60 second timeout for slow connections
                 line = process.stdout.readline()
                 if line:
                     line = line.strip()
                     logger.info(f"[cloudflared] {line}")
                     
-                    if "trycloudflare.com" in line:
+                    # Look for tunnel URL in various formats
+                    if "trycloudflare.com" in line or "Your quick Tunnel" in line or "tunnel" in line.lower():
                         # Try multiple patterns
                         match = re.search(r'https://([a-z0-9]+-[a-z0-9]+-[a-z0-9]+)\.trycloudflare\.com', line)
                         if not match:
-                            match = re.search(r'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                            match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
                         if match:
-                            self.tunnel_url = match.group(0)
-                            logger.info(f"✅ Tunnel created: {self.tunnel_url}")
-                            return self.tunnel_url
+                            url = match.group(0)
+                            # Skip api.trycloudflare.com
+                            if not url.startswith("https://api."):
+                                self.tunnel_url = url
+                                tunnel_found = True
+                                logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                                # Keep process running and return
+                                return self.tunnel_url
                 
                 # Check if process died
-                if process.poll() is not None:
-                    logger.error(f"❌ cloudflared process exited with code {process.returncode}")
+                poll_result = process.poll()
+                if poll_result is not None:
+                    # Get any remaining output
+                    remaining = process.stdout.read()
+                    if remaining:
+                        for remaining_line in remaining.split('\n'):
+                            if remaining_line.strip():
+                                logger.error(f"[cloudflared] {remaining_line.strip()}")
+                    logger.error(f"❌ cloudflared process exited with code {poll_result}")
+                    logger.error("   This may be due to rate limiting or network issues")
+                    logger.error("   Try again in a few minutes or use a named tunnel")
                     break
                     
                 time.sleep(1)
             
-            logger.error("❌ Failed to get tunnel URL")
-            logger.error("   Cloudflared may not be outputting tunnel URL")
-            logger.error("   Check if cloudflared is installed and working")
+            if not tunnel_found:
+                logger.error("❌ Failed to get tunnel URL")
+                logger.error("   Cloudflared started but didn't provide a tunnel URL")
+                logger.error("   This could be rate limiting - Cloudflare limits quick tunnels")
             return None
             
         except Exception as e:
