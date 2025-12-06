@@ -124,6 +124,54 @@ export default {
       }
     }
 
+    // Worker heartbeat - route to coordinator
+    if (path === '/api/worker/heartbeat' && request.method === 'POST') {
+      try {
+        // Get available coordinators
+        const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
+        const coordsResp = await registry.fetch(coordinatorsReq);
+        const coordinators = await coordsResp.json();
+
+        if (coordinators.length === 0) {
+          return new Response(JSON.stringify({ 
+            error: 'No coordinators available'
+          }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Forward heartbeat to coordinator (workers should maintain affinity, but for now use first)
+        const coordinator = coordinators[0];
+        const heartbeatData = await request.json();
+        
+        const coordResponse = await fetch(`${coordinator.tunnel_url}/api/worker/heartbeat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(heartbeatData),
+          signal: AbortSignal.timeout(10000) // 10 second timeout for heartbeat
+        });
+
+        return new Response(await coordResponse.text(), {
+          status: coordResponse.status,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+        
+      } catch (error) {
+        console.error('Worker heartbeat forwarding failed:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to forward heartbeat to coordinator',
+          message: error.message
+        }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Service requests - route to appropriate worker
     if (path.startsWith('/api/service/') || path.startsWith('/service/')) {
       try {

@@ -263,6 +263,18 @@ async def proxy_to_service(service: str, path: str, request: Request):
     # Forward the request to the worker
     try:
         worker_url = worker["tunnel_url"].rstrip("/")
+        
+        # If the URL contains an unresolvable hostname, try using the worker ID (container name)
+        # This handles cases where worker registered with internal hostname instead of tunnel URL
+        from urllib.parse import urlparse
+        parsed = urlparse(worker_url)
+        if parsed.hostname and not parsed.hostname.startswith(('localhost', '127.', '172.', '192.', '10.')):
+            # Try to use worker_id as hostname (likely the container name)
+            if worker_id and worker_id != parsed.hostname:
+                # Replace hostname with worker_id
+                worker_url = f"{parsed.scheme}://{worker_id}:{parsed.port or 8000}"
+                logger.info(f"Replacing unresolvable hostname with container name: {worker_url}")
+        
         target_url = f"{worker_url}{remaining_path}"
         
         logger.info(f"Proxying to worker: {target_url}")

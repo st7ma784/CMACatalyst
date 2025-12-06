@@ -187,10 +187,13 @@ class UniversalWorkerAgent:
             for _ in range(30):  # 30 second timeout
                 line = process.stderr.readline()
                 if "https://" in line and ".trycloudflare.com" in line:
-                    tunnel_url = line.split("https://")[1].split()[0]
-                    self.tunnel_url = f"https://{tunnel_url}"
-                    logger.info(f"✅ Tunnel created: {self.tunnel_url}")
-                    return self.tunnel_url
+                    # Extract URL - handle both plain text and JSON formats
+                    import re
+                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                    if match:
+                        self.tunnel_url = match.group(0)
+                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                        return self.tunnel_url
                 time.sleep(1)
             
             logger.error("❌ Failed to get tunnel URL")
@@ -400,10 +403,13 @@ class UniversalWorkerAgent:
                 for _ in range(30):
                     line = process.stderr.readline()
                     if "https://" in line and ".trycloudflare.com" in line:
-                        tunnel_url = line.split("https://")[1].split()[0]
-                        self.tunnel_url = f"https://{tunnel_url}"
-                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
-                        break
+                        # Extract URL - handle both plain text and JSON formats
+                        import re
+                        match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                        if match:
+                            self.tunnel_url = match.group(0)
+                            logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                            break
                     time.sleep(1)
                 
                 if not self.tunnel_url:
@@ -414,6 +420,9 @@ class UniversalWorkerAgent:
                 public_ip = self.capabilities.get("public_ip", socket.gethostname())
                 self.tunnel_url = f"http://{public_ip}:8080"
                 logger.info(f"ℹ️  Direct access mode: {self.tunnel_url}")
+            else:
+                # Tunnel URL was pre-configured (e.g., named tunnel)
+                logger.info(f"✅ Using pre-configured tunnel: {self.tunnel_url}")
             
             # Register as edge coordinator at api.rmatool.org.uk
             if self.coordinator_url and self.coordinator_url != "http://localhost:8080":
@@ -450,11 +459,32 @@ class UniversalWorkerAgent:
             logger.info("=" * 60)
             logger.info("")
             
-            # Keep tunnel alive
+            # Keep tunnel alive and send heartbeats
+            heartbeat_interval = 60  # Send heartbeat every 60 seconds
+            last_heartbeat = time.time()
+            
             while True:
                 if self.tunnel_process and self.tunnel_process.poll() is not None:
                     logger.error("❌ Tunnel process died")
                     break
+                
+                # Send coordinator heartbeat to edge router
+                current_time = time.time()
+                if current_time - last_heartbeat >= heartbeat_interval:
+                    try:
+                        response = requests.post(
+                            f"{self.coordinator_url}/api/edge/heartbeat",
+                            json={"worker_id": self.worker_id},
+                            timeout=5
+                        )
+                        if response.status_code == 200:
+                            logger.debug("💓 Coordinator heartbeat sent")
+                        else:
+                            logger.warning(f"Coordinator heartbeat returned {response.status_code}")
+                        last_heartbeat = current_time
+                    except Exception as e:
+                        logger.warning(f"Failed to send coordinator heartbeat: {e}")
+                
                 time.sleep(30)
                 
         except KeyboardInterrupt:

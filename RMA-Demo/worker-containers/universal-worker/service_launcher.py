@@ -5,6 +5,8 @@ Dynamically launches services based on coordinator assignments
 Each service runs as a subprocess managed by the worker agent
 """
 
+import os
+import time
 import subprocess
 import logging
 from typing import Optional, Dict, Any
@@ -71,15 +73,36 @@ def launch_service(service_name: str, port: int, capabilities: Dict[str, Any]) -
 def launch_llm_service(port: int, capabilities: Dict[str, Any]) -> Optional[subprocess.Popen]:
     """Launch LLM inference service (vLLM or Ollama)"""
     logger.info(f"Starting LLM inference on port {port}")
-    
-    # Check if we have models directory
+
+    # Check if vLLM is available
+    try:
+        import vllm
+        logger.info("vLLM package found, attempting to start vLLM server")
+    except ImportError:
+        logger.error("vLLM package not installed!")
+        logger.error("Install with: pip install vllm")
+        logger.error("Alternatively, set up Ollama as a lighter alternative")
+        return None
+
+    # Check GPU availability
+    gpu_memory = capabilities.get("gpu_memory", "")
+    if not capabilities.get("has_gpu"):
+        logger.error("No GPU detected - LLM inference requires GPU")
+        logger.error("Consider using CPU-based alternatives like Ollama")
+        return None
+
+    # Model configuration
+    model_name = os.getenv("LLM_MODEL", "meta-llama/Llama-2-7b-chat-hf")
+    logger.info(f"Loading model: {model_name}")
+    logger.info(f"GPU: {capabilities.get('gpu_type')} with {gpu_memory}")
+
     cmd = [
         "python3", "-m", "vllm.entrypoints.api_server",
-        "--model", "meta-llama/Llama-2-7b-chat-hf",
+        "--model", model_name,
         "--port", str(port),
         "--host", "0.0.0.0"
     ]
-    
+
     try:
         process = subprocess.Popen(
             cmd,
@@ -87,9 +110,33 @@ def launch_llm_service(port: int, capabilities: Dict[str, Any]) -> Optional[subp
             stderr=subprocess.PIPE,
             text=True
         )
+
+        # Monitor initial startup for errors
+        import threading
+        def log_output(pipe, prefix):
+            for line in iter(pipe.readline, ''):
+                if line.strip():
+                    logger.info(f"{prefix}: {line.strip()}")
+
+        threading.Thread(target=log_output, args=(process.stdout, "vLLM-stdout"), daemon=True).start()
+        threading.Thread(target=log_output, args=(process.stderr, "vLLM-stderr"), daemon=True).start()
+
+        # Wait a bit to check if it started successfully
+        time.sleep(2)
+        if process.poll() is not None:
+            logger.error(f"vLLM process exited immediately with code {process.poll()}")
+            logger.error("Common issues:")
+            logger.error("  1. Model not downloaded (needs HuggingFace authentication)")
+            logger.error("  2. Insufficient GPU memory (Llama-2-7b needs ~14GB)")
+            logger.error("  3. CUDA version mismatch")
+            return None
+
+        logger.info("✅ vLLM service started successfully")
         return process
+
     except Exception as e:
         logger.error(f"Failed to start LLM service: {e}")
+        logger.error(f"Command: {' '.join(cmd)}")
         return None
 
 

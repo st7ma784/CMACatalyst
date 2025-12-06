@@ -41,7 +41,7 @@ RUN mkdir -p /app/coordinator
 ENV COORDINATOR_URL="http://localhost:8080"
 ENV WORKER_ID=""
 ENV WORKER_TYPE="auto"
-ENV USE_TUNNEL="false"
+ENV USE_TUNNEL="true"
 
 # Auto-detect hardware and register with coordinator
 CMD ["python3", "worker_agent.py"]
