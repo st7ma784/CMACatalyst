@@ -172,6 +172,32 @@ export default {
       }
     }
 
+    // Edge coordinator heartbeat - keep coordinator registered
+    if (path === '/api/edge/heartbeat' && request.method === 'POST') {
+      try {
+        const data = await request.json();
+        
+        // Forward to Durable Object to update last_seen
+        const heartbeatReq = new Request('http://internal/api/edge/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const response = await registry.fetch(heartbeatReq);
+        return response;
+        
+      } catch (error) {
+        console.error('Edge coordinator heartbeat failed:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Heartbeat failed',
+          message: error.message
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Service requests - route to appropriate worker
     if (path.startsWith('/api/service/') || path.startsWith('/service/')) {
       try {
