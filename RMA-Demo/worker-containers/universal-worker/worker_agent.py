@@ -681,10 +681,14 @@ class UniversalWorkerAgent:
             heartbeat_interval = 60  # Send heartbeat every 60 seconds
             last_heartbeat = time.time()
             
+            logger.info("🔄 Starting coordinator heartbeat loop...")
+            
             while True:
-                if self.tunnel_process and self.tunnel_process.poll() is not None:
-                    logger.error("❌ Tunnel process died")
-                    break
+                # Check tunnel process if we created one
+                if self.tunnel_process:
+                    if self.tunnel_process.poll() is not None:
+                        logger.error("❌ Tunnel process died")
+                        break
                 
                 # Send coordinator heartbeat to edge router
                 current_time = time.time()
