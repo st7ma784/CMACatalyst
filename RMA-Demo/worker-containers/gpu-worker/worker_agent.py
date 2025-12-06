@@ -330,11 +330,52 @@ class GPUWorkerAgent:
         except requests.RequestException as e:
             print(f"⚠️  Unregister failed: {e}")
 
+    def download_models(self):
+        """Download models at worker spin-up"""
+        worker_type = os.getenv("WORKER_TYPE", "gpu-worker")
+        print("\n🔧 Downloading models at worker spin-up...")
+        print(f"   Worker Type: {worker_type}")
+        print(f"   Model Cache: {os.getenv('MODEL_CACHE_DIR', '/models')}")
+        print("=" * 60)
+
+        try:
+            # Run model download script
+            result = subprocess.run(
+                ["/usr/local/bin/download-models.sh", worker_type],
+                capture_output=True,
+                text=True,
+                timeout=1800  # 30 minute timeout for large model downloads
+            )
+
+            # Print output
+            if result.stdout:
+                print(result.stdout)
+
+            if result.returncode == 0:
+                print("✅ Model download completed successfully")
+            else:
+                print(f"⚠️  Model download completed with warnings (exit code: {result.returncode})")
+                if result.stderr:
+                    print(f"   Errors: {result.stderr}")
+                print("   Worker will continue, models may download on first use")
+
+        except subprocess.TimeoutExpired:
+            print("⚠️  Model download timed out (30 minutes)")
+            print("   Worker will continue, models may download on first use")
+        except Exception as e:
+            print(f"⚠️  Model download script failed: {e}")
+            print("   Worker will continue, models may download on first use")
+
+        print("=" * 60)
+
     def run(self):
         """Main worker loop"""
         print("=" * 60)
         print("RMA GPU Worker (Containerized)")
         print("=" * 60)
+
+        # Download models at spin-up (not build time)
+        self.download_models()
 
         # Start tunnel if enabled
         if self.use_tunnel:

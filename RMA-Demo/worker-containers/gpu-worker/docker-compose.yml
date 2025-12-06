@@ -1,32 +1,121 @@
 version: '3.8'
 
+# GPU Worker with Model Volume Mounting Support
+# Models download at worker spin-up, not build time
+# Mount /models volume to share models across containers
+
 services:
   gpu-worker:
     build: .
     image: rma-gpu-worker:latest
+
+    # Volume mounts for model sharing
+    # IMPORTANT: Mount these volumes to share models across containers
+    # Example: docker run -v /host/models:/models rma-gpu-worker
+    volumes:
+      # Primary model cache (uncomment to use host volume)
+      # - /path/on/host/models:/models
+      # Or use named volume for persistence
+      - gpu_worker_models:/models
+      # Logs
+      - gpu_worker_logs:/var/log
+
     environment:
+      # Coordinator
       - COORDINATOR_URL=https://api.rmatool.org.uk
+
+      # GPU configuration
       - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - MIN_GPU_MEMORY_GB=8
+
+      # Worker configuration
+      - WORKER_TYPE=gpu-worker
       - USE_TUNNEL=true
       - SERVICE_PORT=8000
       - SERVICE_NAME=vllm-service
+
+      # Model cache locations (shared across containers via volume mount)
+      - MODEL_CACHE_DIR=/models
+      - HF_HOME=/models/huggingface
+      - OLLAMA_MODELS=/models/ollama
+      - VLLM_CACHE=/models/vllm
+
+      # Logging
+      - LOG_LEVEL=INFO
+      - LOG_FILE=/var/log/model-download.log
+
     runtime: nvidia
     restart: unless-stopped
+
     networks:
       - rma-network
+
+    # GPU resource allocation
     deploy:
       resources:
+        limits:
+          memory: 16G  # Adjust based on your system
         reservations:
+          memory: 8G
           devices:
             - driver: nvidia
-              count: 1
+              count: 1  # Use 'all' for multi-GPU
               capabilities: [gpu]
+
     healthcheck:
       test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:8080/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 120s  # Extended for model downloads
+
+  # OCR-specific GPU worker (if needed separately)
+  ocr-gpu-worker:
+    build: .
+    image: rma-gpu-worker:latest
+    profiles: ["ocr"]  # Only start with: docker-compose --profile ocr up
+
+    volumes:
+      - gpu_worker_models:/models  # Share models with main GPU worker
+      - ocr_worker_logs:/var/log
+
+    environment:
+      - COORDINATOR_URL=https://api.rmatool.org.uk
+      - NVIDIA_VISIBLE_DEVICES=all
+      - MIN_GPU_MEMORY_GB=8
+      - WORKER_TYPE=ocr  # OCR-specific worker type
+      - WORKER_SPECIALIZATION=ocr
+      - MODEL_CACHE_DIR=/models
+      - HF_HOME=/models/huggingface
+      - OLLAMA_MODELS=/models/ollama
+
+    runtime: nvidia
+    restart: unless-stopped
+
+    networks:
+      - rma-network
+
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          memory: 6G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  # Named volumes for model persistence
+  # Models are shared across all GPU workers
+  gpu_worker_models:
+    driver: local
+  gpu_worker_logs:
+    driver: local
+  ocr_worker_logs:
+    driver: local
 
 networks:
   rma-network:

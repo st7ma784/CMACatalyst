@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database, Code, Workflow, Network } from 'lucide-react'
 import ManualsViewer from './ManualsViewer'
 
-type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'system-architecture' | 'api-reference' | 'n8n-workflows'
+type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'system-architecture' | 'api-reference' | 'n8n-workflows' | 'worker-deployment'
 
 export default function Documentation() {
   const [activeSection, setActiveSection] = useState<DocSection>('usage')
@@ -125,6 +125,17 @@ export default function Documentation() {
             <Wrench className="h-5 w-5" />
             Troubleshooting
           </button>
+          <button
+            onClick={() => setActiveSection('worker-deployment')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'worker-deployment'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Server className="h-5 w-5" />
+            Distributed Workers
+          </button>
         </nav>
       </div>
 
@@ -140,6 +151,7 @@ export default function Documentation() {
         {activeSection === 'api-reference' && <APIReferenceGuide />}
         {activeSection === 'n8n-workflows' && <N8NWorkflowsGuide />}
         {activeSection === 'troubleshooting' && <TroubleshootingGuide />}
+        {activeSection === 'worker-deployment' && <WorkerDeploymentGuide />}
       </div>
     </div>
   )
@@ -4325,6 +4337,402 @@ kubectl get all -n rma-demo
 kubectl top nodes
 kubectl top pods -n rma-demo`}
         </pre>
+      </div>
+    </div>
+  )
+}
+
+function WorkerDeploymentGuide() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Distributed Worker Deployment</h1>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">What are Distributed Workers?</h3>
+            <p className="text-sm text-blue-700">
+              Workers are compute nodes that can be deployed anywhere - different cities, behind firewalls, 
+              or VPNs - and automatically register with the central system using Cloudflare Tunnels.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Quick Start</h2>
+      
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Option 1: Public Network (Simplest)</h3>
+      <p className="text-gray-700 mb-4">
+        If your worker has a public IP or is on the same network as the coordinator:
+      </p>
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`docker run -d \\
+  --name rma-worker \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e USE_TUNNEL=false \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest`}
+      </pre>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Option 2: Behind Firewall (Recommended)</h3>
+      <p className="text-gray-700 mb-4">
+        For workers behind firewalls, VPNs, or NAT - uses managed Cloudflare Tunnels:
+      </p>
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`docker run -d \\
+  --name rma-worker \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="your_token_here" \\
+  -e CLOUDFLARE_ACCOUNT_ID="your_account_id" \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest`}
+      </pre>
+
+      <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-yellow-800">Need Cloudflare Credentials?</h3>
+            <p className="text-sm text-yellow-700">
+              See the section below for step-by-step instructions on getting your API token and account ID.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Getting Cloudflare Credentials</h2>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Step 1: Get API Token</h3>
+      <ol className="list-decimal list-inside space-y-3 text-gray-700 mb-4">
+        <li>
+          Go to <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Cloudflare API Tokens</a>
+        </li>
+        <li>Click <strong>"Create Token"</strong></li>
+        <li>Select <strong>"Create Additional Tunnels"</strong> template</li>
+        <li>Click <strong>"Use template"</strong></li>
+        <li>Review permissions (should include Cloudflare Tunnel:Edit)</li>
+        <li>Click <strong>"Continue to summary"</strong></li>
+        <li>Click <strong>"Create Token"</strong></li>
+        <li>Copy the token (starts with "ey...")</li>
+      </ol>
+
+      <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-red-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-red-800">Security Warning</h3>
+            <p className="text-sm text-red-700">
+              Never commit API tokens to Git or bake them into container images. 
+              Always pass them as environment variables at runtime.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Step 2: Get Account ID</h3>
+      <ol className="list-decimal list-inside space-y-3 text-gray-700 mb-6">
+        <li>Go to <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">Cloudflare Dashboard</a></li>
+        <li>Select any domain (or Workers & Pages)</li>
+        <li>Look in the right sidebar for <strong>"Account ID"</strong></li>
+        <li>Click the copy icon to copy the ID</li>
+      </ol>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Deployment Options</h2>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Docker Deployment</h3>
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`# Basic deployment
+docker run -d \\
+  --name rma-worker \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="\${CF_TOKEN}" \\
+  -e CLOUDFLARE_ACCOUNT_ID="\${CF_ACCOUNT_ID}" \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# GPU worker (for AI services)
+docker run -d \\
+  --name rma-gpu-worker \\
+  --runtime nvidia \\
+  --gpus all \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="\${CF_TOKEN}" \\
+  -e CLOUDFLARE_ACCOUNT_ID="\${CF_ACCOUNT_ID}" \\
+  -e WORKER_TYPE=gpu \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest`}
+      </pre>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Docker Compose Deployment</h3>
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`version: '3.8'
+services:
+  worker:
+    image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+    environment:
+      COORDINATOR_URL: https://api.rmatool.org.uk
+      CLOUDFLARE_API_TOKEN: \${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_ACCOUNT_ID: \${CLOUDFLARE_ACCOUNT_ID}
+      WORKER_TYPE: cpu
+    restart: unless-stopped
+
+# Then run with:
+# CF_TOKEN=xxx CF_ACCOUNT_ID=yyy docker-compose up -d`}
+      </pre>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Kubernetes Deployment</h3>
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`apiVersion: v1
+kind: Secret
+metadata:
+  name: cloudflare-credentials
+type: Opaque
+stringData:
+  api-token: "your-api-token"
+  account-id: "your-account-id"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rma-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rma-worker
+  template:
+    metadata:
+      labels:
+        app: rma-worker
+    spec:
+      containers:
+      - name: worker
+        image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+        env:
+        - name: COORDINATOR_URL
+          value: "https://api.rmatool.org.uk"
+        - name: CLOUDFLARE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: api-token
+        - name: CLOUDFLARE_ACCOUNT_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: account-id`}
+      </pre>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Environment Variables Reference</h2>
+
+      <div className="overflow-x-auto mb-6">
+        <table className="min-w-full bg-white border border-gray-300">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Variable</th>
+              <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Required</th>
+              <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Description</th>
+              <th className="px-4 py-2 border-b text-left text-sm font-semibold text-gray-700">Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">COORDINATOR_URL</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Yes</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Central API endpoint</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">https://api.rmatool.org.uk</td>
+            </tr>
+            <tr className="bg-gray-50">
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">CLOUDFLARE_API_TOKEN</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Optional*</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">API token for managed tunnels</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">eyJh...xyz</td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">CLOUDFLARE_ACCOUNT_ID</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Optional*</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Cloudflare account ID</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">abc123...</td>
+            </tr>
+            <tr className="bg-gray-50">
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">USE_TUNNEL</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">No</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Enable/disable tunnels</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">true (default)</td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">TUNNEL_URL</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">No</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Pre-configured tunnel URL</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">https://worker.example.com</td>
+            </tr>
+            <tr className="bg-gray-50">
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-900">WORKER_TYPE</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">No</td>
+              <td className="px-4 py-2 border-b text-sm text-gray-700">Worker capabilities</td>
+              <td className="px-4 py-2 border-b text-sm font-mono text-gray-600">cpu, gpu, edge</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-blue-700">
+              * Required if worker is behind a firewall, VPN, or NAT. If both API token and account ID are provided, 
+              a managed tunnel will be created. Otherwise, a quick tunnel will be attempted (rate-limited).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How It Works</h2>
+
+      <div className="space-y-4 mb-6">
+        <div className="border-l-4 border-blue-500 pl-4">
+          <h3 className="font-semibold text-gray-900 mb-2">1. Worker Startup</h3>
+          <p className="text-gray-700">
+            When a worker starts, it checks environment variables to determine tunnel strategy.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-green-500 pl-4">
+          <h3 className="font-semibold text-gray-900 mb-2">2. Tunnel Creation</h3>
+          <p className="text-gray-700">
+            If credentials are provided, creates a managed tunnel (worker-hostname). Otherwise, falls back to quick tunnel.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-purple-500 pl-4">
+          <h3 className="font-semibold text-gray-900 mb-2">3. Registration</h3>
+          <p className="text-gray-700">
+            Worker registers with coordinator using tunnel URL: https://tunnel-id.cfargotunnel.com
+          </p>
+        </div>
+
+        <div className="border-l-4 border-orange-500 pl-4">
+          <h3 className="font-semibold text-gray-900 mb-2">4. Service Assignment</h3>
+          <p className="text-gray-700">
+            Coordinator assigns services based on worker capabilities (GPU workers get AI services).
+          </p>
+        </div>
+
+        <div className="border-l-4 border-red-500 pl-4">
+          <h3 className="font-semibold text-gray-900 mb-2">5. Heartbeat</h3>
+          <p className="text-gray-700">
+            Worker sends heartbeat every 60 seconds to keep registration alive.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Troubleshooting</h2>
+
+      <div className="space-y-4 mb-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Worker Not Registering</h3>
+          <ul className="list-disc list-inside space-y-2 text-gray-700">
+            <li>Check worker logs: <code className="bg-gray-100 px-2 py-1 rounded text-sm">docker logs rma-worker</code></li>
+            <li>Verify COORDINATOR_URL is correct (should be https://api.rmatool.org.uk)</li>
+            <li>Check network connectivity: <code className="bg-gray-100 px-2 py-1 rounded text-sm">curl https://api.rmatool.org.uk/api/edge/health</code></li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Tunnel Creation Failed - EOF Error</h3>
+          <ul className="list-disc list-inside space-y-2 text-gray-700">
+            <li>This means quick tunnels are blocked by your network/firewall</li>
+            <li>Solution: Use managed tunnels with API token and account ID</li>
+            <li>Managed tunnels authenticate and work through most firewalls</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Invalid API Token</h3>
+          <ul className="list-disc list-inside space-y-2 text-gray-700">
+            <li>Verify token is correct (should start with "ey")</li>
+            <li>Check token permissions include "Cloudflare Tunnel: Edit"</li>
+            <li>Token might be expired - create a new one</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Worker Disappears After 5 Minutes</h3>
+          <ul className="list-disc list-inside space-y-2 text-gray-700">
+            <li>This is fixed in the latest image - update to latest:</li>
+            <li><code className="bg-gray-100 px-2 py-1 rounded text-sm">docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</code></li>
+            <li>Worker now sends heartbeats automatically to stay registered</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Multiple Workers</h2>
+      
+      <p className="text-gray-700 mb-4">
+        You can deploy multiple workers with the same API token. Each worker will create its own unique tunnel.
+      </p>
+
+      <pre className="bg-gray-900 text-green-400 p-4 rounded overflow-x-auto text-sm mb-6">
+{`# Deploy worker 1 in London
+docker run -d --name worker-london \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="\${CF_TOKEN}" \\
+  -e CLOUDFLARE_ACCOUNT_ID="\${CF_ACCOUNT_ID}" \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Deploy worker 2 in Manchester
+docker run -d --name worker-manchester \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="\${CF_TOKEN}" \\
+  -e CLOUDFLARE_ACCOUNT_ID="\${CF_ACCOUNT_ID}" \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+
+# Deploy GPU worker in Birmingham
+docker run -d --name worker-birmingham-gpu \\
+  --runtime nvidia --gpus all \\
+  -e COORDINATOR_URL=https://api.rmatool.org.uk \\
+  -e CLOUDFLARE_API_TOKEN="\${CF_TOKEN}" \\
+  -e CLOUDFLARE_ACCOUNT_ID="\${CF_ACCOUNT_ID}" \\
+  -e WORKER_TYPE=gpu \\
+  ghcr.io/st7ma784/cmacatalyst/universal-worker:latest`}
+      </pre>
+
+      <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-green-800">Automatic Load Balancing</h3>
+            <p className="text-sm text-green-700">
+              The system automatically distributes work across all registered workers. 
+              GPU workers are prioritized for AI/ML tasks, CPU workers handle general processing.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Security Best Practices</h2>
+
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Never</strong> commit API tokens to Git repositories</li>
+        <li><strong>Never</strong> bake credentials into container images</li>
+        <li>Use environment variables or secrets management (Kubernetes secrets, AWS Secrets Manager, etc.)</li>
+        <li>Rotate API tokens periodically (every 90 days recommended)</li>
+        <li>Use dedicated service accounts for production deployments</li>
+        <li>Monitor worker logs for suspicious activity</li>
+        <li>Keep worker images up to date: <code className="bg-gray-100 px-2 py-1 rounded text-sm">docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</code></li>
+      </ul>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Need Help?</h2>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <p className="text-gray-700 mb-3">
+          If you're having issues deploying distributed workers:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-gray-700">
+          <li>Check the <strong>Troubleshooting</strong> section in this documentation</li>
+          <li>Review worker logs for error messages</li>
+          <li>Verify your Cloudflare credentials are correct</li>
+          <li>Ensure your firewall allows outbound HTTPS connections</li>
+          <li>Contact support with worker logs and deployment details</li>
+        </ul>
       </div>
     </div>
   )
