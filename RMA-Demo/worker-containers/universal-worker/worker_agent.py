@@ -187,9 +187,18 @@ class UniversalWorkerAgent:
             for _ in range(30):  # 30 second timeout
                 line = process.stderr.readline()
                 if "https://" in line and ".trycloudflare.com" in line:
-                    # Extract URL - handle both plain text and JSON formats
+                    # Log the actual line for debugging
+                    logger.debug(f"Cloudflared output: {line.strip()}")
+                    # Extract URL - match subdomain.trycloudflare.com (not api.trycloudflare.com)
                     import re
-                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                    # Look for pattern like https://abc-xyz-123.trycloudflare.com
+                    match = re.search(r'https://([a-z0-9]+-[a-z0-9]+-[a-z0-9]+)\.trycloudflare\.com', line)
+                    if match:
+                        self.tunnel_url = match.group(0)
+                        logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                        return self.tunnel_url
+                    # Fallback to any subdomain except 'api'
+                    match = re.search(r'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com', line)
                     if match:
                         self.tunnel_url = match.group(0)
                         logger.info(f"✅ Tunnel created: {self.tunnel_url}")
@@ -403,9 +412,18 @@ class UniversalWorkerAgent:
                 for _ in range(30):
                     line = process.stderr.readline()
                     if "https://" in line and ".trycloudflare.com" in line:
-                        # Extract URL - handle both plain text and JSON formats
+                        # Log the actual line for debugging
+                        logger.debug(f"Cloudflared output: {line.strip()}")
+                        # Extract URL - match subdomain.trycloudflare.com (not api.trycloudflare.com)
                         import re
-                        match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                        # Look for pattern like https://abc-xyz-123.trycloudflare.com
+                        match = re.search(r'https://([a-z0-9]+-[a-z0-9]+-[a-z0-9]+)\.trycloudflare\.com', line)
+                        if match:
+                            self.tunnel_url = match.group(0)
+                            logger.info(f"✅ Tunnel created: {self.tunnel_url}")
+                            break
+                        # Fallback to any subdomain except 'api'
+                        match = re.search(r'https://(?!api\.)[a-zA-Z0-9-]+\.trycloudflare\.com', line)
                         if match:
                             self.tunnel_url = match.group(0)
                             logger.info(f"✅ Tunnel created: {self.tunnel_url}")
