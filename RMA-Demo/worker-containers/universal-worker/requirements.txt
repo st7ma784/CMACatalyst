@@ -10,11 +10,12 @@ aiohttp>=3.9.0
 kademlia==2.2.2
 
 # GPU libraries (optional, only used if GPU detected)
+# Note: vllm is NOT included in base image due to size (326MB)
+# It will be installed at runtime if llm-inference service is assigned
 torch>=2.1.0
 transformers>=4.35.0
 accelerate>=0.25.0
 bitsandbytes>=0.41.0
-vllm>=0.2.0  # For LLM inference service
 
 # Storage libraries
 chromadb>=0.4.0

@@ -17,11 +17,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cloudflared for automatic tunnel creation
-RUN ARCH=$(dpkg --print-architecture) && \
-    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}.deb \
-    && dpkg -i cloudflared-linux-${ARCH}.deb \
-    && rm cloudflared-linux-${ARCH}.deb
+# Install cloudflared for automatic tunnel creation (x86_64 only)
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb \
+    && dpkg -i cloudflared-linux-amd64.deb \
+    && rm cloudflared-linux-amd64.deb
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .

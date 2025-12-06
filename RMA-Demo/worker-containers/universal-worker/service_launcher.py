@@ -74,15 +74,23 @@ def launch_llm_service(port: int, capabilities: Dict[str, Any]) -> Optional[subp
     """Launch LLM inference service (vLLM or Ollama)"""
     logger.info(f"Starting LLM inference on port {port}")
 
-    # Check if vLLM is available
+    # Check if vLLM is available, install if needed
     try:
         import vllm
         logger.info("vLLM package found, attempting to start vLLM server")
     except ImportError:
-        logger.error("vLLM package not installed!")
-        logger.error("Install with: pip install vllm")
-        logger.error("Alternatively, set up Ollama as a lighter alternative")
-        return None
+        logger.warning("vLLM package not installed, installing now...")
+        logger.info("This may take a few minutes (326MB download)...")
+        try:
+            subprocess.check_call([
+                "pip3", "install", "--no-cache-dir", "vllm>=0.2.0"
+            ])
+            logger.info("✅ vLLM installed successfully")
+            import vllm
+        except Exception as e:
+            logger.error(f"Failed to install vLLM: {e}")
+            logger.error("Alternatively, set up Ollama as a lighter alternative")
+            return None
 
     # Check GPU availability
     gpu_memory = capabilities.get("gpu_memory", "")
