@@ -170,6 +170,11 @@ class UniversalWorkerAgent:
             logger.info("⏭️  Tunnel disabled, using direct connection")
             return None
         
+        # Check for pre-configured tunnel URL (named tunnel managed externally)
+        if self.tunnel_url:
+            logger.info(f"✅ Using pre-configured tunnel: {self.tunnel_url}")
+            return self.tunnel_url
+        
         # Check if cloudflared is installed
         try:
             result = subprocess.run(["which", "cloudflared"], capture_output=True, text=True)
@@ -182,7 +187,96 @@ class UniversalWorkerAgent:
             logger.error(f"❌ Failed to check for cloudflared: {e}")
             return None
         
-        logger.info("🌐 Creating Cloudflare Tunnel...")
+        # Check for Cloudflare credentials for managed tunnels
+        cf_api_token = os.getenv("CLOUDFLARE_API_TOKEN")
+        cf_account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+        
+        if cf_api_token and cf_account_id:
+            # Use managed tunnel with credentials
+            return self.create_managed_tunnel(cf_api_token, cf_account_id)
+        else:
+            # Fallback to quick tunnel (anonymous, may be rate limited)
+            logger.info("ℹ️  No CLOUDFLARE_API_TOKEN found, using quick tunnel")
+            logger.info("   Quick tunnels have rate limits and no uptime guarantee")
+            logger.info("   For production, set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID")
+            return self.create_quick_tunnel()
+    
+    def create_managed_tunnel(self, api_token: str, account_id: str) -> Optional[str]:
+        """Create a managed Cloudflare Tunnel with persistent credentials"""
+        tunnel_name = f"worker-{self.worker_id or socket.gethostname()}"
+        logger.info(f"🌐 Creating managed Cloudflare Tunnel: {tunnel_name}")
+        
+        try:
+            # Login with API token
+            login_result = subprocess.run(
+                ["cloudflared", "tunnel", "login"],
+                env={**os.environ, "CLOUDFLARE_API_TOKEN": api_token},
+                capture_output=True,
+                text=True
+            )
+            
+            if login_result.returncode != 0:
+                logger.error(f"Failed to login: {login_result.stderr}")
+                logger.info("Falling back to quick tunnel...")
+                return self.create_quick_tunnel()
+            
+            # Create tunnel
+            create_result = subprocess.run(
+                ["cloudflared", "tunnel", "create", tunnel_name],
+                capture_output=True,
+                text=True
+            )
+            
+            if create_result.returncode != 0:
+                # Tunnel might already exist
+                if "already exists" in create_result.stderr:
+                    logger.info(f"Tunnel {tunnel_name} already exists, using it")
+                else:
+                    logger.error(f"Failed to create tunnel: {create_result.stderr}")
+                    return self.create_quick_tunnel()
+            
+            # Get tunnel ID
+            list_result = subprocess.run(
+                ["cloudflared", "tunnel", "list", "--output", "json"],
+                capture_output=True,
+                text=True
+            )
+            
+            import json
+            tunnels = json.loads(list_result.stdout)
+            tunnel = next((t for t in tunnels if t.get("name") == tunnel_name), None)
+            
+            if not tunnel:
+                logger.error("Failed to find created tunnel")
+                return self.create_quick_tunnel()
+            
+            tunnel_id = tunnel["id"]
+            logger.info(f"✅ Tunnel created: {tunnel_id}")
+            
+            # Start tunnel
+            process = subprocess.Popen(
+                ["cloudflared", "tunnel", "run", "--url", "http://localhost:8000", tunnel_id],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+            
+            self.tunnel_process = process
+            
+            # The tunnel URL will be: https://<tunnel-id>.cfargotunnel.com
+            self.tunnel_url = f"https://{tunnel_id}.cfargotunnel.com"
+            logger.info(f"✅ Managed tunnel started: {self.tunnel_url}")
+            return self.tunnel_url
+            
+        except Exception as e:
+            logger.error(f"Failed to create managed tunnel: {e}")
+            logger.info("Falling back to quick tunnel...")
+            return self.create_quick_tunnel()
+    
+    def create_quick_tunnel(self) -> Optional[str]:
+        """Create an anonymous quick tunnel (rate limited, no uptime guarantee)"""
+        logger.info("🌐 Creating Cloudflare Quick Tunnel...")
         
         try:
             # Start cloudflared tunnel with unbuffered output
