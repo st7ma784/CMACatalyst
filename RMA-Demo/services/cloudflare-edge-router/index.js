@@ -13,6 +13,18 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Handle CORS preflight requests
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+
     // Get Durable Object instance
     const id = env.COORDINATOR_REGISTRY.idFromName('global');
     const registry = env.COORDINATOR_REGISTRY.get(id);
@@ -113,25 +125,62 @@ export default {
     }
 
     // Service requests - route to appropriate worker
-    if (path.startsWith('/api/service/')) {
-      // Get coordinators
-      const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
-      const coordsResp = await registry.fetch(coordinatorsReq);
-      const coordinators = await coordsResp.json();
+    if (path.startsWith('/api/service/') || path.startsWith('/service/')) {
+      try {
+        // Get coordinators
+        const coordinatorsReq = new Request('http://internal/coordinators', { method: 'GET' });
+        const coordsResp = await registry.fetch(coordinatorsReq);
+        const coordinators = await coordsResp.json();
 
-      if (coordinators.length === 0) {
-        return new Response('No coordinators available', { status: 503 });
+        if (coordinators.length === 0) {
+          return new Response(JSON.stringify({
+            error: 'No coordinators available',
+            message: 'No edge coordinators are currently registered'
+          }), {
+            status: 503,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+            }
+          });
+        }
+
+        // Route to random coordinator (they'll handle the service lookup)
+        const coordinator = coordinators[Math.floor(Math.random() * coordinators.length)];
+        const serviceResponse = await fetch(`${coordinator.tunnel_url}${path}`, {
+          method: request.method,
+          headers: request.headers,
+          body: request.body,
+          signal: AbortSignal.timeout(30000)
+        });
+
+        // Clone response and add CORS headers
+        const responseBody = await serviceResponse.text();
+        return new Response(responseBody, {
+          status: serviceResponse.status,
+          headers: {
+            'Content-Type': serviceResponse.headers.get('Content-Type') || 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
+        });
+        
+      } catch (error) {
+        console.error('Service routing failed:', error);
+        return new Response(JSON.stringify({
+          error: 'Service routing failed',
+          message: error.message
+        }), {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
       }
-
-      // Route to random coordinator (they'll handle the service lookup)
-      const coordinator = coordinators[Math.floor(Math.random() * coordinators.length)];
-      const serviceResponse = await fetch(`${coordinator.tunnel_url}${path}`, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body
-      });
-
-      return serviceResponse;
     }
 
     // DHT Bootstrap endpoint
