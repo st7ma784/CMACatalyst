@@ -87,7 +87,9 @@ When a worker starts:
    - If set, use it directly ✅
 
 2. **Check for Cloudflare credentials** (`CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`)
-   - If set, create managed tunnel named `worker-{hostname}`
+   - Uses Cloudflare API to create tunnel (non-interactive, no browser needed)
+   - Creates credentials file: `~/.cloudflared/{tunnel-id}.json`
+   - Starts cloudflared with credentials file
    - Tunnel gets permanent URL: `https://{tunnel-id}.cfargotunnel.com`
    - Tunnel persists across restarts ✅
 

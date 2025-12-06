@@ -202,60 +202,90 @@ class UniversalWorkerAgent:
             return self.create_quick_tunnel()
     
     def create_managed_tunnel(self, api_token: str, account_id: str) -> Optional[str]:
-        """Create a managed Cloudflare Tunnel with persistent credentials"""
+        """Create a managed Cloudflare Tunnel using API (non-interactive)"""
         tunnel_name = f"worker-{self.worker_id or socket.gethostname()}"
-        logger.info(f"🌐 Creating managed Cloudflare Tunnel: {tunnel_name}")
+        logger.info(f"🌐 Creating managed Cloudflare Tunnel via API: {tunnel_name}")
         
         try:
-            # Login with API token
-            login_result = subprocess.run(
-                ["cloudflared", "tunnel", "login"],
-                env={**os.environ, "CLOUDFLARE_API_TOKEN": api_token},
-                capture_output=True,
-                text=True
-            )
+            import requests
+            import json
+            import uuid
+            import os
             
-            if login_result.returncode != 0:
-                logger.error(f"Failed to login: {login_result.stderr}")
+            # Create tunnel via Cloudflare API
+            headers = {
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json"
+            }
+            
+            # Generate tunnel secret
+            tunnel_secret = str(uuid.uuid4()).replace("-", "")
+            
+            # Create tunnel via API
+            create_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/cfd_tunnel"
+            create_payload = {
+                "name": tunnel_name,
+                "tunnel_secret": tunnel_secret
+            }
+            
+            logger.info(f"Creating tunnel via API: {tunnel_name}")
+            response = requests.post(create_url, headers=headers, json=create_payload, timeout=10)
+            
+            if response.status_code == 409:
+                # Tunnel already exists, try to get existing tunnel
+                logger.info(f"Tunnel {tunnel_name} already exists, fetching existing tunnel...")
+                list_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/cfd_tunnel"
+                list_response = requests.get(list_url, headers=headers, timeout=10)
+                
+                if list_response.status_code != 200:
+                    logger.error(f"Failed to list tunnels: {list_response.text}")
+                    logger.info("Falling back to quick tunnel...")
+                    return self.create_quick_tunnel()
+                
+                tunnels = list_response.json().get("result", [])
+                tunnel = next((t for t in tunnels if t.get("name") == tunnel_name), None)
+                
+                if not tunnel:
+                    logger.error(f"Could not find existing tunnel {tunnel_name}")
+                    logger.info("Falling back to quick tunnel...")
+                    return self.create_quick_tunnel()
+                
+                tunnel_id = tunnel["id"]
+                logger.info(f"Using existing tunnel: {tunnel_id}")
+                
+            elif response.status_code == 200 or response.status_code == 201:
+                result = response.json().get("result", {})
+                tunnel_id = result.get("id")
+                logger.info(f"✅ Tunnel created via API: {tunnel_id}")
+            else:
+                logger.error(f"Failed to create tunnel via API: {response.status_code} - {response.text}")
                 logger.info("Falling back to quick tunnel...")
                 return self.create_quick_tunnel()
             
-            # Create tunnel
-            create_result = subprocess.run(
-                ["cloudflared", "tunnel", "create", tunnel_name],
-                capture_output=True,
-                text=True
-            )
+            # Create credentials file for cloudflared
+            credentials_dir = os.path.expanduser("~/.cloudflared")
+            os.makedirs(credentials_dir, exist_ok=True)
             
-            if create_result.returncode != 0:
-                # Tunnel might already exist
-                if "already exists" in create_result.stderr:
-                    logger.info(f"Tunnel {tunnel_name} already exists, using it")
-                else:
-                    logger.error(f"Failed to create tunnel: {create_result.stderr}")
-                    return self.create_quick_tunnel()
+            credentials_file = os.path.join(credentials_dir, f"{tunnel_id}.json")
+            credentials = {
+                "AccountTag": account_id,
+                "TunnelSecret": tunnel_secret,
+                "TunnelID": tunnel_id
+            }
             
-            # Get tunnel ID
-            list_result = subprocess.run(
-                ["cloudflared", "tunnel", "list", "--output", "json"],
-                capture_output=True,
-                text=True
-            )
+            with open(credentials_file, "w") as f:
+                json.dump(credentials, f)
             
-            import json
-            tunnels = json.loads(list_result.stdout)
-            tunnel = next((t for t in tunnels if t.get("name") == tunnel_name), None)
+            logger.info(f"✅ Credentials file created: {credentials_file}")
             
-            if not tunnel:
-                logger.error("Failed to find created tunnel")
-                return self.create_quick_tunnel()
-            
-            tunnel_id = tunnel["id"]
-            logger.info(f"✅ Tunnel created: {tunnel_id}")
-            
-            # Start tunnel
+            # Start tunnel with credentials file
             process = subprocess.Popen(
-                ["cloudflared", "tunnel", "run", "--url", "http://localhost:8000", tunnel_id],
+                [
+                    "cloudflared", "tunnel", "run",
+                    "--url", "http://localhost:8000",
+                    "--credentials-file", credentials_file,
+                    tunnel_id
+                ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -267,10 +297,16 @@ class UniversalWorkerAgent:
             # The tunnel URL will be: https://<tunnel-id>.cfargotunnel.com
             self.tunnel_url = f"https://{tunnel_id}.cfargotunnel.com"
             logger.info(f"✅ Managed tunnel started: {self.tunnel_url}")
+            
+            # Wait a moment for tunnel to initialize
+            time.sleep(2)
+            
             return self.tunnel_url
             
         except Exception as e:
             logger.error(f"Failed to create managed tunnel: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             logger.info("Falling back to quick tunnel...")
             return self.create_quick_tunnel()
     
