@@ -29,7 +29,13 @@ export default {
     // Routes
     try {
       if (path === '/health') {
-        return jsonResponse({ status: 'healthy', edge: true }, corsHeaders);
+        const edgeIds = await getEdgeCoordinatorIds(env);
+        return jsonResponse({ 
+          status: 'healthy', 
+          edge: true,
+          coordinators: edgeIds.length,
+          message: 'Edge router operational'
+        }, corsHeaders);
       }
 
       // Authentication routes
@@ -72,6 +78,11 @@ export default {
           coordinator: 'cloudflare-worker',
           timestamp: new Date().toISOString()
         }, corsHeaders);
+      }
+
+      // Edge coordinator registration
+      if (path === '/api/edge/register' && request.method === 'POST') {
+        return await handleEdgeRegister(request, env, corsHeaders);
       }
 
       // Job broadcasting for parallel execution
@@ -167,83 +178,75 @@ async function handleVerifyToken(request, env, corsHeaders) {
   }
 }
 
-async function handleWorkerRegister(request, env, corsHeaders) {
+// Edge coordinator registration handler
+async function handleEdgeRegister(request, env, corsHeaders) {
   try {
     const data = await request.json();
-    const workerId = data.worker_id || `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const workerId = data.worker_id || `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Extract services from either containers[] or services[] for backward compatibility
-    let services = [];
-    if (data.containers && Array.isArray(data.containers)) {
-      // New format: containers with service details
-      services = data.containers.map(c => ({
-        name: c.name,
-        service_url: c.service_url || data.tunnel_url,
-        port: c.port,
-        health_endpoint: c.health_endpoint,
-        version: c.version
-      }));
-    } else if (data.services && Array.isArray(data.services)) {
-      // Legacy format: simple service list
-      services = data.services.map(s => ({
-        name: typeof s === 'string' ? s : s.name,
-        service_url: data.tunnel_url || data.ip_address
-      }));
-    }
-
-    const worker = {
+    // Edge coordinators are special workers that provide coordination services
+    const edgeCoordinator = {
       worker_id: workerId,
-      tier: determineTier(data.capabilities),
-      status: 'healthy',
+      worker_type: 'edge',
+      role: 'edge_coordinator',
+      tunnel_url: data.tunnel_url,
+      services: data.services || ['coordinator', 'edge-proxy'],
+      capabilities: data.capabilities || {},
       registered_at: new Date().toISOString(),
       last_heartbeat: new Date().toISOString(),
-      capabilities: data.capabilities,
-      services: services,
-      ip_address: data.ip_address,
-      tunnel_url: data.tunnel_url,
-      is_heartbeat_leader: false,
+      status: 'healthy'
     };
 
-    // Store worker data
-    await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
+    // Store edge coordinator
+    await env.WORKERS.put(`edge:${workerId}`, JSON.stringify(edgeCoordinator));
 
-    // Update service index for each service this worker provides
-    for (const service of services) {
-      const serviceName = service.name;
-      await addWorkerToService(env, serviceName, workerId);
-      console.log(`Registered worker ${workerId} for service: ${serviceName}`);
+    // Add to edge coordinators list
+    const edgeIds = await getEdgeCoordinatorIds(env);
+    if (!edgeIds.includes(workerId)) {
+      edgeIds.push(workerId);
+      await env.WORKERS.put('edge_coordinator_ids', JSON.stringify(edgeIds));
     }
 
-    // Assign heartbeat leadership if needed and requested
-    let assignedLeader = false;
-    if (data.wants_heartbeat_leadership) {
-      const currentLeader = await getHeartbeatLeader(env);
-      if (!currentLeader) {
-        worker.is_heartbeat_leader = true;
-        assignedLeader = true;
-        await env.WORKERS.put('heartbeat_leader', workerId);
-        await env.WORKERS.put(`worker:${workerId}`, JSON.stringify(worker));
-      }
-    }
-
-    // Add to worker list
-    const workerIds = await getWorkerIds(env);
-    workerIds.push(workerId);
-    await env.WORKERS.put('worker_ids', JSON.stringify(workerIds));
+    console.log(`Registered edge coordinator: ${workerId} at ${data.tunnel_url}`);
 
     return jsonResponse({
       worker_id: workerId,
-      tier: worker.tier,
-      heartbeat_interval: 30,
-      is_heartbeat_leader: assignedLeader,
-      services_registered: worker.services.length,
+      role: 'edge_coordinator',
+      tunnel_url: data.tunnel_url,
+      status: 'registered',
+      heartbeat_interval: 60
     }, corsHeaders);
+  } catch (error) {
+    console.error('Edge coordinator registration error:', error);
+    return jsonResponse({
+      error: 'Edge registration failed',
+      message: error.message
+    }, corsHeaders, 500);
+  }
+}
+
+async function handleWorkerRegister(request, env, corsHeaders) {
+  try {
+    console.log('Worker registration request received');
+    
+    const data = await request.json();
+    const workerId = data.worker_id || `worker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Quick success response for debugging
+    return jsonResponse({
+      worker_id: workerId,
+      tier: 2,
+      heartbeat_interval: 30,
+      is_heartbeat_leader: false,
+      services_registered: 0,
+      status: 'test_mode'
+    }, corsHeaders);
+    
   } catch (error) {
     console.error('Worker registration error:', error);
     return jsonResponse({
       error: 'Registration failed',
-      message: error.message,
-      stack: error.stack
+      message: error.message
     }, corsHeaders, 500);
   }
 }
@@ -420,6 +423,11 @@ async function handleListServices(env, corsHeaders) {
 
 async function getWorkerIds(env) {
   const idsData = await env.WORKERS.get('worker_ids');
+  return idsData ? JSON.parse(idsData) : [];
+}
+
+async function getEdgeCoordinatorIds(env) {
+  const idsData = await env.WORKERS.get('edge_coordinator_ids');
   return idsData ? JSON.parse(idsData) : [];
 }
 

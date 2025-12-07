@@ -38,9 +38,16 @@ services:
     volumes:
       - ./cloudflared-config.yml:/etc/cloudflared/config.yml:ro
       - ./tunnel-credentials.json:/etc/cloudflared/credentials.json:ro
-    # No depends_on - coordinator should run independently
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+      - 1.0.0.1
+    extra_hosts:
+      - "api.cloudflare.com:104.16.132.229"
+      - "api.cloudflare.com:104.16.133.229"
     networks:
       - edge-network
+    # No depends_on - coordinator should run independently
 
   registrar:
     image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
@@ -50,9 +57,14 @@ services:
       - WORKER_TYPE=edge
       - COORDINATOR_URL=https://api.rmatool.org.uk
       - TUNNEL_URL=https://edge-1.rmatool.org.uk
-    # No depends_on - should keep trying independently
+      - LOCAL_COORDINATOR_URL=http://coordinator:8080
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+      - 1.0.0.1
     networks:
       - edge-network
+    # No depends_on - should keep trying independently
 
 networks:
   edge-network:

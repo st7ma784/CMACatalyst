@@ -412,13 +412,12 @@ class UniversalWorkerAgent:
         """Register worker and receive service assignments"""
         logger.info("📝 Registering with coordinator...")
         
-        # Get tunnel URL and try to resolve to IP
+        # Use tunnel URL directly without IP resolution
         tunnel_url = self.tunnel_url or f"http://{socket.gethostname()}:8000"
-        resolved_url = self.resolve_tunnel_to_ip(tunnel_url)
         
         registration_data = {
             "worker_id": self.worker_id,
-            "tunnel_url": resolved_url,
+            "tunnel_url": tunnel_url,
             "capabilities": self.capabilities
         }
         
