@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { BookOpen, Server, Globe, Zap, HelpCircle, FileText, Wrench, Database, Code, Workflow, Network } from 'lucide-react'
 import ManualsViewer from './ManualsViewer'
 
-type DocSection = 'usage' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'system-architecture' | 'api-reference' | 'n8n-workflows' | 'worker-deployment'
+type DocSection = 'usage' | 'getting-started-local' | 'getting-started-distributed' | 'deployment' | 'domain' | 'aws' | 'troubleshooting' | 'manuals' | 'ai-architecture' | 'system-architecture' | 'api-reference' | 'n8n-workflows' | 'worker-deployment'
 
 export default function Documentation() {
-  const [activeSection, setActiveSection] = useState<DocSection>('usage')
+  const [activeSection, setActiveSection] = useState<DocSection>('getting-started-local')
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-8 h-[calc(100vh-16rem)] flex">
@@ -15,6 +15,28 @@ export default function Documentation() {
       <div className="w-64 border-r border-gray-200 pr-6 mr-6">
         <h2 className="text-xl font-bold mb-4 text-gray-900">Documentation</h2>
         <nav className="space-y-2">
+          <button
+            onClick={() => setActiveSection('getting-started-local')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'getting-started-local'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Zap className="h-5 w-5" />
+            Getting Started (Local)
+          </button>
+          <button
+            onClick={() => setActiveSection('getting-started-distributed')}
+            className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
+              activeSection === 'getting-started-distributed'
+                ? 'bg-blue-50 text-blue-700 font-medium'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Network className="h-5 w-5" />
+            Getting Started (Distributed)
+          </button>
           <button
             onClick={() => setActiveSection('manuals')}
             className={`w-full flex items-center gap-3 px-4 py-2 rounded-md text-left transition-colors ${
@@ -141,6 +163,8 @@ export default function Documentation() {
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto">
+        {activeSection === 'getting-started-local' && <GettingStartedLocal />}
+        {activeSection === 'getting-started-distributed' && <GettingStartedDistributed />}
         {activeSection === 'manuals' && <ManualsViewer />}
         {activeSection === 'usage' && <UsageGuide />}
         {activeSection === 'ai-architecture' && <AIArchitectureGuide />}
@@ -408,6 +432,324 @@ Priority: Council tax payment plan first`}
               <li>Report any security concerns immediately</li>
             </ul>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GettingStartedLocal() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Getting Started - Local Deployment</h1>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Perfect For</h3>
+            <p className="text-sm text-blue-700">
+              Development, testing, and single-machine deployments
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Prerequisites</h2>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li>Docker & Docker Compose</li>
+        <li>8GB RAM minimum (16GB recommended)</li>
+        <li>20GB free disk space</li>
+        <li>(Optional) NVIDIA GPU with 8GB+ VRAM</li>
+      </ul>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Quick Setup (5 Minutes)</h2>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div className="mb-2 text-gray-400"># Navigate to project</div>
+        <div>cd RMA-Demo</div>
+        <div className="mt-4 mb-2 text-gray-400"># Start edge coordinator</div>
+        <div>docker compose -f edge-coordinator.yml up -d</div>
+        <div className="mt-4 mb-2 text-gray-400"># Verify it's running</div>
+        <div>docker ps</div>
+        <div>curl http://localhost:8080/health</div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Access Points</h3>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Coordinator:</strong> http://localhost:8080</li>
+        <li><strong>Frontend:</strong> https://rmatool.org.uk (or deploy locally)</li>
+        <li><strong>System Status:</strong> Frontend → System tab</li>
+      </ul>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">What's Running</h3>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <ul className="space-y-2 text-sm text-gray-700">
+          <li><strong>edge-coordinator</strong> - FastAPI coordinator (port 8080)</li>
+          <li><strong>edge-tunnel</strong> - Cloudflare tunnel (connects to api.rmatool.org.uk)</li>
+          <li><strong>edge-registrar</strong> - Auto-registers coordinator with Cloudflare</li>
+        </ul>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Next Steps</h2>
+      <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Add Workers</strong> - Deploy CPU/GPU workers to process requests</li>
+        <li><strong>Monitor</strong> - Check System tab for registered workers</li>
+        <li><strong>Use</strong> - Upload documents, ask questions, analyze debts</li>
+      </ol>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Adding Workers Locally</h2>
+      <p className="text-gray-700 mb-4">
+        Once your coordinator is running, add workers on the same machine:
+      </p>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">CPU Worker</h3>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
+        <div>export COORDINATOR_URL=http://localhost:8080</div>
+        <div>docker compose up -d</div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">GPU Worker (if you have a GPU)</h3>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo/worker-containers/gpu-worker</div>
+        <div>export COORDINATOR_URL=http://localhost:8080</div>
+        <div>docker compose up -d</div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Verifying Everything Works</h2>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div className="mb-2 text-gray-400"># Check coordinator health</div>
+        <div>curl http://localhost:8080/health</div>
+        <div className="mt-4 mb-2 text-gray-400"># List registered workers</div>
+        <div>curl http://localhost:8080/api/admin/workers</div>
+        <div className="mt-4 mb-2 text-gray-400"># Check system stats</div>
+        <div>curl http://localhost:8080/api/admin/stats</div>
+      </div>
+
+      <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-green-800">Success!</h3>
+            <p className="text-sm text-green-700">
+              Your local RMA system is now running. Visit https://rmatool.org.uk and check the System tab to see your registered workers.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Troubleshooting</h2>
+      <div className="space-y-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="font-semibold text-yellow-900 mb-2">Port 8080 already in use?</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>sudo lsof -i :8080</div>
+            <div className="text-gray-400"># Kill the process or change port in docker-compose</div>
+          </div>
+        </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="font-semibold text-yellow-900 mb-2">Workers not appearing in System tab?</h4>
+          <p className="text-sm text-yellow-800 mb-2">Check worker logs:</p>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>docker logs cpu-worker-1</div>
+          </div>
+          <p className="text-sm text-yellow-800 mt-2">Verify coordinator URL:</p>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>echo $COORDINATOR_URL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GettingStartedDistributed() {
+  return (
+    <div className="prose max-w-none">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Getting Started - Distributed Deployment</h1>
+
+      <div className="bg-purple-50 border-l-4 border-purple-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-purple-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-purple-800">Perfect For</h3>
+            <p className="text-sm text-purple-700">
+              Production deployments, multiple machines, and volunteer networks
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Architecture Overview</h2>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <pre className="text-sm text-gray-700 overflow-x-auto">
+{`Users → Frontend (Cloudflare Pages)
+     → Edge Router (Cloudflare Worker)
+     → Edge Coordinators (Your machines)
+     → Workers (Distributed compute)`}
+        </pre>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Prerequisites</h2>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Coordinator Machine</h3>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-4">
+        <li>2GB RAM, 1 CPU core</li>
+        <li>Docker installed</li>
+        <li>Always-on internet connection</li>
+      </ul>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Worker Machines (optional)</h3>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>CPU Workers:</strong> 4GB+ RAM, 4+ cores</li>
+        <li><strong>GPU Workers:</strong> NVIDIA GPU with 8GB+ VRAM</li>
+        <li>Can be behind NAT/firewalls (Cloudflare Tunnels handle connectivity)</li>
+      </ul>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 1: Deploy Edge Coordinator</h2>
+      <p className="text-gray-700 mb-4">On your coordinator machine:</p>
+
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo</div>
+        <div className="mt-2 mb-2 text-gray-400"># Start with Cloudflare Tunnel</div>
+        <div>docker compose -f edge-coordinator.yml up -d</div>
+        <div className="mt-4 mb-2 text-gray-400"># Verify tunnel connection</div>
+        <div>docker logs edge-tunnel</div>
+        <div className="text-gray-400"># Should see: ✅ Registered tunnel connection</div>
+        <div className="mt-4 mb-2 text-gray-400"># Verify coordinator registration</div>
+        <div>docker logs edge-registrar</div>
+        <div className="text-gray-400"># Should see: ✅ Registered as edge coordinator</div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 2: Deploy Workers</h2>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Same Machine (Local)</h3>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
+        <div>export COORDINATOR_URL=http://localhost:8080</div>
+        <div>docker compose up -d</div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Different Machine (Remote)</h3>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
+        <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
+        <div>docker compose up -d</div>
+      </div>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">With GPU</h3>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div>cd RMA-Demo/worker-containers/gpu-worker</div>
+        <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
+        <div>docker compose up -d</div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 3: Verify Deployment</h2>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div className="mb-2 text-gray-400"># Check coordinator is registered globally</div>
+        <div>curl https://api.rmatool.org.uk/health</div>
+        <div className="text-gray-400"># Should show "coordinators": 1</div>
+        <div className="mt-4 mb-2 text-gray-400"># Check workers registered locally</div>
+        <div>curl http://localhost:8080/api/admin/workers</div>
+        <div className="text-gray-400"># Lists all registered workers</div>
+        <div className="mt-4 mb-2 text-gray-400"># Or use the frontend</div>
+        <div className="text-gray-400"># https://rmatool.org.uk → System tab</div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Configuration Options</h2>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <h4 className="font-semibold text-gray-900 mb-2">Environment Variables:</h4>
+        <div className="bg-gray-900 text-green-400 p-3 rounded font-mono text-xs overflow-x-auto space-y-1">
+          <div className="text-gray-400"># Required</div>
+          <div>COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
+          <div className="mt-2 text-gray-400"># Optional</div>
+          <div>WORKER_TYPE=cpu          <span className="text-gray-400"># or "gpu" (auto-detected)</span></div>
+          <div>USE_TUNNEL=true          <span className="text-gray-400"># Create Cloudflare tunnel</span></div>
+          <div>SERVICE_PORT=8103        <span className="text-gray-400"># Service port number</span></div>
+          <div>SERVICE_NAME=upload      <span className="text-gray-400"># Service identifier</span></div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Network Restrictions</h2>
+      <p className="text-gray-700 mb-4">
+        If your IT department blocks Cloudflare:
+      </p>
+      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
+        <div className="mb-2 text-gray-400"># Workers can connect via local network</div>
+        <div>export COORDINATOR_URL=http://COORDINATOR_IP:8080</div>
+        <div className="mt-4 text-gray-400"># Edge coordinator still works locally</div>
+        <div className="text-gray-400"># External access won't work, but internal network will</div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Scaling Your Deployment</h2>
+      <div className="space-y-4 mb-6">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+          <h4 className="font-semibold text-blue-900 mb-2">Adding More Workers</h4>
+          <p className="text-sm text-blue-800 mb-2">
+            On any machine with Docker:
+          </p>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>cd RMA-Demo/worker-containers/cpu-worker</div>
+            <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
+            <div>docker compose up -d</div>
+          </div>
+          <p className="text-sm text-blue-700 mt-2">
+            Workers auto-register and are immediately available for work.
+          </p>
+        </div>
+
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <h4 className="font-semibold text-green-900 mb-2">Removing Workers</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>docker compose down</div>
+            <div className="text-gray-400"># Worker auto-unregisters after heartbeat timeout (60s)</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-green-800">Success!</h3>
+            <p className="text-sm text-green-700">
+              Your distributed RMA system is now running. Visit https://rmatool.org.uk and check the System tab to see all your registered workers and their health status.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Key Benefits</h2>
+      <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+        <li>Runs on $0/month infrastructure (Cloudflare free tier)</li>
+        <li>Scales horizontally with volunteer workers</li>
+        <li>Works behind NAT/firewalls with Cloudflare Tunnels</li>
+        <li>Auto-registers and load-balances workers</li>
+        <li>Provides debt advice, document processing, RAG, NER</li>
+        <li>Deploys in 5 minutes locally or globally</li>
+      </ul>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Common Issues</h2>
+      <div className="space-y-4">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="font-semibold text-yellow-900 mb-2">Cloudflare Tunnel Not Connecting</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto mb-2">
+            <div>docker logs edge-tunnel</div>
+          </div>
+          <p className="text-sm text-yellow-800">
+            Verify DNS and check if Cloudflare is accessible. If blocked by IT, use local network mode.
+          </p>
+        </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="font-semibold text-yellow-900 mb-2">Workers Not Registering</h4>
+          <ol className="text-sm text-yellow-800 list-decimal list-inside space-y-1">
+            <li>Check coordinator URL: <code className="bg-yellow-100 px-1 rounded">echo $COORDINATOR_URL</code></li>
+            <li>Test connectivity: <code className="bg-yellow-100 px-1 rounded">curl $COORDINATOR_URL/health</code></li>
+            <li>Check worker logs: <code className="bg-yellow-100 px-1 rounded">docker logs cpu-worker-1</code></li>
+            <li>Verify port 8080 is accessible from worker machine</li>
+          </ol>
         </div>
       </div>
     </div>
