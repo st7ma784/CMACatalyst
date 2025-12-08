@@ -66,6 +66,31 @@ services:
       - edge-network
     # No depends_on - should keep trying independently
 
+  local-worker:
+    image: ghcr.io/st7ma784/cmacatalyst/universal-worker:latest
+    container_name: edge-local-worker
+    restart: unless-stopped
+    environment:
+      - WORKER_TYPE=auto  # Auto-detect GPU/CPU capabilities
+      - COORDINATOR_URL=http://coordinator:8080  # Direct local connection
+      - USE_TUNNEL=false  # No tunnel needed - local connection
+      - WORKER_ID=edge-local-worker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    networks:
+      - edge-network
+    depends_on:
+      coordinator:
+        condition: service_healthy
+
 networks:
   edge-network:
     driver: bridge
@@ -75,9 +100,13 @@ networks:
 #
 # This will:
 # 1. Start coordinator on port 8080
-# 2. Create Cloudflare Tunnel to coordinator
-# 3. Register tunnel at api.rmatool.org.uk
-# 4. Accept worker registrations from anywhere
+# 2. Start local worker (auto-detects GPU/CPU)
+# 3. Create Cloudflare Tunnel to coordinator
+# 4. Register tunnel at api.rmatool.org.uk
+# 5. Accept worker registrations from anywhere
+#
+# The local worker keeps the coordinator active and provides
+# immediate compute capacity without external network hops.
 #
 # To stop:
 # docker-compose -f edge-coordinator.yml down

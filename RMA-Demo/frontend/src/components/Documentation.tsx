@@ -485,35 +485,62 @@ function GettingStartedLocal() {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
         <ul className="space-y-2 text-sm text-gray-700">
           <li><strong>edge-coordinator</strong> - FastAPI coordinator (port 8080)</li>
+          <li><strong>edge-local-worker</strong> - Universal worker (auto-detects GPU/CPU)</li>
           <li><strong>edge-tunnel</strong> - Cloudflare tunnel (connects to api.rmatool.org.uk)</li>
           <li><strong>edge-registrar</strong> - Auto-registers coordinator with Cloudflare</li>
         </ul>
       </div>
 
-      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Next Steps</h2>
-      <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-6">
-        <li><strong>Add Workers</strong> - Deploy CPU/GPU workers to process requests</li>
-        <li><strong>Monitor</strong> - Check System tab for registered workers</li>
-        <li><strong>Use</strong> - Upload documents, ask questions, analyze debts</li>
-      </ol>
-
-      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Adding Workers Locally</h2>
-      <p className="text-gray-700 mb-4">
-        Once your coordinator is running, add workers on the same machine:
-      </p>
-
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">CPU Worker</h3>
-      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
-        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
-        <div>export COORDINATOR_URL=http://localhost:8080</div>
-        <div>docker compose up -d</div>
+      <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-green-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-green-800">Local Worker Included</h3>
+            <p className="text-sm text-green-700">
+              The edge-coordinator now includes a local worker that auto-detects your hardware.
+              This keeps the coordinator active and provides immediate compute capacity without
+              needing to deploy additional workers.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">GPU Worker (if you have a GPU)</h3>
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Next Steps</h2>
+      <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-6">
+        <li><strong>Monitor</strong> - Check System tab to see your local worker registered</li>
+        <li><strong>Use</strong> - Upload documents, ask questions, analyze debts</li>
+        <li><strong>(Optional) Add More Workers</strong> - Deploy additional workers for more capacity</li>
+      </ol>
+
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Adding More Workers (Optional)</h2>
+      <p className="text-gray-700 mb-4">
+        Your edge-coordinator already includes a local worker! If you want to add more workers for additional capacity:
+      </p>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Universal Worker (Auto-Detection)</h3>
       <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
-        <div>cd RMA-Demo/worker-containers/gpu-worker</div>
-        <div>export COORDINATOR_URL=http://localhost:8080</div>
-        <div>docker compose up -d</div>
+        <div className="mb-2 text-gray-400"># Pull the universal worker image</div>
+        <div>docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+        <div className="mt-4 mb-2 text-gray-400"># Run with auto-detection (recommended)</div>
+        <div>docker run -d --name rma-worker --restart unless-stopped \</div>
+        <div>&nbsp;&nbsp;--gpus all \</div>
+        <div>&nbsp;&nbsp;-e WORKER_TYPE=auto \</div>
+        <div>&nbsp;&nbsp;-e COORDINATOR_URL=http://localhost:8080 \</div>
+        <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+      </div>
+
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Auto-Detection</h3>
+            <ul className="text-sm text-blue-700 mt-2 space-y-1">
+              <li>✨ Detects GPU → assigns AI workloads (vLLM, vision models)</li>
+              <li>✨ No GPU → assigns CPU workloads (RAG, NER, document processing)</li>
+              <li>✨ Automatically registers with coordinator</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Verifying Everything Works</h2>
@@ -552,11 +579,11 @@ function GettingStartedLocal() {
           <h4 className="font-semibold text-yellow-900 mb-2">Workers not appearing in System tab?</h4>
           <p className="text-sm text-yellow-800 mb-2">Check worker logs:</p>
           <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
-            <div>docker logs cpu-worker-1</div>
+            <div>docker logs rma-worker</div>
           </div>
-          <p className="text-sm text-yellow-800 mt-2">Verify coordinator URL:</p>
+          <p className="text-sm text-yellow-800 mt-2">Check if worker is running:</p>
           <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
-            <div>echo $COORDINATOR_URL</div>
+            <div>docker ps | grep rma-worker</div>
           </div>
         </div>
       </div>
@@ -612,7 +639,7 @@ function GettingStartedDistributed() {
 
       <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
         <div>cd RMA-Demo</div>
-        <div className="mt-2 mb-2 text-gray-400"># Start with Cloudflare Tunnel</div>
+        <div className="mt-2 mb-2 text-gray-400"># Start coordinator with local worker and Cloudflare Tunnel</div>
         <div>docker compose -f edge-coordinator.yml up -d</div>
         <div className="mt-4 mb-2 text-gray-400"># Verify tunnel connection</div>
         <div>docker logs edge-tunnel</div>
@@ -620,29 +647,84 @@ function GettingStartedDistributed() {
         <div className="mt-4 mb-2 text-gray-400"># Verify coordinator registration</div>
         <div>docker logs edge-registrar</div>
         <div className="text-gray-400"># Should see: ✅ Registered as edge coordinator</div>
+        <div className="mt-4 mb-2 text-gray-400"># Check local worker</div>
+        <div>docker logs edge-local-worker</div>
+        <div className="text-gray-400"># Should see: Worker registered successfully</div>
       </div>
 
-      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 2: Deploy Workers</h2>
+      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+        <div className="flex">
+          <HelpCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Local Worker Included</h3>
+            <p className="text-sm text-blue-700">
+              The edge-coordinator now includes a local worker that keeps the coordinator active
+              and provides immediate compute capacity. You can start using the system right away!
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">Same Machine (Local)</h3>
+      <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 2: Deploy Additional Workers (Optional)</h2>
+      <p className="text-gray-700 mb-4">
+        Your edge-coordinator already includes a local worker! To add more workers on other machines:
+      </p>
+
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Universal Worker (Recommended)</h3>
+      <p className="text-gray-700 mb-4">
+        The universal worker auto-detects hardware and gets assigned the right services by the coordinator:
+      </p>
+
       <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm overflow-x-auto">
-        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
-        <div>export COORDINATOR_URL=http://localhost:8080</div>
-        <div>docker compose up -d</div>
+        <div className="mb-2 text-gray-400"># Pull the universal worker image</div>
+        <div>docker pull ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+        <div className="mt-4 mb-2 text-gray-400"># Deploy worker (auto-detects GPU/CPU)</div>
+        <div>docker run -d --name rma-worker --restart unless-stopped \</div>
+        <div>&nbsp;&nbsp;--gpus all \</div>
+        <div>&nbsp;&nbsp;-e WORKER_TYPE=auto \</div>
+        <div>&nbsp;&nbsp;-e COORDINATOR_URL=https://edge-1.rmatool.org.uk \</div>
+        <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
       </div>
 
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">Different Machine (Remote)</h3>
-      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm overflow-x-auto">
-        <div>cd RMA-Demo/worker-containers/cpu-worker</div>
-        <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
-        <div>docker compose up -d</div>
-      </div>
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">Specific Worker Types</h3>
+      <p className="text-gray-700 mb-4">
+        You can also specify the worker type explicitly:
+      </p>
 
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">With GPU</h3>
-      <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-6 font-mono text-sm overflow-x-auto">
-        <div>cd RMA-Demo/worker-containers/gpu-worker</div>
-        <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
-        <div>docker compose up -d</div>
+      <div className="space-y-4 mb-6">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-2">GPU Worker (Tier 1)</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>docker run -d --gpus all --name rma-gpu-worker \</div>
+            <div>&nbsp;&nbsp;-e WORKER_TYPE=gpu \</div>
+            <div>&nbsp;&nbsp;-e COORDINATOR_URL=https://edge-1.rmatool.org.uk \</div>
+            <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">Runs: vLLM, Vision OCR, RAG embeddings</p>
+        </div>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-2">CPU Worker (Tier 2)</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>docker run -d --name rma-cpu-worker \</div>
+            <div>&nbsp;&nbsp;-e WORKER_TYPE=cpu \</div>
+            <div>&nbsp;&nbsp;-e COORDINATOR_URL=https://edge-1.rmatool.org.uk \</div>
+            <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">Runs: NER, Document Processing, Notes</p>
+        </div>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <h4 className="font-semibold text-gray-900 mb-2">Storage Worker (Tier 3)</h4>
+          <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
+            <div>docker run -d --name rma-storage-worker \</div>
+            <div>&nbsp;&nbsp;-v ./chroma-data:/chroma/chroma \</div>
+            <div>&nbsp;&nbsp;-e WORKER_TYPE=storage \</div>
+            <div>&nbsp;&nbsp;-e COORDINATOR_URL=https://edge-1.rmatool.org.uk \</div>
+            <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">Runs: ChromaDB, Redis, PostgreSQL, MinIO, Neo4j</p>
+        </div>
       </div>
 
       <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Step 3: Verify Deployment</h2>
@@ -690,9 +772,10 @@ function GettingStartedDistributed() {
             On any machine with Docker:
           </p>
           <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
-            <div>cd RMA-Demo/worker-containers/cpu-worker</div>
-            <div>export COORDINATOR_URL=https://edge-1.rmatool.org.uk</div>
-            <div>docker compose up -d</div>
+            <div>docker run -d --gpus all --name rma-worker-2 \</div>
+            <div>&nbsp;&nbsp;-e WORKER_TYPE=auto \</div>
+            <div>&nbsp;&nbsp;-e COORDINATOR_URL=https://edge-1.rmatool.org.uk \</div>
+            <div>&nbsp;&nbsp;ghcr.io/st7ma784/cmacatalyst/universal-worker:latest</div>
           </div>
           <p className="text-sm text-blue-700 mt-2">
             Workers auto-register and are immediately available for work.
@@ -702,7 +785,8 @@ function GettingStartedDistributed() {
         <div className="bg-green-50 border-l-4 border-green-400 p-4">
           <h4 className="font-semibold text-green-900 mb-2">Removing Workers</h4>
           <div className="bg-gray-900 text-green-400 p-2 rounded font-mono text-xs overflow-x-auto">
-            <div>docker compose down</div>
+            <div>docker stop rma-worker</div>
+            <div>docker rm rma-worker</div>
             <div className="text-gray-400"># Worker auto-unregisters after heartbeat timeout (60s)</div>
           </div>
         </div>
@@ -745,10 +829,10 @@ function GettingStartedDistributed() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h4 className="font-semibold text-yellow-900 mb-2">Workers Not Registering</h4>
           <ol className="text-sm text-yellow-800 list-decimal list-inside space-y-1">
-            <li>Check coordinator URL: <code className="bg-yellow-100 px-1 rounded">echo $COORDINATOR_URL</code></li>
-            <li>Test connectivity: <code className="bg-yellow-100 px-1 rounded">curl $COORDINATOR_URL/health</code></li>
-            <li>Check worker logs: <code className="bg-yellow-100 px-1 rounded">docker logs cpu-worker-1</code></li>
-            <li>Verify port 8080 is accessible from worker machine</li>
+            <li>Check worker logs: <code className="bg-yellow-100 px-1 rounded">docker logs rma-worker</code></li>
+            <li>Test coordinator connectivity: <code className="bg-yellow-100 px-1 rounded">curl https://edge-1.rmatool.org.uk/health</code></li>
+            <li>Verify worker is running: <code className="bg-yellow-100 px-1 rounded">docker ps | grep rma-worker</code></li>
+            <li>Check coordinator can reach worker (if using tunnel)</li>
           </ol>
         </div>
       </div>
