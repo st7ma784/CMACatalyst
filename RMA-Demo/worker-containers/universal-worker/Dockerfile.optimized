@@ -1,0 +1,140 @@
+# Universal Worker Container - Optimized for GitHub Actions disk space
+# Multi-stage build with aggressive cleanup and layer caching
+# Can run GPU, CPU, or Storage services based on coordinator assignment
+
+# =============================================================================
+# Stage 1: Base system with system dependencies
+# =============================================================================
+FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04 AS base
+
+WORKDIR /app
+
+# Install system dependencies in one layer with cleanup
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3.11 \
+        python3-pip \
+        wget \
+        curl \
+        git \
+        build-essential \
+        iproute2 \
+        iptables \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Install cloudflared in separate layer (cached separately)
+RUN wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb && \
+    dpkg -i cloudflared-linux-amd64.deb && \
+    rm cloudflared-linux-amd64.deb
+
+# Install Nebula VPN in separate layer (cached separately)
+RUN wget -q https://github.com/slackhq/nebula/releases/download/v1.8.2/nebula-linux-amd64.tar.gz && \
+    tar -xzf nebula-linux-amd64.tar.gz && \
+    mv nebula nebula-cert /usr/local/bin/ && \
+    chmod +x /usr/local/bin/nebula /usr/local/bin/nebula-cert && \
+    rm nebula-linux-amd64.tar.gz
+
+# =============================================================================
+# Stage 2: Install base Python dependencies
+# =============================================================================
+FROM base AS base-python
+
+# Copy only base requirements first for better layer caching
+COPY requirements-base.txt .
+
+# Install base dependencies with cleanup
+RUN pip3 install --no-cache-dir -r requirements-base.txt && \
+    rm -rf /root/.cache/pip && \
+    rm -rf /tmp/*
+
+# =============================================================================
+# Stage 3: Install GPU dependencies (if needed)
+# =============================================================================
+FROM base-python AS with-gpu
+
+# Copy GPU requirements
+COPY requirements-gpu.txt .
+
+# Install GPU dependencies with cleanup
+RUN pip3 install --no-cache-dir -r requirements-gpu.txt && \
+    rm -rf /root/.cache/pip && \
+    rm -rf /tmp/* && \
+    # Clean up torch cache to save space
+    find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# =============================================================================
+# Stage 4: Install storage dependencies (if needed)
+# =============================================================================
+FROM with-gpu AS with-storage
+
+# Copy storage requirements
+COPY requirements-storage.txt .
+
+# Install storage dependencies with cleanup
+RUN pip3 install --no-cache-dir -r requirements-storage.txt && \
+    rm -rf /root/.cache/pip && \
+    rm -rf /tmp/* && \
+    find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# =============================================================================
+# Stage 5: Install CPU dependencies (if needed)
+# =============================================================================
+FROM with-storage AS with-cpu
+
+# Copy CPU requirements
+COPY requirements-cpu.txt .
+
+# Install CPU dependencies with cleanup
+RUN pip3 install --no-cache-dir -r requirements-cpu.txt && \
+    rm -rf /root/.cache/pip && \
+    rm -rf /tmp/* && \
+    find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+# =============================================================================
+# Final stage: Application code
+# =============================================================================
+FROM with-cpu AS final
+
+# Copy application code (these change frequently, so keep at end)
+COPY worker_agent.py .
+COPY service_launcher.py .
+COPY dht/ ./dht/
+COPY vpn/ ./vpn/
+
+# Copy coordinator service directory structure (for edge workers)
+RUN mkdir -p /app/coordinator
+
+# Final cleanup to minimize image size
+RUN apt-get autoremove -y && \
+    apt-get autoclean -y && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /root/.cache && \
+    rm -rf /tmp/* && \
+    rm -rf /var/tmp/* && \
+    # Remove pip cache and unnecessary files
+    find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.11 -type f -name "*.pyc" -delete 2>/dev/null || true && \
+    find /usr/local/lib/python3.11 -type f -name "*.pyo" -delete 2>/dev/null || true
+
+# Environment variables
+ENV COORDINATOR_URL="http://localhost:8080"
+ENV WORKER_ID=""
+ENV WORKER_TYPE="auto"
+ENV USE_TUNNEL="true"
+ENV VPN_ENABLED="true"
+ENV VPN_ENCRYPTION_KEY=""
+ENV CERT_SERVICE_SECRET=""
+ENV CLOUDFLARE_ACCOUNT_ID=""
+ENV CLOUDFLARE_API_TOKEN=""
+ENV CLOUDFLARE_KV_NAMESPACE_ID=""
+ENV PYTHONUNBUFFERED=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python3 -c "import sys; sys.exit(0)"
+
+# Auto-detect hardware and register with coordinator
+CMD ["python3", "worker_agent.py"]

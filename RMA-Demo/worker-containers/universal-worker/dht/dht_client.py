@@ -56,10 +56,13 @@ class DHTClient:
             bootstrap_nodes = []
             for seed in seeds_data.get("seeds", []):
                 # Extract host and port from tunnel URL
-                # Format: https://edge-1.rmatool.org.uk → (edge-1.rmatool.org.uk, 8468)
-                host = seed["tunnel_url"].replace("https://", "").replace("http://", "")
-                port = seed.get("dht_port", 8468)
-                bootstrap_nodes.append((host, port))
+                # Format: http://edge-local-worker:8000 → (edge-local-worker, 8468)
+                from urllib.parse import urlparse
+                parsed = urlparse(seed["tunnel_url"])
+                host = parsed.hostname or parsed.netloc.split(':')[0]
+                dht_port = seed.get("dht_port", 8468)
+                bootstrap_nodes.append((host, dht_port))
+                logger.info(f"  → Bootstrap node: {host}:{dht_port}")
 
             logger.info(f"Bootstrapping DHT with {len(bootstrap_nodes)} seeds")
 
@@ -77,7 +80,7 @@ class DHTClient:
             raise
 
     async def register_worker(self, tunnel_url: str, services: List[str],
-                             capabilities: Dict):
+                             capabilities: Dict, vpn_ip: Optional[str] = None):
         """
         Register this worker in DHT
 
@@ -85,12 +88,15 @@ class DHTClient:
             tunnel_url: Worker's tunnel URL for P2P access
             services: List of services offered (e.g., ["ocr", "enhance"])
             capabilities: Hardware capabilities dict
+            vpn_ip: Worker's VPN IP (preferred for P2P routing)
         """
         worker_info = {
             "worker_id": self.worker_id,
             "tunnel_url": tunnel_url,
+            "vpn_ip": vpn_ip,  # VPN IP for fast P2P routing
             "services": services,
             "capabilities": capabilities,
+            "load": 0.0,  # Default load (can be updated later)
             "last_seen": asyncio.get_event_loop().time()
         }
 
@@ -101,7 +107,8 @@ class DHTClient:
         for service in services:
             await self.node.publish_service(service, self.worker_id, worker_info)
 
-        logger.info(f"Registered in DHT: {services}")
+        vpn_status = f"VPN: {vpn_ip}" if vpn_ip else "No VPN"
+        logger.info(f"Registered in DHT: {services} ({vpn_status})")
 
     async def find_worker_for_service(self, service_type: str, use_cache: bool = True) -> Optional[Dict]:
         """

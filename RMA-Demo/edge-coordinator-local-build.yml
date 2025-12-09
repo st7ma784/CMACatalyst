@@ -1,0 +1,75 @@
+version: '3.8'
+
+# Edge Coordinator Stack - LOCAL BUILD VERSION
+# This version builds the worker from local source instead of pulling from registry
+
+services:
+  # Cloudflare Tunnel - exposes coordinator to the internet
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: edge-tunnel
+    restart: always
+    network_mode: host
+    command: tunnel --url http://localhost:8080 --no-autoupdate
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+      - 1.0.0.1
+    extra_hosts:
+      - "api.cloudflare.com:104.16.132.229"
+      - "api.cloudflare.com:104.16.133.229"
+
+  coordinator:
+    build:
+      context: ./services/local-coordinator
+      dockerfile: Dockerfile
+    container_name: edge-coordinator
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - DHT_PORT=8468
+      - DHT_ENABLED=true
+      - NODE_ENV=production
+      - HEARTBEAT_TIMEOUT_SECONDS=300
+      - WORKER_TIMEOUT_SECONDS=600
+      - EDGE_ROUTER_URL=https://api.rmatool.org.uk
+      # TUNNEL_URL will be set by init script after tunnel starts
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      - tunnel
+
+  local-worker:
+    build:
+      context: ./worker-containers/universal-worker
+      dockerfile: Dockerfile.optimized
+    container_name: edge-local-worker
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - WORKER_TYPE=auto
+      - COORDINATOR_URL=http://localhost:8080
+      - USE_TUNNEL=false
+      - WORKER_ID=edge-local-worker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    depends_on:
+      coordinator:
+        condition: service_healthy

@@ -1,0 +1,74 @@
+# Patch for local-coordinator/app.py to handle longer worker timeouts
+# Apply changes to handle model loading and other long operations
+
+# Change 1: Make timeout configurable and increase default
+# Around line 35, add after logging config:
+
+# Configurable worker timeout (default 90s, increased to 5 minutes for model loading)
+WORKER_HEALTHY_TIMEOUT = int(os.getenv("HEARTBEAT_TIMEOUT_SECONDS", "300"))  # 5 minutes
+WORKER_STALE_TIMEOUT = int(os.getenv("WORKER_TIMEOUT_SECONDS", "600"))  # 10 minutes
+
+logger.info(f"⏱️  Worker timeouts: healthy={WORKER_HEALTHY_TIMEOUT}s, stale={WORKER_STALE_TIMEOUT}s")
+
+# Change 2: Update is_worker_healthy function
+# Replace line 770-778:
+
+def is_worker_healthy(worker: Dict[str, Any], now: datetime = None) -> bool:
+    """Check if worker is healthy (heartbeat within configurable timeout)"""
+    if now is None:
+        now = datetime.now()
+
+    last_heartbeat = datetime.fromisoformat(worker["last_heartbeat"])
+    age_seconds = (now - last_heartbeat).total_seconds()
+
+    # Use configurable timeout
+    return age_seconds < WORKER_HEALTHY_TIMEOUT
+
+# Change 3: Update cleanup_stale_workers function
+# Replace line 781-815:
+
+async def cleanup_stale_workers():
+    """Background task to remove stale workers"""
+    while True:
+        try:
+            await asyncio.sleep(60)  # Check every minute
+
+            now = datetime.now()
+            stale = []
+            degraded = []
+
+            for worker_id, worker in list(workers.items()):
+                age_seconds = (now - datetime.fromisoformat(worker["last_heartbeat"])).total_seconds()
+
+                # Mark as degraded if no heartbeat for WORKER_HEALTHY_TIMEOUT
+                if age_seconds > WORKER_HEALTHY_TIMEOUT:
+                    if worker.get("status") != "degraded":
+                        logger.warning(f"⚠️  Worker {worker_id} degraded (no heartbeat for {age_seconds:.0f}s)")
+                        worker["status"] = "degraded"
+                        degraded.append(worker_id)
+
+                # Remove if no heartbeat for WORKER_STALE_TIMEOUT
+                if age_seconds > WORKER_STALE_TIMEOUT:
+                    stale.append(worker_id)
+
+            # Remove stale workers
+            for worker_id in stale:
+                logger.warning(f"🧹 Removing stale worker: {worker_id} (no heartbeat for {WORKER_STALE_TIMEOUT}s)")
+
+                # Remove from services
+                for service_list in services.values():
+                    if worker_id in service_list:
+                        service_list.remove(worker_id)
+
+                # Remove worker
+                del workers[worker_id]
+
+            if stale:
+                logger.info(f"🧹 Cleaned up {len(stale)} stale workers")
+            if degraded:
+                logger.info(f"⚠️  {len(degraded)} workers marked as degraded")
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in cleanup task: {e}")

@@ -1,0 +1,5 @@
+# CPU service libraries (installed only if CPU capability needed)
+spacy>=3.7.0
+pytesseract>=0.3.10
+Pillow>=10.1.0
+pypdf2>=3.0.0

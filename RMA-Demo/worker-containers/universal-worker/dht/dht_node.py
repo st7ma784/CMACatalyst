@@ -126,10 +126,16 @@ class DHTNode:
         Args:
             service_type: Type of service (e.g., "ocr", "gpu")
             worker_id: Unique worker identifier
-            worker_info: Worker metadata (tunnel_url, capabilities, etc.)
+            worker_info: Worker metadata (vpn_ip, tunnel_url, capabilities, etc.)
         """
-        # Store worker info
-        await self.set(f"worker:{worker_id}", worker_info)
+        # Ensure worker_info includes timestamp
+        worker_info_with_meta = {
+            **worker_info,
+            "last_seen": asyncio.get_event_loop().time()
+        }
+
+        # Store worker info (includes vpn_ip for P2P routing)
+        await self.set(f"worker:{worker_id}", worker_info_with_meta)
 
         # Add to service index
         service_key = f"service:{service_type}"
@@ -139,7 +145,8 @@ class DHTNode:
             current_workers.append(worker_id)
             await self.set(service_key, current_workers)
 
-        logger.info(f"Published service: {service_type} by {worker_id}")
+        vpn_ip = worker_info.get("vpn_ip", "N/A")
+        logger.info(f"Published service: {service_type} by {worker_id} (VPN: {vpn_ip})")
 
     async def find_service_workers(self, service_type: str) -> List[Dict]:
         """

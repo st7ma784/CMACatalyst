@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  coordinator:
+    image: ghcr.io/st7ma784/cmacatalyst/coordinator:latest
+    container_name: edge-coordinator
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - DHT_PORT=8468
+      - DHT_ENABLED=true
+      - NODE_ENV=production
+      - HEARTBEAT_TIMEOUT_SECONDS=300
+      - WORKER_TIMEOUT_SECONDS=600
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  local-worker:
+    image: universal-worker:local
+    container_name: edge-local-worker
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - WORKER_TYPE=auto
+      - COORDINATOR_URL=http://localhost:8080
+      - USE_TUNNEL=false
+      - WORKER_ID=edge-local-worker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    depends_on:
+      coordinator:
+        condition: service_healthy

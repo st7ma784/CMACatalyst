@@ -34,6 +34,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Configurable worker timeout (default increased to handle model loading)
+WORKER_HEALTHY_TIMEOUT = int(os.getenv("HEARTBEAT_TIMEOUT_SECONDS", "300"))  # 5 minutes
+WORKER_STALE_TIMEOUT = int(os.getenv("WORKER_TIMEOUT_SECONDS", "600"))  # 10 minutes
+
+logger.info(f"⏱️  Worker timeouts: healthy={WORKER_HEALTHY_TIMEOUT}s, stale={WORKER_STALE_TIMEOUT}s")
+
 # Storage
 workers: Dict[str, Dict[str, Any]] = {}
 services: Dict[str, List[str]] = {}  # service_name -> [worker_ids]
@@ -713,6 +719,15 @@ def assign_services_to_worker(worker_type: str, tier: int, capabilities: Dict[st
         svc_name for svc_name, svc_info in SERVICE_CATALOG.items()
         if svc_info["requires"] == worker_type
     ]
+
+    # GPU workers can ALSO run CPU services (they have CPUs too!)
+    if worker_type == "gpu":
+        cpu_services = [
+            svc_name for svc_name, svc_info in SERVICE_CATALOG.items()
+            if svc_info["requires"] == "cpu"
+        ]
+        eligible_services.extend(cpu_services)
+        logger.info(f"   GPU worker can also run CPU services: {cpu_services}")
     
     if not eligible_services:
         logger.warning(f"No eligible services found for worker type: {worker_type}")
@@ -745,37 +760,50 @@ def assign_services_to_worker(worker_type: str, tier: int, capabilities: Dict[st
         1 for w in workers.values()
         if w.get("tier") == tier and is_worker_healthy(w)
     )
-    
-    # If we have plenty of workers, specialize (1 service per worker)
-    # If we're short on workers, multi-task (assign multiple services)
-    if total_workers_in_tier >= len(eligible_services):
-        # Enough workers - specialize
-        max_services = 1
-    elif total_workers_in_tier >= len(eligible_services) / 2:
-        # Some workers - assign 2 services
-        max_services = 2
+
+    # Special case: GPU workers should fill all service gaps (GPU + CPU services)
+    # They have the capacity and we want to ensure critical CPU services get assigned
+    if worker_type == "gpu":
+        # Assign all services with zero coverage (fill all gaps)
+        uncovered_services = [svc for svc in sorted_services if service_coverage.get(svc, 0) == 0]
+        if uncovered_services:
+            assigned = uncovered_services
+            logger.info(f"   GPU worker filling {len(uncovered_services)} service gaps")
+        else:
+            # All services covered, just assign the top priority service
+            assigned = sorted_services[:1]
     else:
-        # Very few workers - assign all critical services
-        max_services = min(3, len(eligible_services))
-    
-    assigned = sorted_services[:max_services]
-    
+        # If we have plenty of workers, specialize (1 service per worker)
+        # If we're short on workers, multi-task (assign multiple services)
+        if total_workers_in_tier >= len(eligible_services):
+            # Enough workers - specialize
+            max_services = 1
+        elif total_workers_in_tier >= len(eligible_services) / 2:
+            # Some workers - assign 2 services
+            max_services = 2
+        else:
+            # Very few workers - assign all critical services
+            max_services = min(3, len(eligible_services))
+
+        assigned = sorted_services[:max_services]
+
     logger.info(f"   Service gaps for {worker_type}: {service_coverage}")
     logger.info(f"   Workers in tier {tier}: {total_workers_in_tier + 1} (including this one)")
-    logger.info(f"   Assignment strategy: {max_services} service(s) per worker")
-    
+    logger.info(f"   Assignment strategy: {len(assigned)} service(s) assigned to this worker")
+
     return assigned
 
 
 def is_worker_healthy(worker: Dict[str, Any], now: datetime = None) -> bool:
-    """Check if worker is healthy (heartbeat within 90 seconds)"""
+    """Check if worker is healthy (heartbeat within configurable timeout)"""
     if now is None:
         now = datetime.now()
-    
+
     last_heartbeat = datetime.fromisoformat(worker["last_heartbeat"])
     age_seconds = (now - last_heartbeat).total_seconds()
-    
-    return age_seconds < 90
+
+    # Use configurable timeout to handle long operations like model loading
+    return age_seconds < WORKER_HEALTHY_TIMEOUT
 
 
 async def cleanup_stale_workers():
@@ -783,31 +811,42 @@ async def cleanup_stale_workers():
     while True:
         try:
             await asyncio.sleep(60)  # Check every minute
-            
+
             now = datetime.now()
             stale = []
-            
+            degraded = []
+
             for worker_id, worker in list(workers.items()):
-                if not is_worker_healthy(worker, now):
-                    age_seconds = (now - datetime.fromisoformat(worker["last_heartbeat"])).total_seconds()
-                    if age_seconds > 120:  # 2 minutes stale
-                        stale.append(worker_id)
-            
+                age_seconds = (now - datetime.fromisoformat(worker["last_heartbeat"])).total_seconds()
+
+                # Mark as degraded if no heartbeat for WORKER_HEALTHY_TIMEOUT
+                if age_seconds > WORKER_HEALTHY_TIMEOUT:
+                    if worker.get("status") != "degraded":
+                        logger.warning(f"⚠️  Worker {worker_id} degraded (no heartbeat for {age_seconds:.0f}s)")
+                        worker["status"] = "degraded"
+                        degraded.append(worker_id)
+
+                # Remove if no heartbeat for WORKER_STALE_TIMEOUT
+                if age_seconds > WORKER_STALE_TIMEOUT:
+                    stale.append(worker_id)
+
             # Remove stale workers
             for worker_id in stale:
-                logger.warning(f"🧹 Removing stale worker: {worker_id}")
-                
+                logger.warning(f"🧹 Removing stale worker: {worker_id} (no heartbeat for {WORKER_STALE_TIMEOUT}s)")
+
                 # Remove from services
                 for service_list in services.values():
                     if worker_id in service_list:
                         service_list.remove(worker_id)
-                
+
                 # Remove worker
                 del workers[worker_id]
-            
+
             if stale:
                 logger.info(f"🧹 Cleaned up {len(stale)} stale workers")
-                
+            if degraded:
+                logger.info(f"⚠️  {len(degraded)} workers marked as degraded")
+
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -852,6 +891,33 @@ async def get_dht_topology():
     except Exception as e:
         logger.error(f"Error getting DHT topology: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/dht/bootstrap")
+async def get_dht_bootstrap():
+    """Get DHT bootstrap seeds for workers to join the network"""
+    seeds = []
+
+    # Return healthy workers with DHT enabled as potential bootstrap nodes
+    for worker in workers.values():
+        if is_worker_healthy(worker):
+            worker_id = worker.get("worker_id", "")
+            if worker_id:
+                # Use worker_id as hostname (Docker DNS resolution on bridge networks)
+                # Format: http://worker-id:port for container-to-container communication
+                seeds.append({
+                    "worker_id": worker_id,
+                    "tunnel_url": f"http://{worker_id}:8000",
+                    "dht_port": 8468  # Standard DHT port
+                })
+
+    logger.info(f"DHT bootstrap requested - returning {len(seeds)} seed nodes")
+
+    return {
+        "seeds": seeds,
+        "seed_count": len(seeds),
+        "timestamp": datetime.now().isoformat()
+    }
 
 
 @app.get("/api/dht/stats")

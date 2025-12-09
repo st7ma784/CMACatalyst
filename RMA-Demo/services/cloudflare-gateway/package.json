@@ -1,0 +1,23 @@
+{
+  "name": "rma-gateway",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker gateway for RMA service mesh",
+  "main": "worker.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail",
+    "test": "wrangler dev --test"
+  },
+  "keywords": [
+    "cloudflare",
+    "worker",
+    "gateway",
+    "rma"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

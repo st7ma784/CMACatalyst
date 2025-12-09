@@ -1,0 +1,16 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "rma-gateway"
+main = "worker.js"
+compatibility_date = "2025-12-09"
+
+# Environment variables
+# Set COORDINATOR_URL using: wrangler secret put COORDINATOR_URL
+# Value should be: https://your-tunnel.trycloudflare.com
+
+# Routes (update with your domain)
+# routes = [
+#   { pattern = "api.rmatool.org.uk/*", zone_name = "rmatool.org.uk" }
+# ]
+
+# For testing, you can use workers.dev subdomain
+# workers_dev = true

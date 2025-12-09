@@ -19,6 +19,11 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
+# FastAPI for service endpoint
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import uvicorn
+
 # Import DHT client
 try:
     from dht.dht_client import DHTClient
@@ -36,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 class UniversalWorkerAgent:
     """Agent that auto-detects capabilities and runs assigned services"""
-    
+
     def __init__(self):
         self.coordinator_url = os.getenv("COORDINATOR_URL", "http://localhost:8080")
         self.worker_id = os.getenv("WORKER_ID", f"worker-{socket.gethostname()}-{int(time.time())}")
@@ -48,9 +53,18 @@ class UniversalWorkerAgent:
         self.service_processes: Dict[str, subprocess.Popen] = {}
         self.assigned_services: List[str] = []
 
+        # VPN mesh networking
+        self.vpn_enabled = os.getenv("VPN_ENABLED", "true").lower() == "true"
+        self.vpn_manager: Optional[Any] = None
+        self.vpn_ip: Optional[str] = None
+        self.is_lighthouse: bool = False
+        self.cert_service_task: Optional[Any] = None  # Background task for cert signing service
+        self.ca_key: Optional[str] = None  # CA private key (lighthouse only)
+
         # DHT client (optional - falls back to coordinator)
         self.dht_enabled = DHT_AVAILABLE and os.getenv("DHT_ENABLED", "true").lower() == "true"
         self.dht_client: Optional[DHTClient] = None
+        self.dht_router: Optional[Any] = None  # DHT router for request forwarding
 
         if self.dht_enabled and DHT_AVAILABLE:
             self.dht_client = DHTClient(self.worker_id)
@@ -64,7 +78,88 @@ class UniversalWorkerAgent:
         logger.info(f"DHT Enabled: {self.dht_enabled}")
         logger.info(f"Capabilities: {json.dumps(self.capabilities, indent=2)}")
         logger.info(f"Coordinator: {self.coordinator_url}")
-    
+
+        # Create FastAPI app for service endpoint
+        self.app = self._create_fastapi_app()
+        self.api_server_task: Optional[Any] = None
+
+    def _create_fastapi_app(self) -> FastAPI:
+        """
+        Create FastAPI app with service endpoint
+
+        This endpoint receives forwarded requests from other workers
+        """
+        app = FastAPI(
+            title=f"RMA Worker - {self.worker_id}",
+            description="Universal worker with DHT-based service routing",
+            version="2.0.0"
+        )
+
+        @app.get("/health")
+        async def health():
+            """Health check endpoint"""
+            return {
+                "status": "healthy",
+                "worker_id": self.worker_id,
+                "vpn_ip": self.vpn_ip,
+                "services": self.assigned_services,
+                "dht_enabled": self.dht_enabled,
+                "uptime": time.time()
+            }
+
+        @app.post("/service/{service_type}")
+        async def handle_service_request(service_type: str, request_data: dict):
+            """
+            Handle service request (local or forwarded from other workers)
+
+            This is the main endpoint for DHT-based request routing.
+            Requests are routed via DHT router if available.
+            """
+            logger.info(f"📨 Received request for service: {service_type}")
+
+            # Use DHT router if available
+            if self.dht_router:
+                try:
+                    result = await self.dht_router.route_request(
+                        service_type,
+                        request_data,
+                        timeout=30
+                    )
+                    logger.info(f"✅ Request completed for {service_type}")
+                    return result
+
+                except Exception as e:
+                    logger.error(f"❌ Request routing failed: {e}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Request routing failed: {str(e)}"
+                    )
+            else:
+                # Fallback: DHT router not available
+                logger.warning("DHT router not available, cannot route request")
+                raise HTTPException(
+                    status_code=503,
+                    detail="DHT router not initialized"
+                )
+
+        @app.get("/stats")
+        async def get_stats():
+            """Get worker and routing statistics"""
+            stats = {
+                "worker_id": self.worker_id,
+                "vpn_ip": self.vpn_ip,
+                "services": self.assigned_services,
+                "capabilities": self.capabilities
+            }
+
+            # Add DHT router stats if available
+            if self.dht_router:
+                stats["routing"] = self.dht_router.get_stats()
+
+            return stats
+
+        return app
+
     def detect_capabilities(self) -> Dict[str, Any]:
         """Auto-detect hardware capabilities"""
         caps = {
@@ -408,19 +503,219 @@ class UniversalWorkerAgent:
             logger.warning(f"⚠️  Tunnel resolution error: {e}, using original URL")
             return tunnel_url
 
+    async def initialize_vpn(self):
+        """
+        Initialize VPN mesh networking
+
+        This method:
+        1. Checks if this is the first worker (bootstrap)
+        2. Either bootstraps VPN network or joins existing network
+        3. Registers as entry point if worker has public IP
+        """
+        if not self.vpn_enabled:
+            logger.info("⏭️  VPN disabled, skipping VPN initialization")
+            return
+
+        logger.info("=" * 60)
+        logger.info("🔐 VPN MESH INITIALIZATION")
+        logger.info("=" * 60)
+
+        try:
+            # Import VPN modules
+            from vpn.nebula_manager import NebulaManager
+            from vpn.bootstrap import (
+                is_first_worker,
+                bootstrap_vpn_network,
+                join_vpn_network,
+                register_as_entry_point
+            )
+
+            # Initialize Nebula manager
+            self.vpn_manager = NebulaManager(self.worker_id)
+
+            # Check if Nebula binary is available
+            if not await self.vpn_manager.ensure_nebula_binary():
+                logger.error("❌ Nebula binary not found")
+                logger.error("   VPN requires Nebula to be installed")
+                logger.error("   Disabling VPN and continuing with tunnels...")
+                self.vpn_enabled = False
+                return
+
+            # Check if this is the first worker
+            logger.info("🔍 Checking if this is the first worker...")
+            is_first = await is_first_worker()
+
+            if is_first:
+                logger.info("🌟 This is the FIRST worker - bootstrapping VPN network")
+                self.is_lighthouse = True
+
+                # Bootstrap VPN network
+                bootstrap_config = await bootstrap_vpn_network(self.vpn_manager)
+                self.vpn_ip = bootstrap_config["lighthouse_vpn_ip"]
+
+                # Store CA key for certificate signing (lighthouse only)
+                ca_key_path = self.vpn_manager.config_dir / "ca.key"
+                if ca_key_path.exists():
+                    self.ca_key = ca_key_path.read_text()
+                    logger.info("✅ CA private key loaded for cert signing")
+
+                # Start certificate signing service in background
+                logger.info("🔐 Starting certificate signing service...")
+                await self._start_cert_signing_service()
+
+                logger.info(f"✅ VPN network bootstrapped")
+                logger.info(f"   Lighthouse VPN IP: {self.vpn_ip}")
+                logger.info(f"   Network CIDR: {bootstrap_config['network_cidr']}")
+
+            else:
+                logger.info("Joining existing VPN network...")
+                self.is_lighthouse = False
+
+                # Join existing network
+                self.vpn_ip = await join_vpn_network(self.vpn_manager)
+
+                logger.info(f"✅ Joined VPN network")
+                logger.info(f"   Worker VPN IP: {self.vpn_ip}")
+
+            # Update capabilities with VPN IP
+            self.capabilities["vpn_ip"] = self.vpn_ip
+            self.capabilities["is_lighthouse"] = self.is_lighthouse
+
+            # Register as entry point if worker has public IP
+            if self.capabilities.get("has_public_ip"):
+                public_ip = self.capabilities.get("public_ip")
+                logger.info(f"📍 Registering as entry point (public IP: {public_ip})")
+
+                success = await register_as_entry_point(public_ip, port=8443)
+                if success:
+                    logger.info("✅ Registered as VPN entry point")
+                    self.capabilities["is_entry_point"] = True
+                else:
+                    logger.warning("⚠️  Failed to register as entry point")
+            else:
+                logger.info("ℹ️  No public IP - not registering as entry point")
+
+            logger.info("=" * 60)
+            logger.info(f"✅ VPN MESH READY - IP: {self.vpn_ip}")
+            logger.info("=" * 60)
+
+        except Exception as e:
+            logger.error(f"❌ VPN initialization failed: {e}")
+            logger.error("   Disabling VPN and continuing with tunnels...")
+            logger.error("   Stack trace:", exc_info=True)
+            self.vpn_enabled = False
+            self.vpn_manager = None
+            self.vpn_ip = None
+
+    async def _start_cert_signing_service(self):
+        """
+        Start certificate signing service (lighthouse only)
+
+        Runs in background to sign certificates for joining workers
+        """
+        if not self.is_lighthouse or not self.ca_key:
+            logger.warning("Cannot start cert signing service - not lighthouse or no CA key")
+            return
+
+        try:
+            from vpn.cert_signing_service import CertSigningService
+            import threading
+
+            # Get CA cert
+            ca_crt_path = self.vpn_manager.config_dir / "ca.crt"
+            ca_crt = ca_crt_path.read_text()
+
+            # Create cert signing service
+            cert_service = CertSigningService(
+                ca_crt=ca_crt,
+                ca_key=self.ca_key,
+                nebula_manager=self.vpn_manager
+            )
+
+            # Start service in background thread
+            def run_cert_service():
+                """Run cert service in thread"""
+                try:
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(cert_service.start())
+                except Exception as e:
+                    logger.error(f"Cert signing service error: {e}")
+
+            cert_thread = threading.Thread(
+                target=run_cert_service,
+                daemon=True,
+                name="cert-signing-service"
+            )
+            cert_thread.start()
+
+            # Give it a moment to start
+            await asyncio.sleep(2)
+
+            logger.info("✅ Certificate signing service started on port 8444")
+
+        except Exception as e:
+            logger.error(f"Failed to start cert signing service: {e}")
+            logger.warning("Workers may not be able to join VPN network!")
+
+    async def start_api_server(self, port: int = 8000):
+        """
+        Start FastAPI server for service endpoint
+
+        Runs in background thread to handle incoming service requests
+        """
+        logger.info(f"🌐 Starting API server on port {port}...")
+
+        try:
+            import threading
+
+            def run_api_server():
+                """Run FastAPI server in thread"""
+                try:
+                    uvicorn.run(
+                        self.app,
+                        host="0.0.0.0",
+                        port=port,
+                        log_level="info"
+                    )
+                except Exception as e:
+                    logger.error(f"API server error: {e}")
+
+            api_thread = threading.Thread(
+                target=run_api_server,
+                daemon=True,
+                name="api-server"
+            )
+            api_thread.start()
+
+            # Give it a moment to start
+            await asyncio.sleep(2)
+
+            logger.info(f"✅ API server started on http://0.0.0.0:{port}")
+            logger.info(f"   Endpoints:")
+            logger.info(f"   - GET  /health - Health check")
+            logger.info(f"   - POST /service/{{service_type}} - Service requests")
+            logger.info(f"   - GET  /stats - Worker statistics")
+
+        except Exception as e:
+            logger.error(f"Failed to start API server: {e}")
+            raise
+
     def register_with_coordinator(self) -> Dict[str, Any]:
         """Register worker and receive service assignments"""
         logger.info("📝 Registering with coordinator...")
-        
+
         # Use tunnel URL directly without IP resolution
         tunnel_url = self.tunnel_url or f"http://{socket.gethostname()}:8000"
-        
+
         registration_data = {
-            "worker_id": self.worker_id,
+            "worker_id": self.worker_id,  # Include worker_id (coordinator may reassign it)
             "tunnel_url": tunnel_url,
+            "vpn_ip": self.vpn_ip,  # Include VPN IP for P2P communication
             "capabilities": self.capabilities
         }
-        
+
         try:
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/register",
@@ -428,15 +723,27 @@ class UniversalWorkerAgent:
                 timeout=10
             )
             response.raise_for_status()
-            
+
             result = response.json()
+
+            # IMPORTANT: Update worker_id with the one assigned by coordinator
+            if "worker_id" in result:
+                old_id = self.worker_id
+                self.worker_id = result["worker_id"]
+                logger.info(f"   Assigned Worker ID: {self.worker_id}")
+
+            # Get assigned containers (coordinator returns "assigned_containers", not "assigned_services")
             self.assigned_services = result.get("assigned_services", [])
-            
+            assigned_containers = result.get("assigned_containers", [])
+            if assigned_containers:
+                logger.info(f"   Assigned Containers: {len(assigned_containers)}")
+                for container in assigned_containers:
+                    logger.info(f"      - {container.get('name', 'unknown')}")
+
             logger.info(f"✅ Registration successful!")
-            logger.info(f"   Assigned Services: {', '.join(self.assigned_services)}")
-            
+
             return result
-            
+
         except requests.RequestException as e:
             logger.error(f"❌ Registration failed: {e}")
             raise
@@ -475,21 +782,22 @@ class UniversalWorkerAgent:
                 else:
                     services_status[svc_name] = "stopped"
                     logger.warning(f"⚠️  Service {svc_name} stopped unexpectedly")
-            
+
+            # Coordinator expects: worker_id, status, current_load, available_memory (optional)
             heartbeat_data = {
                 "worker_id": self.worker_id,
-                "status": "healthy" if all(s == "running" for s in services_status.values()) else "degraded",
-                "services_status": services_status,
+                "status": "healthy" if all(s == "running" for s in services_status.values()) or not services_status else "degraded",
                 "current_load": 0.0,  # TODO: Calculate actual load
             }
-            
+
             response = requests.post(
                 f"{self.coordinator_url}/api/worker/heartbeat",
                 json=heartbeat_data,
                 timeout=5
             )
             response.raise_for_status()
-            
+            logger.debug(f"💓 Heartbeat sent successfully")
+
         except requests.RequestException as e:
             logger.error(f"❌ Heartbeat failed: {e}")
 
@@ -503,14 +811,24 @@ class UniversalWorkerAgent:
             # Connect to DHT via edge router bootstrap
             await self.dht_client.connect(self.coordinator_url)
 
-            # Register worker in DHT
+            # Register worker in DHT (includes VPN IP for P2P routing)
             await self.dht_client.register_worker(
                 tunnel_url=self.tunnel_url or f"http://{socket.gethostname()}:8000",
                 services=self.assigned_services,
-                capabilities=self.capabilities
+                capabilities=self.capabilities,
+                vpn_ip=self.vpn_ip  # Include VPN IP for fast P2P routing
+            )
+
+            # Initialize DHT router for request forwarding
+            from dht.router import DHTRouter
+            self.dht_router = DHTRouter(
+                dht_node=self.dht_client.node,
+                local_services=self.assigned_services,
+                worker_id=self.worker_id
             )
 
             logger.info("✅ DHT initialized and worker registered")
+            logger.info(f"✅ DHT router ready for request forwarding")
 
         except Exception as e:
             logger.warning(f"DHT initialization failed: {e}")
@@ -753,29 +1071,42 @@ class UniversalWorkerAgent:
                 logger.error("   docker run -e COORDINATOR_URL=http://host.docker.internal:8080 ...")
                 return
             
-            # Step 1: Create tunnel (optional)
+            # Step 1: Initialize VPN mesh network (optional)
+            if self.vpn_enabled:
+                logger.info("🔗 Initializing VPN mesh network...")
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self.initialize_vpn())
+                loop.close()
+
+            # Step 2: Create tunnel (optional)
             if self.use_tunnel:
                 tunnel_url = self.create_tunnel()
                 if not tunnel_url:
                     logger.warning("⚠️  Failed to create tunnel, continuing without tunnel")
-            
-            # Step 2: Register and get service assignments
+
+            # Step 3: Register and get service assignments
             registration_result = self.register_with_coordinator()
             service_configs = registration_result.get("service_configs", [])
 
-            # Step 3: Initialize DHT (after registration so we know our assigned services)
+            # Step 4: Initialize DHT (after registration so we know our assigned services)
             if self.dht_enabled:
                 logger.info("🔗 Initializing DHT connection...")
                 loop = asyncio.new_event_loop()
                 loop.run_until_complete(self.initialize_dht())
                 loop.close()
 
-            # Step 4: Launch assigned services
+            # Step 5: Start API server for service endpoint
+            logger.info("🚀 Starting API server for service routing...")
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(self.start_api_server(port=8000))
+            loop.close()
+
+            # Step 6: Launch assigned services
             for service_config in service_configs:
                 service_name = service_config["name"]
                 self.launch_service(service_name, service_config)
 
-            # Step 5: Heartbeat loop
+            # Step 7: Heartbeat loop
             logger.info("💓 Starting heartbeat loop...")
             while True:
                 time.sleep(30)  # Heartbeat every 30 seconds
@@ -792,6 +1123,17 @@ class UniversalWorkerAgent:
     def cleanup(self):
         """Clean up resources"""
         logger.info("🧹 Cleaning up...")
+
+        # Stop VPN
+        if self.vpn_enabled and self.vpn_manager:
+            logger.info("   Stopping VPN...")
+            try:
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self.vpn_manager.stop_nebula())
+                loop.close()
+                logger.info("✅ VPN stopped")
+            except Exception as e:
+                logger.warning(f"VPN stop failed: {e}")
 
         # Disconnect from DHT
         if self.dht_enabled and self.dht_client:
