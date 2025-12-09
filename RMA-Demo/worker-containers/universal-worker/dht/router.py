@@ -28,7 +28,7 @@ class DHTRouter:
     - Request forwarding via HTTP
     """
 
-    def __init__(self, dht_node, local_services: List[str], worker_id: str):
+    def __init__(self, dht_node, local_services: List[str], worker_id: str, coordinator_url: Optional[str] = None):
         """
         Initialize DHT router
 
@@ -36,10 +36,12 @@ class DHTRouter:
             dht_node: DHTNode instance for service discovery
             local_services: List of services this worker provides
             worker_id: This worker's ID
+            coordinator_url: Coordinator URL for HTTP-based service discovery (fallback)
         """
         self.dht = dht_node
         self.local_services = set(local_services)
         self.worker_id = worker_id
+        self.coordinator_url = coordinator_url
 
         # Finger cache: service -> {worker_info, timestamp}
         self.finger_cache: Dict[str, Dict[str, Any]] = {}
@@ -52,11 +54,13 @@ class DHTRouter:
             "cache_hits": 0,
             "cache_misses": 0,
             "dht_lookups": 0,
+            "http_lookups": 0,
             "failed_requests": 0
         }
 
         logger.info(f"DHT Router initialized for {worker_id}")
         logger.info(f"   Local services: {list(self.local_services)}")
+        logger.info(f"   Coordinator URL: {coordinator_url or 'None (DHT only)'}")
 
     async def route_request(
         self,
@@ -174,7 +178,9 @@ class DHTRouter:
 
     async def _find_service_workers(self, service_type: str) -> List[Dict[str, Any]]:
         """
-        Find workers offering a service via DHT
+        Find workers offering a service via DHT or HTTP
+
+        Tries DHT first (P2P), falls back to HTTP-based service discovery
 
         Args:
             service_type: Service to find
@@ -182,18 +188,47 @@ class DHTRouter:
         Returns:
             List of worker info dictionaries
         """
-        if not self.dht or not self.dht.is_running:
-            logger.warning("DHT not available")
-            return []
+        # Try DHT first (if available)
+        if self.dht and self.dht.is_running:
+            try:
+                workers = await self.dht.find_service_workers(service_type)
+                if workers:
+                    logger.info(f"✅ DHT lookup: Found {len(workers)} workers for {service_type}")
+                    self.stats["dht_lookups"] += 1
+                    return workers
+                else:
+                    logger.warning(f"DHT lookup returned no workers for {service_type}")
+            except Exception as e:
+                logger.warning(f"DHT lookup failed: {e}, trying HTTP fallback...")
 
-        try:
-            workers = await self.dht.find_service_workers(service_type)
-            logger.info(f"Found {len(workers)} workers for {service_type}")
-            return workers
+        # Fallback to HTTP-based service discovery via coordinator
+        if self.coordinator_url:
+            try:
+                logger.info(f"Using HTTP service discovery for {service_type}")
+                self.stats["http_lookups"] += 1
 
-        except Exception as e:
-            logger.error(f"DHT lookup failed: {e}")
-            return []
+                async with httpx.AsyncClient(timeout=10) as client:
+                    response = await client.get(
+                        f"{self.coordinator_url}/api/services/discover/{service_type}"
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+
+                    workers = data.get("workers", [])
+                    logger.info(f"✅ HTTP lookup: Found {len(workers)} workers for {service_type}")
+                    return workers
+
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 503:
+                    logger.warning(f"No healthy workers found for {service_type}")
+                else:
+                    logger.error(f"HTTP service discovery failed: {e}")
+            except Exception as e:
+                logger.error(f"HTTP service discovery error: {e}")
+        else:
+            logger.warning("No coordinator URL configured for HTTP fallback")
+
+        return []
 
     def _select_best_worker(
         self,

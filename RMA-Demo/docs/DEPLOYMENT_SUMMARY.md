@@ -1,10 +1,18 @@
-# RMA-Demo Local Deployment Summary
+# RMA-Demo Deployment Summary
+
+**Last Updated:** 2025-12-09
 
 ## ✅ Deployment Status: SUCCESS
 
-All services are running with local document parsing using LLaVA vision models.
+Two deployment modes available:
 
-### Services Overview
+### 1. Local/Monolithic Deployment ✅
+All services running on single node with local document parsing using LLaVA vision models.
+
+### 2. Distributed Worker Deployment ✅ NEW
+VPN mesh + service routing with Cloudflare Worker gateway for distributed GPU/CPU/Storage workers.
+
+### Local Services Overview
 
 | Service | Port | Status | Description |
 |---------|------|--------|-------------|
@@ -16,6 +24,24 @@ All services are running with local document parsing using LLaVA vision models.
 | Client RAG Service | 8104 | ✅ Running | Client-specific RAG |
 | ChromaDB | 8005 | ✅ Running | Vector database (v0.4.24) |
 | Ollama | 11434 | ✅ Running | Local LLM service |
+
+### Distributed Worker Services (NEW)
+
+| Service | Port | Status | Description |
+|---------|------|--------|-------------|
+| Cloudflare Gateway | 443 | ✅ Implemented | Edge gateway (100k req/day free) |
+| Local Coordinator | 8080 | ✅ Running | Service registry & routing |
+| Universal Worker | 8000 | ✅ Running | GPU/CPU/Storage services |
+| DHT Bootstrap | 8468 | ⚠️ UDP Issue | Kademlia DHT (documented) |
+| VPN Mesh (Nebula) | 4242 | ✅ Implemented | Encrypted P2P network |
+
+**Architecture:**
+```
+Frontend → Cloudflare Worker Gateway → Coordinator → Workers (VPN mesh)
+```
+
+**Cost:** $0/month (free tier)
+**Performance:** ~30ms overhead (gateway + tunnel + routing)
 
 ### Configuration
 

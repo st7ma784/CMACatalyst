@@ -1,8 +1,28 @@
 # Frontend Deployment Instructions
 
 ## Current Status
-✅ **Build Complete**: Frontend successfully built with worker deployment documentation
+✅ **Build Complete**: Frontend with distributed worker gateway architecture
 📍 **Build Location**: `/data/CMACatalyst/RMA-Demo/frontend/out`
+🌐 **Gateway**: Cloudflare Worker (free tier, 100k req/day)
+
+## System Architecture (Updated 2025-12-09)
+
+```
+Frontend (rmatool.org.uk)
+    ↓ HTTPS
+Cloudflare Worker Gateway (free tier)
+    ↓ HTTPS (via Cloudflare Tunnel)
+Coordinator (local-coordinator)
+    ↓ HTTP (internal worker-mesh network)
+Workers (distributed GPU/CPU/Storage nodes)
+```
+
+**Key Features:**
+- Zero KV storage usage (no quota concerns)
+- $0/month operational cost
+- 100k requests/day on free tier
+- Automatic CORS handling
+- Simple reverse proxy (86 lines of code)
 
 ## Deployment Options
 
@@ -93,16 +113,69 @@ After deployment, verify the new documentation is visible:
    - Environment variables reference
    - Troubleshooting guide
 
+## Gateway Deployment (Required)
+
+The frontend requires the Cloudflare Worker gateway to access backend services.
+
+### Deploy Cloudflare Worker Gateway
+
+```bash
+cd /home/user/CMACatalyst/RMA-Demo/services/cloudflare-gateway
+
+# Install Wrangler (if not already installed)
+npm install -g wrangler
+
+# Login to Cloudflare
+wrangler login
+
+# Set coordinator URL as secret
+wrangler secret put COORDINATOR_URL
+# When prompted, enter your coordinator's tunnel URL
+
+# Deploy gateway
+wrangler deploy
+
+# Output will show your worker URL:
+# https://rma-gateway.<your-subdomain>.workers.dev
+```
+
+### Update Frontend API Configuration
+
+After deploying the gateway, update your frontend to use the gateway URL:
+
+```typescript
+// frontend/src/config.ts or environment variables
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://rma-gateway.<your-subdomain>.workers.dev'  // Production
+  : 'http://localhost:8080';  // Development
+```
+
+### Test Gateway Connection
+
+```bash
+# Test health endpoint
+curl https://rma-gateway.<your-subdomain>.workers.dev/health
+
+# Expected response:
+{
+  "status": "healthy",
+  "coordinator": "local-fastapi",
+  "workers": {...}
+}
+```
+
+See `/services/cloudflare-gateway/README.md` for complete deployment guide.
+
 ## Next Steps
 
-After frontend is deployed:
+After frontend and gateway are deployed:
 
-1. ✅ Users can now see how to deploy distributed workers
-2. ✅ Clear instructions for getting Cloudflare credentials
-3. ✅ Multiple deployment examples for different scenarios
-4. ⚠️ Wait for GitHub Actions to finish building new worker image
-5. ⚠️ Test worker deployment with managed tunnels
-6. ⚠️ Verify end-to-end service proxy across cities
+1. ✅ Frontend can access distributed workers via gateway
+2. ✅ Zero KV quota usage (simple reverse proxy)
+3. ✅ Free tier compatible (100k requests/day)
+4. ⚠️ Test complete request flow through gateway
+5. ⚠️ Monitor gateway performance (Cloudflare dashboard)
+6. ⚠️ Optional: Add custom domain (api.rmatool.org.uk)
 
 ## Build Details
 

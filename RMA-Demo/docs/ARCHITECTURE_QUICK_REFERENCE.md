@@ -1,6 +1,36 @@
 # RMA System - Quick Reference Architecture
 
+**Last Updated:** 2025-12-09 (Added Distributed Worker Gateway)
+
+## System Architectures
+
+### Local/Monolithic Architecture
+
+Traditional single-node deployment with all services on one machine.
+
+### Distributed Worker Architecture (NEW)
+
+```
+Frontend (rmatool.org.uk)
+    ↓ HTTPS
+Cloudflare Worker Gateway (free tier, 100k req/day)
+    ↓ HTTPS (via Cloudflare Tunnel)
+Local Coordinator (FastAPI)
+    ↓ HTTP (internal worker-mesh network)
+┌─────────────┬─────────────┬─────────────┐
+Worker 1      Worker 2      Worker N
+(GPU)         (CPU)         (Storage)
+```
+
+**Gateway Features:**
+- Zero KV storage usage
+- $0/month cost (free tier)
+- Automatic CORS handling
+- Simple reverse proxy (86 lines)
+
 ## Service Ports Quick Reference
+
+### Local Services
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -16,7 +46,19 @@
 | Ollama | 11434 | LLM service (GPU) |
 | Nginx | 80/443 | Reverse proxy |
 
+### Distributed Worker Services (NEW)
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Local Coordinator | 8080 | Service registry, worker health, routing |
+| Cloudflare Gateway | 443 | Edge gateway (Cloudflare Worker) |
+| Universal Worker | 8000 | GPU/CPU/Storage services |
+| DHT Node | 8468 | Kademlia DHT (UDP) |
+| VPN (Nebula) | 4242 | Encrypted P2P mesh |
+
 ## Service Communication Matrix
+
+### Local Architecture
 
 | From → To | Protocol | Purpose |
 |-----------|----------|---------|
@@ -31,6 +73,18 @@
 | Doc Processor → Ollama | HTTP/REST | Vision analysis |
 | Notes Service → ChromaDB | HTTP/REST | Vector operations |
 | Notes Service → Ollama | HTTP/REST | Embeddings, answers |
+
+### Distributed Worker Architecture (NEW)
+
+| From → To | Protocol | Purpose |
+|-----------|----------|---------|
+| Frontend → Cloudflare Gateway | HTTPS | Service requests |
+| Cloudflare Gateway → Coordinator | HTTPS (tunnel) | Forwarded requests |
+| Coordinator → Worker | HTTP (internal) | Service proxy |
+| Worker → Worker | HTTP (mesh) | Service forwarding |
+| Worker → Coordinator | HTTP | Heartbeat, registration |
+| Worker → DHT Bootstrap | UDP | Network discovery |
+| Worker → Worker (VPN) | Nebula/UDP | Encrypted P2P |
 
 ## Service Dependency Graph
 
@@ -78,6 +132,34 @@
 ```
 
 ## Critical Paths
+
+### Distributed Worker Request Flow (NEW)
+
+**Frontend → Service → Worker (via Gateway)**
+
+**Time: ~100-200ms (overhead ~30ms)**
+
+```
+User makes request (e.g., POST /service/llm/generate)
+    ↓ (5ms) Edge processing
+Cloudflare Worker Gateway
+    ↓ (20ms) Tunnel to coordinator
+Coordinator (Service Proxy)
+    ↓ (5ms) Service lookup + worker selection
+Coordinator → Worker HTTP forward
+    ↓ (50-5000ms) Service processing (varies by service)
+Worker processes request
+    ↓ Response flows back through chain
+User receives response
+```
+
+**Performance Breakdown:**
+- Cloudflare Worker: ~5ms
+- Tunnel: ~20ms
+- Coordinator routing: ~5ms
+- **Total overhead: ~30ms** (13% for a 200ms service)
+
+### Local Architecture Request Flow
 
 ### 1. Document Upload → Search (Happy Path)
 

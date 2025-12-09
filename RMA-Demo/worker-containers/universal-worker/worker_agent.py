@@ -706,8 +706,9 @@ class UniversalWorkerAgent:
         """Register worker and receive service assignments"""
         logger.info("📝 Registering with coordinator...")
 
-        # Use tunnel URL directly without IP resolution
-        tunnel_url = self.tunnel_url or f"http://{socket.gethostname()}:8000"
+        # Use worker_id as hostname (resolvable on Docker network)
+        # Fallback to socket.gethostname() if tunnel_url not set
+        tunnel_url = self.tunnel_url or f"http://{self.worker_id}:8000"
 
         registration_data = {
             "worker_id": self.worker_id,  # Include worker_id (coordinator may reassign it)
@@ -824,11 +825,12 @@ class UniversalWorkerAgent:
             self.dht_router = DHTRouter(
                 dht_node=self.dht_client.node,
                 local_services=self.assigned_services,
-                worker_id=self.worker_id
+                worker_id=self.worker_id,
+                coordinator_url=os.getenv("COORDINATOR_URL", "http://host.docker.internal:8080")
             )
 
             logger.info("✅ DHT initialized and worker registered")
-            logger.info(f"✅ DHT router ready for request forwarding")
+            logger.info(f"✅ DHT router ready with HTTP fallback for service discovery")
 
         except Exception as e:
             logger.warning(f"DHT initialization failed: {e}")

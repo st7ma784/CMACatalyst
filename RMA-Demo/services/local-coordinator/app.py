@@ -559,6 +559,74 @@ async def list_services():
     }
 
 
+@app.get("/api/services/discover/{service_type}")
+async def discover_service(service_type: str):
+    """
+    HTTP-based service discovery (DHT UDP workaround)
+    Returns list of healthy workers providing a specific service
+    """
+    worker_ids = services.get(service_type, [])
+
+    # Filter for healthy workers only
+    healthy_providers = []
+    for worker_id in worker_ids:
+        if worker_id in workers and is_worker_healthy(workers[worker_id]):
+            worker = workers[worker_id]
+            healthy_providers.append({
+                "worker_id": worker_id,
+                "tunnel_url": worker.get("tunnel_url", ""),
+                "vpn_ip": worker.get("vpn_ip"),  # If available
+                "capabilities": worker.get("capabilities", {}),
+                "load": worker.get("load", 0.0),
+                "last_heartbeat": worker.get("last_heartbeat")
+            })
+
+    if not healthy_providers:
+        raise HTTPException(
+            status_code=503,
+            detail=f"No healthy workers found for service: {service_type}"
+        )
+
+    # Sort by load (lowest first) for basic load balancing
+    healthy_providers.sort(key=lambda w: w.get("load", 0.0))
+
+    return {
+        "service": service_type,
+        "workers": healthy_providers,
+        "count": len(healthy_providers),
+        "recommended": healthy_providers[0]["worker_id"] if healthy_providers else None
+    }
+
+
+@app.get("/api/services/list")
+async def list_available_services():
+    """
+    List all services with at least one healthy worker
+    Used for service discovery instead of DHT
+    """
+    available_services = {}
+
+    for service_name, worker_ids in services.items():
+        healthy_count = sum(
+            1 for wid in worker_ids
+            if wid in workers and is_worker_healthy(workers[wid])
+        )
+
+        if healthy_count > 0:
+            available_services[service_name] = {
+                "name": service_name,
+                "healthy_workers": healthy_count,
+                "tier": SERVICE_CATALOG.get(service_name, {}).get("tier", 0),
+                "requires": SERVICE_CATALOG.get(service_name, {}).get("requires", "unknown")
+            }
+
+    return {
+        "services": available_services,
+        "total_available": len(available_services),
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 @app.get("/api/admin/gaps")
 async def analyze_service_gaps():
     """Analyze which services need more workers"""
